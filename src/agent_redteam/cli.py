@@ -30,14 +30,26 @@ def main(argv: list[str] | None = None) -> int:
                         help="总分低于此值则返回 exit 1 (CI 集成用)")
     p_scan.add_argument("--limit", type=int, default=0, help="每套件最多跑 N 条样本 (调试用)")
     p_scan.add_argument("--tui", action="store_true", help="启动 Textual 实时界面")
+    p_scan.add_argument("--serve", action="store_true", help="扫描完成后启动 Web Dashboard")
+    p_scan.add_argument("--port", type=int, default=7878, help="Dashboard 端口")
 
     # list command
     sub.add_parser("list", help="列出可用的攻击套件")
+
+    # serve command
+    p_serve = sub.add_parser("serve", help="启动 Web Dashboard")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=7878)
+    p_serve.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
 
     args = parser.parse_args(argv)
 
     if args.command == "list":
         return _cmd_list()
+    elif args.command == "serve":
+        from .dashboard import serve_dashboard
+        serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
+        return 0
     elif args.command == "scan":
         return _cmd_scan(args)
     return 1
@@ -113,6 +125,12 @@ def _cmd_scan(args) -> int:
         print(render_json(report))
     else:
         render_report(report)
+
+    # Serve dashboard after scan
+    if args.serve:
+        from .dashboard import serve_dashboard
+        print(f"\n  Starting Dashboard with scan results...")
+        serve_dashboard(report=report, port=args.port)
 
     # CI gate
     if args.fail_below > 0 and report.overall_score < args.fail_below:
