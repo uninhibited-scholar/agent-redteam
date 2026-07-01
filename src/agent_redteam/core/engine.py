@@ -51,6 +51,10 @@ class Engine:
             if suite is None:
                 continue
             samples = suite.load_samples()
+            # Apply per-suite limit (for debugging/testing)
+            limit = getattr(suite, "_limit", 0)
+            if limit and limit > 0:
+                samples = samples[:limit]
             sr = SuiteResult(name=name)
             for s in samples:
                 s["_suite"] = name
