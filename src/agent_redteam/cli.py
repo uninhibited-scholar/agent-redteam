@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--fail-below", type=float, default=0, metavar="SCORE",
                         help="总分低于此值则返回 exit 1 (CI 集成用)")
     p_scan.add_argument("--limit", type=int, default=0, help="每套件最多跑 N 条样本 (调试用)")
+    p_scan.add_argument("--tui", action="store_true", help="启动 Textual 实时界面")
 
     # list command
     sub.add_parser("list", help="列出可用的攻击套件")
@@ -74,6 +75,15 @@ def _cmd_scan(args) -> int:
 
     # Determine suites
     suites = [s.strip() for s in args.suites.split(",") if s.strip()] or None
+
+    # TUI mode
+    if args.tui:
+        from .tui import run_tui, TEXTUAL_AVAILABLE
+        if not TEXTUAL_AVAILABLE:
+            print("TUI 需要 textual。请安装: pip install agent-redteam[tui]")
+            return 2
+        run_tui(target=target, suites=suites, max_workers=args.workers)
+        return 0
 
     # Progress callback
     total_done = [0]
