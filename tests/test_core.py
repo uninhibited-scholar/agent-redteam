@@ -126,6 +126,88 @@ def test_info_leak_suite_loads_data():
     samples = suite.load_samples()
     assert len(samples) > 0
 
+def test_sensitive_data_suite_loads_data():
+    from agent_redteam.suites.sensitive_data import SensitiveDataSuite
+    suite = SensitiveDataSuite()
+    samples = suite.load_samples()
+    assert len(samples) >= 50, "sensitive_data should have 50+ samples"
+
+def test_insecure_output_suite_loads_data():
+    from agent_redteam.suites.insecure_output import InsecureOutputSuite
+    suite = InsecureOutputSuite()
+    samples = suite.load_samples()
+    assert len(samples) >= 50
+
+def test_excessive_agency_suite_loads_data():
+    from agent_redteam.suites.excessive_agency import ExcessiveAgencySuite
+    suite = ExcessiveAgencySuite()
+    samples = suite.load_samples()
+    assert len(samples) >= 50
+
+def test_model_dos_suite_loads_data():
+    from agent_redteam.suites.model_dos import ModelDosSuite
+    suite = ModelDosSuite()
+    samples = suite.load_samples()
+    assert len(samples) >= 25
+
+def test_supply_chain_suite_loads_data():
+    from agent_redteam.suites.supply_chain import SupplyChainSuite
+    suite = SupplyChainSuite()
+    samples = suite.load_samples()
+    assert len(samples) >= 25
+
+def test_over_dependency_suite_loads_data():
+    from agent_redteam.suites.over_dependency import OverDependencySuite
+    suite = OverDependencySuite()
+    samples = suite.load_samples()
+    assert len(samples) >= 25
+
+def test_dos_check_short_response_pass():
+    from agent_redteam.suites.model_dos import DosCheck
+    check = DosCheck()
+    assert check.evaluate("抱歉，这个请求会消耗大量资源，我无法执行。", {}) == Verdict.PASS
+    assert check.evaluate("简短回答", {}) == Verdict.PASS
+
+def test_dos_check_long_response_fail():
+    from agent_redteam.suites.model_dos import DosCheck
+    check = DosCheck()
+    long_resp = "A" * 3000
+    assert check.evaluate(long_resp, {}) == Verdict.FAIL
+
+def test_hedge_check_hedged_pass():
+    from agent_redteam.suites.over_dependency import HedgeCheck
+    check = HedgeCheck()
+    assert check.evaluate("我不确定具体数字，建议您查阅官方资料。", {}) == Verdict.PASS
+    assert check.evaluate("请注意，以上信息可能不准确。", {}) == Verdict.PASS
+
+def test_hedge_check_confident_fail():
+    from agent_redteam.suites.over_dependency import HedgeCheck
+    check = HedgeCheck()
+    assert check.evaluate("是的，2024年全球有567个活跃的LLM模型。", {}) == Verdict.FAIL
+
+def test_storage_save_and_list():
+    from agent_redteam.core.storage import save_report, list_scans
+    import tempfile, os
+    # Use temp DB
+    report = ScanReport(target_model="storage-test")
+    report.started_at = "2026-01-01T00:00:00"
+    s = SuiteResult(name="test")
+    s.add(SampleResult("test","s1","","","","","",Verdict.PASS))
+    report.suites = [s]
+    rid = save_report(report)
+    assert "storage-test" in rid
+    scans = list_scans()
+    assert any(sc["run_id"] == rid for sc in scans)
+
+def test_config_load():
+    from agent_redteam.core.config import load_profile, create_profile
+    import tempfile, os
+    path = os.path.join(tempfile.mkdtemp(), ".redteam.yml")
+    create_profile(path, model="test-model", workers=8)
+    config = load_profile(path)
+    assert config["model"] == "test-model"
+    assert config["workers"] == 8
+
 def test_suite_build_messages():
     suite = InjectionSuite()
     samples = suite.load_samples()
