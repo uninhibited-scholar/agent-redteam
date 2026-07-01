@@ -45,10 +45,23 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--port", type=int, default=7878)
     p_serve.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
 
+    # history command
+    p_hist = sub.add_parser("history", help="查看历史扫描记录")
+    p_hist.add_argument("--limit", type=int, default=20, help="显示条数")
+
+    # compare command
+    p_cmp = sub.add_parser("compare", help="对比两次扫描结果")
+    p_cmp.add_argument("run_a", help="第一次扫描的 run_id")
+    p_cmp.add_argument("run_b", help="第二次扫描的 run_id")
+
     args = parser.parse_args(argv)
 
     if args.command == "list":
         return _cmd_list()
+    elif args.command == "history":
+        return _cmd_history(args)
+    elif args.command == "compare":
+        return _cmd_compare(args)
     elif args.command == "serve":
         from .dashboard import serve_dashboard
         serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
@@ -152,6 +165,13 @@ def _cmd_scan(args) -> int:
     if ws_state:
         ws_state.emit_scan_done(report)
 
+    # Save to database
+    try:
+        from .core.storage import save_report
+        run_id = save_report(report)
+    except Exception:
+        run_id = "unknown"
+
     # Output (only for non-serve mode; serve mode shows in browser)
     if not args.serve:
         if args.format == "json":
@@ -176,6 +196,53 @@ def _cmd_scan(args) -> int:
         print(f"\n❌ Score {report.overall_score} below threshold {args.fail_below}")
         return 1
 
+    return 0
+
+
+def _cmd_history(args) -> int:
+    from .core.storage import list_scans
+    scans = list_scans(limit=args.limit)
+    if not scans:
+        print("  暂无历史扫描记录")
+        return 0
+
+    print(f"\n  历史扫描记录 ({len(scans)} 条):\n")
+    print(f"  {'Run ID':<35} {'Model':<20} {'Score':>6} {'P/F':>10} {'Date':<20}")
+    print(f"  {'─'*35} {'─'*20} {'─'*6} {'─'*10} {'─'*20}")
+    for s in scans:
+        pf = f"{s['total_passed']}/{s['total_passed']+s['total_failed']}"
+        sc = "\033[92m" if s["overall_score"] >= 80 else "\033[93m" if s["overall_score"] >= 50 else "\033[91m"
+        print(f"  {s['run_id']:<35} {s['target_model']:<20} {sc}{s['overall_score']:>6.1f}\033[0m {pf:>10} {s['created_at']:<20}")
+    print()
+    return 0
+
+
+def _cmd_compare(args) -> int:
+    from .core.storage import compare_reports
+    result = compare_reports(args.run_a, args.run_b)
+    if not result:
+        print(f"  找不到扫描记录: {args.run_a} 或 {args.run_b}")
+        print(f"  运行 'agent-redteam history' 查看可用记录")
+        return 1
+
+    print(f"\n  ╔══════════════════════════════════════════════════╗")
+    print(f"  ║          Scan Comparison Report                  ║")
+    print(f"  ╠══════════════════════════════════════════════════╣")
+    print(f"  ║  A: {result['model_a']:<16} Score: {result['score_a']:>5.1f}              ║")
+    delta = result['score_delta']
+    dc = "\033[92m" if delta > 0 else "\033[91m" if delta < 0 else ""
+    print(f"  ║  B: {result['model_b']:<16} Score: {result['score_b']:>5.1f}              ║")
+    print(f"  ║  Delta: {dc}{delta:+.1f}\033[0m{'':>37}║")
+    print(f"  ╠══════════════════════════════════════════════════╣")
+
+    for s in result["suites"]:
+        d = s["delta"]
+        c = "\033[92m" if d > 0 else "\033[91m" if d < 0 else "\033[0m"
+        line = f"  ║  {s['suite']:<16} {s['score_a']:>5.1f} -> {s['score_b']:>5.1f}  {c}{s['trend']} {d:+.1f}\033[0m"
+        pad = 52 - len(line) + len(c) * 5 + 5  # approximate padding
+        print(f"{line}{' ' * max(1, pad)}║")
+
+    print(f"  ╚══════════════════════════════════════════════════╝\n")
     return 0
 
 
