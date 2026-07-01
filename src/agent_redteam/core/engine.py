@@ -46,6 +46,12 @@ class Engine:
             started_at=datetime.datetime.now().isoformat(timespec="seconds"),
         )
 
+        # Checkpoint support
+        from .checkpoint import Checkpoint, make_scan_id
+        scan_id = make_scan_id(report.target_model, suite_names)
+        cp = Checkpoint(scan_id)
+        done_ids = cp.done_ids()
+
         for name in suite_names:
             suite = self._suites.get(name)
             if suite is None:
@@ -56,16 +62,52 @@ class Engine:
             if limit and limit > 0:
                 samples = samples[:limit]
             sr = SuiteResult(name=name)
+
+            # Wrap on_result to also save to checkpoint
+            def cp_callback(r: SampleResult, _orig=on_result):
+                cp.save(r)
+                if _orig:
+                    _orig(r)
+
             for s in samples:
+                s["_suite"] = name
+
+            # Restore results from checkpoint for already-done samples
+            for s in samples:
+                sid = s.get("id", "")
+                if sid in done_ids:
+                    cached = cp._cache.get(sid)
+                    if cached:
+                        verdict = Verdict(cached.get("verdict", "error"))
+                        r = SampleResult(
+                            suite=name, sample_id=sid,
+                            category=s.get("category", ""),
+                            difficulty=s.get("difficulty", ""),
+                            question=s.get("question", s.get("context", s.get("text", ""))),
+                            expected=cached.get("expected", ""),
+                            response=cached.get("response", ""),
+                            verdict=verdict,
+                            severity=s.get("severity", cached.get("severity", "medium")),
+                            owasp=s.get("owasp", cached.get("owasp", "")),
+                            tags=s.get("tags", cached.get("tags", [])),
+                        )
+                        sr.add(r)
+                        if on_result:
+                            on_result(r)
+                        continue
+
+            # Filter out done samples for actual execution
+            todo = [s for s in samples if s.get("id", "") not in done_ids]
+            for s in todo:
                 s["_suite"] = name
 
             harness = Harness(
                 target=self.target,
-                samples=samples,
+                samples=todo,
                 build_messages=suite.build_messages,
                 check=suite.check,
                 max_workers=self.max_workers,
-                on_result=on_result,
+                on_result=cp_callback if todo else None,
             )
             results = harness.run()
             for r in results:
@@ -73,6 +115,7 @@ class Engine:
             report.suites.append(sr)
 
         report.finished_at = datetime.datetime.now().isoformat(timespec="seconds")
+        cp.complete()  # Archive checkpoint on successful completion
         return report
 
     def _register_builtin_suites(self) -> None:
