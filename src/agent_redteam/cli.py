@@ -5,6 +5,7 @@ import argparse, os, sys
 from .core.engine import Engine
 from .targets import OpenAITarget, ClaudeTarget, LocalTarget
 from .report import render_report, render_json
+from . import __version__
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -12,12 +13,14 @@ def main(argv: list[str] | None = None) -> int:
         prog="agent-redteam",
         description="AI Agent 红队安全测试平台 — 在发布前给你的 agent 跑安全扫描",
     )
+    parser.add_argument("--version", action="version", version=f"agent-redteam {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     # scan command
     p_scan = sub.add_parser("scan", help="对一个 agent 目标跑红队扫描")
     p_scan.add_argument("--model", required=True, help="模型 ID (如 gpt-4o, glm-4-plus)")
-    p_scan.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"))
+    p_scan.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+                        help="API base URL (默认: OpenAI；智谱用 https://open.bigmodel.cn/api/paas/v4)")
     p_scan.add_argument("--key", default=os.environ.get("OPENAI_API_KEY", ""), help="API key")
     p_scan.add_argument("--target", choices=["openai", "claude", "local"], default="openai",
                         help="目标类型 (默认: openai 兼容)")
