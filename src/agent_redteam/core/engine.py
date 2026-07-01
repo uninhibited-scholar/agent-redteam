@@ -76,24 +76,11 @@ class Engine:
         return report
 
     def _register_builtin_suites(self) -> None:
-        """Auto-register the four built-in suites."""
-        try:
-            from ..suites.injection import InjectionSuite
-            self._suites["injection"] = InjectionSuite()
-        except Exception:
-            pass
-        try:
-            from ..suites.tool_abuse import ToolAbuseSuite
-            self._suites["tool_abuse"] = ToolAbuseSuite()
-        except Exception:
-            pass
-        try:
-            from ..suites.over_refusal import OverRefusalSuite
-            self._suites["over_refusal"] = OverRefusalSuite()
-        except Exception:
-            pass
-        try:
-            from ..suites.info_leak import InfoLeakSuite
-            self._suites["info_leak"] = InfoLeakSuite()
-        except Exception:
-            pass
+        """Auto-register all built-in suites from ALL_SUITES."""
+        from ..suites import ALL_SUITES
+        for SuiteClass in ALL_SUITES:
+            try:
+                suite = SuiteClass()
+                self._suites[suite.name] = suite
+            except Exception:
+                pass
