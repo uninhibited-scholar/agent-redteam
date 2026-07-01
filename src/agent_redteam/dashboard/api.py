@@ -1,9 +1,10 @@
 """Dashboard backend — embedded HTTP server + WebSocket for the React frontend.
 
-Zero core dependencies (Python stdlib http.server + threading).
+Zero core dependencies (Python stdlib only).
 Serves the built SPA from dashboard/static/ and provides:
   GET  /api/report   — last scan report as JSON
   GET  /api/suites   — available suites
+  GET  /api/health   — health check
   WS   /ws           — real-time telemetry during scan
 """
 from __future__ import annotations
@@ -12,40 +13,65 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from urllib.parse import urlparse
 
-from ..core.result import ScanReport
+from ..core.result import ScanReport, SampleResult
+from .server import (
+    TelemetryBroadcaster, WebSocketClient,
+    perform_ws_handshake, handle_ws_connection,
+)
 
 
 class DashboardState:
     """Shared state between HTTP handler and scan worker."""
     def __init__(self):
         self.report: ScanReport | None = None
-        self.report_json: str = "{}"
-        self.ws_clients: list = []
-        self.lock = threading.Lock()
+        self.report_json: str = '{"suites": [], "samples": []}'
+        self.scanning = False
+        self.broadcaster = TelemetryBroadcaster()
 
     def set_report(self, report: ScanReport):
-        with self.lock:
-            self.report = report
-            self.report_json = json.dumps(report.to_dict(), ensure_ascii=False)
+        self.report = report
+        # Build full JSON with samples
+        data = report.to_dict()
+        data["samples"] = []
+        for suite in report.suites:
+            for s in suite.samples:
+                d = s.to_dict()
+                data["samples"].append(d)
+        self.report_json = json.dumps(data, ensure_ascii=False)
 
-    def broadcast(self, msg: dict):
-        """Broadcast a message to all WebSocket clients (simplified)."""
-        data = json.dumps(msg, ensure_ascii=False)
-        # In a real impl this would write to WS frames; for now we store events
-        # that the frontend polls or we use a proper WS handler.
+    def emit_sample(self, sample: SampleResult):
+        """Broadcast a sample result to all WS clients."""
+        self.broadcaster.broadcast({
+            "type": "sample_result",
+            "data": sample.to_dict(),
+        })
+
+    def emit_scan_started(self, suites: list[str]):
+        self.scanning = True
+        self.broadcaster.broadcast({
+            "type": "scan_started",
+            "data": {"suites": suites},
+        })
+
+    def emit_scan_done(self, report: ScanReport):
+        self.scanning = False
+        self.set_report(report)
+        self.broadcaster.broadcast({
+            "type": "scan_done",
+            "data": report.to_dict(),
+        })
 
 
 _state = DashboardState()
 
 
 def get_static_dir() -> str:
-    """Find the dashboard static directory."""
     here = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(here, "static")
 
 
 class DashboardHandler(SimpleHTTPRequestHandler):
-    """Serves static files + JSON API endpoints."""
+    """Serves static files + JSON API + WebSocket upgrade."""
 
     def __init__(self, *args, **kwargs):
         static_dir = get_static_dir()
@@ -54,6 +80,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
 
+        # WebSocket upgrade
+        if parsed.path == "/ws":
+            if perform_ws_handshake(self):
+                handle_ws_connection(self)
+            return
+
+        # API endpoints
         if parsed.path == "/api/report":
             self._json_response(_state.report_json)
         elif parsed.path == "/api/suites":
@@ -63,9 +96,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                     suites.append({"name": s.name, "total": s.total, "score": s.score})
             self._json_response(json.dumps({"suites": suites}, ensure_ascii=False))
         elif parsed.path == "/api/health":
-            self._json_response('{"status":"ok"}')
+            self._json_response('{"status":"ok","scanning":%s}' % ("true" if _state.scanning else "false"))
         else:
-            # SPA fallback: serve index.html for unknown routes
+            # SPA fallback
             if "." not in os.path.basename(parsed.path):
                 self.path = "/index.html"
             super().do_GET()
@@ -78,11 +111,12 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body.encode("utf-8"))
 
     def log_message(self, *args):
-        pass  # Suppress default logging
+        pass
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
+    allow_reuse_address = True
 
 
 def serve_dashboard(
@@ -91,14 +125,7 @@ def serve_dashboard(
     port: int = 7878,
     open_browser: bool = True,
 ) -> None:
-    """Start the dashboard server.
-
-    Args:
-        report: Optional pre-computed scan report to display
-        host: Bind address
-        port: Port (default 7878)
-        open_browser: Auto-open browser
-    """
+    """Start the dashboard server with WebSocket support."""
     if report:
         _state.set_report(report)
 
@@ -108,10 +135,12 @@ def serve_dashboard(
         print("Build the frontend first: cd web && npm run build")
         return
 
+    # Use DashboardHandler directly (WS handled in do_GET)
     server = ThreadedHTTPServer((host, port), DashboardHandler)
     url = f"http://{host}:{port}"
 
-    print(f"\n  Agent Redteam Dashboard running at {url}\n")
+    print(f"\n  ⬡ Agent Redteam Dashboard running at {url}")
+    print(f"  WebSocket telemetry at ws://{host}:{port}/ws")
     print(f"  Press Ctrl+C to stop.\n")
 
     if open_browser:

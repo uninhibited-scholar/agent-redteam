@@ -99,11 +99,19 @@ def _cmd_scan(args) -> int:
 
     # Progress callback
     total_done = [0]
+    ws_state = None
+    if args.serve:
+        from .dashboard import _state as ws_state
+
     def on_result(r):
         total_done[0] += 1
-        mark = "✅" if r.verdict.value == "pass" else "❌" if r.verdict.value == "fail" else "⚠️"
-        sys.stderr.write(f"\r  {mark} [{total_done[0]}] {r.suite}/{r.sample_id}           ")
-        sys.stderr.flush()
+        if ws_state:
+            # Push to WebSocket clients
+            ws_state.emit_sample(r)
+        else:
+            mark = "✅" if r.verdict.value == "pass" else "❌" if r.verdict.value == "fail" else "⚠️"
+            sys.stderr.write(f"\r  {mark} [{total_done[0]}] {r.suite}/{r.sample_id}           ")
+            sys.stderr.flush()
 
     # Run scan
     engine = Engine(target, max_workers=args.workers)
@@ -117,20 +125,48 @@ def _cmd_scan(args) -> int:
         for suite in engine._suites.values():
             suite._limit = args.limit
 
-    report = engine.scan(suites=suites, on_result=on_result)
-    sys.stderr.write("\r" + " " * 60 + "\r")  # clear progress line
-
-    # Output
-    if args.format == "json":
-        print(render_json(report))
-    else:
-        render_report(report)
-
-    # Serve dashboard after scan
+    # If --serve, start dashboard server FIRST (in background) so LiveScan works
     if args.serve:
         from .dashboard import serve_dashboard
-        print(f"\n  Starting Dashboard with scan results...")
-        serve_dashboard(report=report, port=args.port)
+        # Start server in background thread
+        import threading as _threading
+        server_thread = _threading.Thread(
+            target=lambda: serve_dashboard(
+                host="127.0.0.1", port=args.port, open_browser=True
+            ),
+            daemon=True,
+        )
+        server_thread.start()
+        import time as _time
+        _time.sleep(1)  # Let server boot
+        ws_state.emit_scan_started(suites or engine.list_suites())
+        print(f"  Dashboard running at http://127.0.0.1:{args.port}")
+        print(f"  Scanning... events streaming to LiveScan page\n")
+
+    report = engine.scan(suites=suites, on_result=on_result)
+    sys.stderr.write("\r" + " " * 60 + "\r")
+
+    if ws_state:
+        ws_state.emit_scan_done(report)
+
+    # Output (only for non-serve mode; serve mode shows in browser)
+    if not args.serve:
+        if args.format == "json":
+            print(render_json(report))
+        else:
+            render_report(report)
+
+    if args.serve:
+        print(f"\n  Scan complete. Score: {report.overall_score}/100")
+        print(f"  Dashboard staying open at http://127.0.0.1:{args.port}")
+        print(f"  Press Ctrl+C to stop.\n")
+        try:
+            import time as _time
+            while True:
+                _time.sleep(3600)
+        except KeyboardInterrupt:
+            pass
+        return 0
 
     # CI gate
     if args.fail_below > 0 and report.overall_score < args.fail_below:
