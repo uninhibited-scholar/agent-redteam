@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-redteam"
+version = "0.1.0"
+description = "AI Agent 红队安全测试平台 — 从 CLI 到 Dashboard"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "uninhibited-scholar"}]
+keywords = ["red-team", "agent-security", "prompt-injection", "llm-security", "ai-safety"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+dependencies = []
+
+[project.optional-dependencies]
+tui = ["textual>=0.40.0"]
+dev = ["pytest>=7.0", "pytest-cov"]
+ssl = ["certifi"]
+
+[project.scripts]
+agent-redteam = "agent_redteam.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/uninhibited-scholar/agent-redteam"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_redteam"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"src/agent_redteam/suites" = "agent_redteam/suites"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

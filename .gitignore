@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+.env
+.vscode/
+.idea/
+.DS_Store
+node_modules/
+web/dist/
+*.log
+predictions_*.jsonl
+results/

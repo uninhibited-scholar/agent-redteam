@@ -1,0 +1,49 @@
+"""Suite base class — defines the interface for an attack test suite."""
+from __future__ import annotations
+import os
+from abc import ABC, abstractmethod
+from typing import Callable
+
+
+class Suite(ABC):
+    """An attack test suite.
+
+    Subclasses must define:
+        name — short identifier (e.g. "injection")
+        owasp — OWASP LLM Top 10 mapping (e.g. "LLM01")
+        build_messages(sample) — how to turn a sample into API messages
+        check — a Check instance to evaluate responses
+
+    Data is loaded from data.jsonl in the suite's package directory.
+    """
+
+    name: str = ""
+    owasp: str = ""
+    description: str = ""
+    check = None  # Set by subclass
+
+    def load_samples(self) -> list[dict]:
+        """Load samples from data.jsonl in the suite's directory."""
+        data_dir = os.path.dirname(self.__class__.__module__)
+        # Handle both installed and dev modes
+        import importlib
+        mod = importlib.import_module(self.__class__.__module__)
+        mod_dir = os.path.dirname(getattr(mod, "__file__", __file__))
+        data_path = os.path.join(mod_dir, "data.jsonl")
+
+        samples = []
+        if os.path.exists(data_path):
+            with open(data_path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        samples.append(__import__("json").loads(line))
+        return samples
+
+    @abstractmethod
+    def build_messages(self, sample: dict) -> list[dict]:
+        """Convert a sample into a list of {role, content} messages for the target."""
+        ...
+
+    def __repr__(self) -> str:
+        return f"<Suite {self.name} owasp={self.owasp}>"
