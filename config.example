@@ -1,0 +1,22 @@
+# Agent Redteam scan config
+#
+# Copy this file to ~/.agent-redteam/config and fill in your API key.
+# The key is read ONLY by the local scan engine and is never sent to the
+# frontend, logged, or included in any HTTP response.
+#
+#   cp config.example ~/.agent-redteam/config
+#   (then edit the api_key line)
+#
+# Alternatively, set the OPENAI_API_KEY environment variable — it is used as a
+# fallback when api_key is absent here.
+
+# Your model provider API key. Required to launch scans from the dashboard.
+api_key: <your-key-here>
+
+# Optional defaults — pre-fill the Scan Launcher form.
+model: glm-4-plus
+base_url: https://open.bigmodel.cn/api/paas/v4
+
+# Optional tuning.
+workers: 4
+max_tokens: 500

@@ -7,8 +7,11 @@ import type { ScanReport } from './types'
 import { Overview } from './pages/Overview'
 import { Findings } from './pages/Findings'
 import { LiveScan } from './pages/LiveScan'
+import { ScanLauncher } from './pages/ScanLauncher'
+import { History } from './pages/History'
+import { Compare } from './pages/Compare'
 
-type Page = 'overview' | 'findings' | 'live'
+type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare'
 
 export function App() {
   const [page, setPage] = useState<Page>('overview')
@@ -21,18 +24,42 @@ export function App() {
     style.textContent = globalStyles
     document.head.appendChild(style)
 
-    // Load the last scan report
+    loadLatestReport()
+  }, [])
+
+  const loadLatestReport = () => {
+    setLoading(true)
     fetch('/api/report')
       .then(r => r.json())
       .then(data => { setReport(data); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }
+
+  const loadReport = (runId: string) => {
+    setLoading(true)
+    fetch(`/api/report/${encodeURIComponent(runId)}`)
+      .then(r => r.json())
+      .then(data => { setReport(data); setLoading(false); setPage('overview') })
+      .catch(() => setLoading(false))
+  }
 
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '◈' },
     { id: 'findings', label: 'Findings', icon: '◉' },
+    { id: 'launcher', label: 'Scan', icon: '⚡' },
     { id: 'live', label: 'Live Scan', icon: '◐' },
+    { id: 'history', label: 'History', icon: '▤' },
+    { id: 'compare', label: 'Compare', icon: '⇄' },
   ]
+
+  const subtitles: Record<Page, string> = {
+    overview: 'Security posture overview',
+    findings: 'Detailed vulnerability findings',
+    launcher: 'Launch a new red team scan',
+    live: 'Real-time scan telemetry',
+    history: 'Past scan records',
+    compare: 'Compare two scans side by side',
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
@@ -98,21 +125,25 @@ export function App() {
             Agent Redteam
           </h1>
           <p style={{ fontSize: 13, color: theme.textDim }}>
-            {page === 'overview' && 'Security posture overview'}
-            {page === 'findings' && 'Detailed vulnerability findings'}
-            {page === 'live' && 'Real-time scan telemetry'}
+            {subtitles[page]}
           </p>
         </div>
 
-        {loading ? (
+        {page === 'launcher' ? (
+          <ScanLauncher onScanStarted={() => setPage('live')} />
+        ) : page === 'history' ? (
+          <History onLoad={loadReport} />
+        ) : page === 'compare' ? (
+          <Compare />
+        ) : page === 'live' ? (
+          <LiveScan />
+        ) : loading ? (
           <div style={{
             textAlign: 'center', color: theme.textFaint,
             padding: 80, fontSize: 14,
           }}>
             Loading report...
           </div>
-        ) : page === 'live' ? (
-          <LiveScan />
         ) : report ? (
           page === 'overview' ? (
             <Overview report={report} />
@@ -120,19 +151,33 @@ export function App() {
             <Findings samples={report.samples || []} />
           )
         ) : (
-          <div style={{
-            textAlign: 'center', color: theme.textFaint,
-            padding: 80,
-          }}>
-            <p style={{ fontSize: 16, marginBottom: 8, color: theme.textDim }}>
-              No scan report found
-            </p>
-            <p style={{ fontSize: 13 }}>
-              Run a scan first: <code style={{ color: theme.primary }}>agent-redteam scan --model ...</code>
-            </p>
-          </div>
+          <EmptyState onLaunch={() => setPage('launcher')} />
         )}
       </main>
+    </div>
+  )
+}
+
+function EmptyState({ onLaunch }: { onLaunch: () => void }) {
+  return (
+    <div style={{ textAlign: 'center', color: theme.textFaint, padding: 80 }}>
+      <p style={{ fontSize: 16, marginBottom: 8, color: theme.textDim }}>
+        No scan report found
+      </p>
+      <p style={{ fontSize: 13, marginBottom: 20 }}>
+        Launch your first scan from the dashboard.
+      </p>
+      <button
+        onClick={onLaunch}
+        style={{
+          padding: '10px 24px',
+          background: theme.primary, color: theme.bg,
+          border: 'none', borderRadius: theme.radius,
+          fontSize: 13, fontWeight: 700, cursor: 'pointer',
+        }}
+      >
+        ⚡ New Scan
+      </button>
     </div>
   )
 }

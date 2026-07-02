@@ -6,7 +6,7 @@
 
 给 AI Agent 跑安全扫描，像 `npm audit` 一样简单
 
-CLI · TUI · Web Dashboard | 588+ 测试样本 · 4 维攻击 · OWASP LLM Top 10 对齐
+CLI · TUI · Web Dashboard | 913+ 测试样本 · 10 攻击套件 · OWASP LLM Top 10 全覆盖
 
 </div>
 
@@ -98,7 +98,25 @@ agent-redteam scan --serve --model ... --key ...
 agent-redteam serve
 ```
 
-雷达图 · 热力图 · 漏洞卡片 · 实时遥测流 · 报告导出。
+六个页面：
+
+| 页面 | 功能 |
+|------|------|
+| ◈ **Overview** | 雷达图 + 总分仪表盘 + 套件分布 |
+| ◉ **Findings** | 漏洞卡片墙 + 热力图，按套件/通过状态过滤 |
+| ⚡ **Scan Launcher** | 表单一键启动扫描，10 个套件勾选网格 |
+| ◐ **Live Scan** | WebSocket 实时攻击遥测流 |
+| ▤ **History** | 历史扫描记录，点击加载任意历史报告 |
+| ⇄ **Compare** | 两次扫描并排对比，逐套件 delta 条形图 |
+
+**API key 安全**：Dashboard 启动扫描时，key 在后端从 `~/.agent-redteam/config`（或 `OPENAI_API_KEY` 环境变量）读取，前端永远只收到一个 `key_configured: true/false` 布尔值——key 本身不会出现在任何 HTTP 响应、日志或前端 payload 中。
+
+配置：
+
+```bash
+cp config.example ~/.agent-redteam/config
+# 编辑 ~/.agent-redteam/config，填入 api_key: <your-key>
+```
 
 ## 编程 API
 
@@ -163,14 +181,14 @@ agent-redteam/
 ├── src/agent_redteam/          # Python 包
 │   ├── core/                   # 引擎 (engine/harness/result)
 │   ├── targets/                # 目标适配器 (OpenAI/Claude/Local)
-│   ├── suites/                 # 4 个攻击套件 + 588 条数据
+│   ├── suites/                 # 10 个攻击套件 + 913 条数据
 │   ├── checks/                 # 判定逻辑
 │   ├── report/                 # 终端/JSON 报告
 │   ├── dashboard/              # Web 后端 + 编译好的前端
 │   ├── cli.py                  # CLI 入口
 │   └── tui.py                  # TUI
 ├── web/                        # React 前端源码
-├── tests/                      # 21 测试
+├── tests/                      # 40 测试
 └── pyproject.toml
 ```
 

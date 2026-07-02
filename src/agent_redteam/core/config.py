@@ -65,6 +65,70 @@ def load_default_profile() -> dict:
     return {}
 
 
+# --- Scan config (~/.agent-redteam/config) — API key storage, never exposed ---
+
+_CONFIG_PATH = os.path.join(os.path.expanduser("~/.agent-redteam"), "config")
+_CONFIG_KEYS = ("api_key", "base_url", "model", "workers", "max_tokens")
+
+
+def _config_path() -> str:
+    os.makedirs(os.path.dirname(_CONFIG_PATH), exist_ok=True)
+    return _CONFIG_PATH
+
+
+def load_scan_config() -> dict:
+    """Load scan config from ~/.agent-redteam/config, falling back to env vars.
+
+    Reads a simple ``key: value`` file (same parser as profiles). Recognised
+    keys: api_key, base_url, model, workers, max_tokens. Unknown keys are
+    ignored. Environment variables OPENAI_API_KEY / OPENAI_BASE_URL act as a
+    fallback when the file omits the corresponding field.
+
+    SECURITY: the returned dict contains the api_key for in-process use by the
+    scan engine ONLY. It must never be serialised into an HTTP response, log
+    line, or frontend payload — use ``has_api_key()`` / ``scan_config_status()``
+    for any externally-visible status.
+    """
+    cfg: dict = {}
+    path = _config_path()
+    if os.path.isfile(path):
+        cfg = load_profile(path)
+        # Restrict to recognised keys
+        cfg = {k: v for k, v in cfg.items() if k in _CONFIG_KEYS}
+
+    # Env fallbacks
+    if not cfg.get("api_key"):
+        env_key = os.environ.get("OPENAI_API_KEY", "")
+        if env_key:
+            cfg["api_key"] = env_key
+    if not cfg.get("base_url"):
+        env_url = os.environ.get("OPENAI_BASE_URL", "")
+        if env_url:
+            cfg["base_url"] = env_url
+    return cfg
+
+
+def has_api_key() -> bool:
+    """Return True iff an API key is available (file or env)."""
+    return bool(load_scan_config().get("api_key"))
+
+
+def scan_config_status() -> dict:
+    """Externally-safe view of the scan config — NO api_key.
+
+    Used by the dashboard API so the frontend can show whether a key is
+    configured and pre-fill model/base_url defaults without ever receiving the
+    key itself.
+    """
+    cfg = load_scan_config()
+    return {
+        "key_configured": bool(cfg.get("api_key")),
+        "default_model": cfg.get("model", ""),
+        "default_base_url": cfg.get("base_url", ""),
+        "config_path": _config_path(),
+    }
+
+
 def create_profile(path: str, **kwargs) -> str:
     """Create a .redteam.yml file with the given values."""
     lines = ["# Agent Redteam scan profile", ""]
