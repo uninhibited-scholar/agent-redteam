@@ -58,10 +58,15 @@ def load_profile(path: str) -> dict:
 
 
 def load_default_profile() -> dict:
-    """Load profile from the current directory if it exists."""
+    """Load profile from the current directory, or from ~/.agent-redteam/config."""
+    # Try local .redteam.yml first
     path = find_profile()
     if path:
         return load_profile(path)
+    # Then try ~/.agent-redteam/config
+    home_config = os.path.join(os.path.expanduser("~/.agent-redteam"), "config")
+    if os.path.isfile(home_config):
+        return load_profile(home_config)
     return {}
 
 

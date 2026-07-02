@@ -16,20 +16,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--version", action="version", version=f"agent-redteam {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    # Load config file defaults
+    from .core.config import load_default_profile
+    cfg = load_default_profile()
+
     # scan command
     p_scan = sub.add_parser("scan", help="对一个 agent 目标跑红队扫描")
-    p_scan.add_argument("--model", required=True, help="模型 ID (如 gpt-4o, glm-4-plus)")
-    p_scan.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-                        help="API base URL (默认: OpenAI；智谱用 https://open.bigmodel.cn/api/paas/v4)")
-    p_scan.add_argument("--key", default=os.environ.get("OPENAI_API_KEY", ""), help="API key")
+    p_scan.add_argument("--model", default=cfg.get("model", ""), help="模型 ID (如 gpt-4o, glm-4-plus)")
+    p_scan.add_argument("--base-url", default=cfg.get("base_url", os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")),
+                        help="API base URL (默认从 ~/.agent-redteam/config 读取)")
+    p_scan.add_argument("--key", default=cfg.get("api_key", cfg.get("key", os.environ.get("OPENAI_API_KEY", ""))), help="API key")
     p_scan.add_argument("--target", choices=["openai", "claude", "local"], default="openai",
                         help="目标类型 (默认: openai 兼容)")
     p_scan.add_argument("--endpoint", default="", help="本地 agent endpoint (target=local 时使用)")
-    p_scan.add_argument("--suites", default="", help="只跑特定套件，逗号分隔 (如 injection,info_leak)")
-    p_scan.add_argument("--max-tokens", type=int, default=500)
-    p_scan.add_argument("--workers", type=int, default=4, help="并行 API 调用数")
+    p_scan.add_argument("--suites", default=cfg.get("suites", ""), help="只跑特定套件，逗号分隔 (如 injection,info_leak)")
+    p_scan.add_argument("--max-tokens", type=int, default=cfg.get("max_tokens", 500))
+    p_scan.add_argument("--workers", type=int, default=cfg.get("workers", 4), help="并行 API 调用数")
     p_scan.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal")
-    p_scan.add_argument("--fail-below", type=float, default=0, metavar="SCORE",
+    p_scan.add_argument("--fail-below", type=float, default=cfg.get("fail_below", 0), metavar="SCORE",
                         help="总分低于此值则返回 exit 1 (CI 集成用)")
     p_scan.add_argument("--limit", type=int, default=0, help="每套件最多跑 N 条样本 (调试用)")
     p_scan.add_argument("--tui", action="store_true", help="启动 Textual 实时界面")
@@ -87,6 +91,11 @@ def _cmd_list() -> int:
 
 
 def _cmd_scan(args) -> int:
+    # Validate model
+    if not args.model:
+        print("ERROR: --model 必填，或在 ~/.agent-redteam/config 中配置 model")
+        return 2
+
     # Build target
     if args.target == "claude":
         target = ClaudeTarget(model=args.model, api_key=args.key, max_tokens=args.max_tokens)
