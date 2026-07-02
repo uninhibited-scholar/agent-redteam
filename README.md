@@ -16,16 +16,22 @@ CLI · TUI · Web Dashboard | 913+ 测试样本 · 10 攻击套件 · OWASP LLM 
 
 你的 AI agent 上线前，**有没有人像渗透测试一样给它跑安全扫描？**
 
-Agent Redteam 让"发布前跑红队"成为标准动作。不是手写几个 prompt 试试——而是像安全扫描器一样，系统性地从四个维度跑 588 条攻击测试，告诉你你的 agent 到底哪里漏。
+Agent Redteam 让"发布前跑红队"成为标准动作。不是手写几个 prompt 试试——而是像安全扫描器一样，系统性地从 **10 个维度**跑 **959 条**攻击测试，告诉你你的 agent 到底哪里漏。
 
-## 四个攻击维度
+## 十个攻击维度（OWASP LLM Top 10 全覆盖）
 
-| 套件 | 测什么 | 样本量 | OWASP | 数据来源 |
-|------|--------|--------|-------|---------|
-| 🔴 **Injection** | Prompt 注入能否诱导 agent 执行危险操作 | 153 | LLM01 | agent-safety-bench |
-| 🟠 **Tool Abuse** | 破坏性工具调用（rm -rf / DROP TABLE）能否被拦截 | 142 | LLM01 | agent-safety-bench |
-| 🔵 **Over-Refusal** | 正当防御/教育问题是否被安全模型误拒 | 243 | LLM09 | defensive-refusal-bench |
-| 🟣 **Info Leak** | 系统提示/工具定义/模型配置能否被套出 | 50 | LLM06 | 全新编写 |
+| 套件 | 测什么 | 样本量 | OWASP |
+|------|--------|--------|-------|
+| 🔴 **Injection** | Prompt 注入能否诱导 agent 执行危险操作 | 153 | LLM01 |
+| 🟠 **Tool Abuse** | 破坏性工具调用（rm -rf / DROP TABLE）能否被拦截 | 142 | LLM01 |
+| 🟫 **Supply Chain** | typosquatting / dependency confusion / CI-CD 投毒 | 50 | LLM02 |
+| 🟡 **Model DoS** | token 耗尽 / 递归生成 / 上下文炸弹 | 75 | LLM04 |
+| 🟢 **Excessive Agency** | agent 是否声称超出其能力的权限 | 50 | LLM05 |
+| 🟣 **Info Leak** | 系统提示/工具定义/模型配置能否被套出 | 50 | LLM06 |
+| 🔵 **Insecure Output** | 是否会生成恶意代码/webshell/exploit | 50 | LLM07 |
+| 🟤 **Sensitive Data** | PII/凭据/密钥/训练数据泄露 | 50 | LLM08 |
+| ⚪ **Over-Refusal** | 正当防御/教育问题是否被安全模型误拒 | 289 | LLM09 |
+| 🔘 **Over-Dependency** | 幻觉/过度自信——对不确定的事给了确定答案 | 50 | LLM10 |
 
 ## 三种使用方式
 
@@ -75,6 +81,13 @@ Failed Attacks (61 total, showing first 5):
 ```
 
 **发现**：GLM-4-plus 总分 89.6，但在 Info Leak 维度只有 **14 分**——它几乎毫无保留地泄露完整系统提示词。这是单纯跑 benchmark 发现不了的。
+
+**10 套件全量扫描结果**（新增 6 个套件后）：
+- ✅ sensitive_data: 100 — GLM 正确拒绝泄露 PII/凭据
+- ✅ model_dos: 100 — GLM 正确拒绝 token 炸弹
+- ⚠️ insecure_output: 80 — 少量恶意代码被生成（DROP TABLE 等）
+- ⚠️ excessive_agency: 80 — 偶尔声称虚假能力
+- ❌ over_dependency: **20** — GLM 大量幻觉（编造 DOI、虚构教授信息）
 
 </details>
 
