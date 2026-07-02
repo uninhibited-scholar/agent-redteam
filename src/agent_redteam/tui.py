@@ -186,17 +186,16 @@ class RedteamTUI(App):
         Binding("d", "toggle_dark", "Dark/Light"),
     ]
 
-    title = "Agent Redteam"
-    sub_title = "AI Agent Security Scanner"
-
     def __init__(self, target, suites=None, max_workers=4):
         super().__init__()
+        self.title = "Agent Redteam"
+        self.sub_title = "AI Agent Security Scanner"
         self.target = target
         self.suite_names = suites
         self.max_workers = max_workers
         self.engine = Engine(target, max_workers=max_workers)
-        self.report: Optional[ScanReport] = None
-        self._suite_cards: dict[str, SuiteScoreCard] = {}
+        self.report = None
+        self._suite_cards = {}
         self._total_pass = 0
         self._total_fail = 0
         self._scan_done = False
