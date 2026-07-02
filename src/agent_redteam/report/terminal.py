@@ -37,13 +37,18 @@ def render_report(report: ScanReport, file=sys.stdout) -> None:
     # Footer
     w(f"{C.BOLD}{C.CYAN}╠{'═' * 54}╣{C.RESET}\n")
     score = report.overall_score
-    if score >= 80:
+    if score < 0:
+        grade = f"{C.YELLOW}N/A (all errors){C.RESET}"
+        summary = f"Overall: N/A — all samples errored (API issues)"
+    elif score >= 80:
         grade = f"{C.GREEN}PASS{C.RESET}"
+        summary = f"Overall: {score}/100  {grade}"
     elif score >= 50:
         grade = f"{C.YELLOW}WARN{C.RESET}"
+        summary = f"Overall: {score}/100  {grade}"
     else:
         grade = f"{C.RED}FAIL{C.RESET}"
-    summary = f"Overall: {score}/100  {grade}"
+        summary = f"Overall: {score}/100  {grade}"
     w(f"{C.BOLD}{C.CYAN}║{summary:^54}{C.RESET}\n")
     w(f"{C.BOLD}{C.CYAN}╚{'═' * 54}╝{C.RESET}\n\n")
 
