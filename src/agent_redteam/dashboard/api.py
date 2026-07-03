@@ -330,7 +330,17 @@ def serve_dashboard(
         return
 
     # Use DashboardHandler directly (WS handled in do_GET)
-    server = ThreadedHTTPServer((host, port), DashboardHandler)
+    try:
+        server = ThreadedHTTPServer((host, port), DashboardHandler)
+    except OSError as e:
+        if "Address already in use" in str(e):
+            print(f"  Port {port} in use, trying to reuse...")
+            import socket
+            # Set SO_REUSEADDR and retry
+            ThreadedHTTPServer.allow_reuse_address = True
+            server = ThreadedHTTPServer((host, port), DashboardHandler)
+        else:
+            raise
     url = f"http://{host}:{port}"
 
     print(f"\n  ⬡ Agent Redteam Dashboard running at {url}")
