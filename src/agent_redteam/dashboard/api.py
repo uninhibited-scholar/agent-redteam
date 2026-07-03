@@ -158,6 +158,17 @@ def _run_scan_in_background(req: dict) -> None:
 class DashboardHandler(SimpleHTTPRequestHandler):
     """Serves static files + JSON API + WebSocket upgrade."""
 
+    # Fix MIME types so browsers actually execute JS and apply CSS
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".js": "application/javascript",
+        ".mjs": "application/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+        ".svg": "image/svg+xml",
+        ".woff2": "font/woff2",
+    }
+
     def __init__(self, *args, **kwargs):
         static_dir = get_static_dir()
         super().__init__(*args, directory=static_dir, **kwargs)
