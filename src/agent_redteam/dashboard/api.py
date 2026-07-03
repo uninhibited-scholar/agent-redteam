@@ -310,6 +310,18 @@ def serve_dashboard(
     """Start the dashboard server with WebSocket support."""
     if report:
         _state.set_report(report)
+    elif not _state.report:
+        # Load most recent scan from SQLite
+        try:
+            from ..core.storage import list_scans, get_report
+            scans = list_scans(limit=1)
+            if scans:
+                latest = get_report(scans[0]["run_id"])
+                if latest:
+                    _state.report_json = json.dumps(latest, ensure_ascii=False)
+                    print(f"  Loaded latest scan: {scans[0]['run_id']}")
+        except Exception:
+            pass
 
     static_dir = get_static_dir()
     if not os.path.exists(os.path.join(static_dir, "index.html")):
