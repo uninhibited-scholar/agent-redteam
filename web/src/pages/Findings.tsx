@@ -6,6 +6,8 @@ import { theme } from '../theme'
 import type { SampleResult } from '../types'
 import { VulnerabilityCard } from '../components/VulnerabilityCard'
 import { HeatMap } from '../components/HeatMap'
+import { SeverityBadge } from '../components/SeverityBadge'
+import { EmptyState } from '../components/EmptyState'
 
 interface Props {
   samples: SampleResult[]
@@ -103,12 +105,11 @@ export function Findings({ samples }: Props) {
       </div>
 
       {filtered.length === 0 && (
-        <div style={{
-          textAlign: 'center', color: theme.textFaint,
-          padding: 60, fontSize: 14,
-        }}>
-          No samples match the current filter.
-        </div>
+        <EmptyState
+          icon="🔍"
+          title="No samples match the filter"
+          description="Try changing the filter settings above."
+        />
       )}
     </div>
   )

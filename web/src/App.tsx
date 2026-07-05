@@ -11,6 +11,7 @@ import { ScanLauncher } from './pages/ScanLauncher'
 import { History } from './pages/History'
 import { Compare } from './pages/Compare'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { LoadingState } from './components/EmptyState'
 
 type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare'
 
@@ -140,12 +141,7 @@ export function App() {
         ) : page === 'live' ? (
           <LiveScan />
         ) : loading ? (
-          <div style={{
-            textAlign: 'center', color: theme.textFaint,
-            padding: 80, fontSize: 14,
-          }}>
-            Loading report...
-          </div>
+          <LoadingState message="Loading scan report..." />
         ) : report ? (
           page === 'overview' ? (
             <Overview report={report} />
