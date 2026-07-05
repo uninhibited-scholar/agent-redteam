@@ -8,86 +8,67 @@
 
 给 AI Agent 跑安全扫描，像 `npm audit` 一样简单
 
-CLI · TUI · Web Dashboard | 588+ 测试样本 · 4 维攻击 · OWASP LLM Top 10 对齐
+CLI · TUI · Web Dashboard | 2,089 测试样本 · 10 攻击套件 · OWASP LLM Top 10 全覆盖
 
 </div>
 
 ---
 
-## 它解决什么问题
+## 为什么需要它
 
-你的 AI agent 上线前，**有没有人像渗透测试一样给它跑安全扫描？**
+AI agent 在没有安全检查的情况下就被发布——不像普通软件有 `npm audit` 这样的工具。**Agent Redteam 就是这个缺失的等效工具**：在 agent 上线前，系统性地从 10 个维度跑 2,089 条攻击测试，输出具体的 pass/fail 分数。
 
-Agent Redteam 让"发布前跑红队"成为标准动作。不是手写几个 prompt 试试——而是像安全扫描器一样，系统性地从四个维度跑 588 条攻击测试，告诉你你的 agent 到底哪里漏。
+### 可信度设计
 
-## 四个攻击维度
+- **零依赖核心** — Python stdlib only，不增加供应链风险
+- **API key 仅本地** — key 不经过任何第三方
+- **数字精确** — 所有样本数、分数、判定逻辑可复现
+
+## 十个攻击维度（OWASP LLM Top 10 全覆盖）
 
 | 套件 | 测什么 | 样本量 | OWASP |
 |------|--------|--------|-------|
-| 🔴 **Prompt 注入** | 不可信内容中的隐藏指令能否诱导 agent 执行危险操作 | 153 | LLM01 |
-| 🟠 **工具滥用** | 破坏性工具调用（rm -rf / DROP TABLE）能否被拦截 | 142 | LLM01 |
-| 🔵 **过度拒绝** | 正当防御/教育问题是否被安全模型误拒 | 243 | LLM09 |
-| 🟣 **信息泄露** | 系统提示/工具定义/模型配置能否被套出 | 50 | LLM06 |
+| 🔴 **Prompt 注入** | 不可信内容中的隐藏指令能否诱导 agent 执行危险操作 | 200 | LLM01 |
+| 🟠 **工具滥用** | 破坏性工具调用能否被拦截 | 200 | LLM01 |
+| 🟫 **供应链攻击** | typosquatting / dependency confusion / CI-CD 投毒 | 200 | LLM02 |
+| 🟡 **模型 DoS** | token 耗尽 / 递归生成 / 上下文炸弹 | 200 | LLM04 |
+| 🟢 **过度代理** | agent 是否声称超出其能力的权限 | 200 | LLM05 |
+| 🟣 **信息泄露** | 系统提示/工具定义/模型配置能否被套出 | 200 | LLM06 |
+| 🔵 **不安全输出** | 是否会生成恶意代码/webshell/exploit | 200 | LLM07 |
+| 🟤 **敏感信息** | PII/凭据/密钥/训练数据泄露 | 200 | LLM08 |
+| ⚪ **过度拒绝** | 正当防御/教育问题是否被误拒 | 289 | LLM09 |
+| 🔘 **过度依赖** | 幻觉/过度自信 | 200 | LLM10 |
 
-## 三种使用方式
+**总计 2,089 条**，以 `agent-redteam list` 实际输出为准。
 
-### 1. 命令行（日常使用）
+## 使用方式
 
 ```bash
 pip install agent-redteam
 
-# 扫描任意 OpenAI 兼容端点
-agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY
+# 命令行
+agent-redteam scan --model glm-4-plus --key $KEY
 
-# 只跑特定套件
-agent-redteam scan --model glm-4-plus \
-  --base-url https://open.bigmodel.cn/api/paas/v4 \
-  --key $KEY --suites injection,info_leak
+# CI 集成
+agent-redteam scan --model ... --fail-below 80 --format json
 
-# CI 集成（分数低于 80 则失败）
-agent-redteam scan --model ... --fail-below 80 --format json > report.json
-```
-
-### 2. TUI 实时界面
-
-```bash
-pip install agent-redteam[tui]
-agent-redteam scan --tui --model ... --key ...
-```
-
-### 3. Web Dashboard
-
-```bash
-# 扫描 + 实时 Dashboard
+# Web Dashboard
 agent-redteam scan --serve --model ... --key ...
-```
 
-雷达图 · 热力图 · 漏洞卡片 · 实时遥测流。
-
-## 编程 API
-
-```python
-from agent_redteam import Engine
-from agent_redteam.targets import OpenAITarget
-
-target = OpenAITarget(model="gpt-4o", api_key="sk-...")
-engine = Engine(target)
-report = engine.scan()
-print(report.summary())
+# TUI
+agent-redteam scan --tui --model ... --key ...
 ```
 
 ## 支持的目标
 
-- **OpenAI 兼容**：OpenAI / DeepSeek / 智谱 GLM / 字节豆包 / vLLM / Ollama
-- **Anthropic Claude**：Claude Messages API
-- **本地 Agent**：任意 HTTP 端点
+OpenAI / DeepSeek / GLM / Doubao / Claude / Z.ai / 本地 HTTP Agent
 
 ## 设计原则
 
-- **Python 核心零依赖** — `pip install agent-redteam` 不拉任何包
+- **Python 核心零依赖** — `pip install` 不拉任何包
 - **API key 只在本地** — 不经过任何第三方
 - **CI 友好** — `--fail-below N --format json`
-- **数据来自实战验证** — 588 条精选自 1400+ 条标注 benchmark 数据
+- **数据来自实战验证** — 2,089 条精选标注数据，覆盖 OWASP Top 10
 
 ## 许可证
 
