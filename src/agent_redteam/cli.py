@@ -26,8 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--base-url", default=cfg.get("base_url", os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")),
                         help="API base URL (默认从 ~/.agent-redteam/config 读取)")
     p_scan.add_argument("--key", default=cfg.get("api_key", cfg.get("key", os.environ.get("OPENAI_API_KEY", ""))), help="API key")
-    p_scan.add_argument("--target", choices=["openai", "claude", "local"], default="openai",
-                        help="目标类型 (默认: openai 兼容)")
+    p_scan.add_argument("--target", choices=["openai", "claude", "zai", "local"], default="openai",
+                        help="目标类型 (默认: openai 兼容; zai 用智谱 Z.ai Anthropic 端点)")
     p_scan.add_argument("--endpoint", default="", help="本地 agent endpoint (target=local 时使用)")
     p_scan.add_argument("--suites", default=cfg.get("suites", ""), help="只跑特定套件，逗号分隔 (如 injection,info_leak)")
     p_scan.add_argument("--max-tokens", type=int, default=cfg.get("max_tokens", 500))
@@ -99,6 +99,9 @@ def _cmd_scan(args) -> int:
     # Build target
     if args.target == "claude":
         target = ClaudeTarget(model=args.model, api_key=args.key, max_tokens=args.max_tokens)
+    elif args.target == "zai":
+        from .targets import ZaiTarget
+        target = ZaiTarget(model=args.model or "glm-4-plus", api_key=args.key, max_tokens=args.max_tokens)
     elif args.target == "local":
         if not args.endpoint:
             print("ERROR: --endpoint required for local target")

@@ -9,4 +9,10 @@ try:
 except ImportError:
     ClaudeTarget = None  # type: ignore
 
-__all__ = ["Target", "OpenAITarget", "ClaudeTarget", "LocalTarget"]
+# ZaiTarget — uses Z.ai Anthropic endpoint (separate billing from open.bigmodel.cn)
+try:
+    from .zai_target import ZaiTarget
+except ImportError:
+    ZaiTarget = None  # type: ignore
+
+__all__ = ["Target", "OpenAITarget", "ClaudeTarget", "ZaiTarget", "LocalTarget"]
