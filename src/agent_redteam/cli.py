@@ -58,6 +58,14 @@ def main(argv: list[str] | None = None) -> int:
     p_cmp.add_argument("run_a", help="第一次扫描的 run_id")
     p_cmp.add_argument("run_b", help="第二次扫描的 run_id")
 
+    # mutate command
+    p_mut = sub.add_parser("mutate", help="给套件生成变异样本，缓解样本过时/被针对性修补的问题")
+    p_mut.add_argument("--suite", required=True, help="目标套件名 (如 injection)")
+    p_mut.add_argument("--strategies", default="homoglyph,zero_width,reframe,synonym,base64",
+                        help="变异策略，逗号分隔")
+    p_mut.add_argument("-n", "--count", type=int, default=20, help="生成样本数")
+    p_mut.add_argument("--seed", type=int, default=None, help="随机种子 (可复现)")
+
     args = parser.parse_args(argv)
 
     if args.command == "list":
@@ -66,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_history(args)
     elif args.command == "compare":
         return _cmd_compare(args)
+    elif args.command == "mutate":
+        return _cmd_mutate(args)
     elif args.command == "serve":
         from .dashboard import serve_dashboard
         serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
@@ -255,6 +265,29 @@ def _cmd_compare(args) -> int:
         print(f"{line}{' ' * max(1, pad)}║")
 
     print(f"  ╚══════════════════════════════════════════════════╝\n")
+    return 0
+
+
+def _cmd_mutate(args) -> int:
+    from .suites import ALL_SUITES
+    from .mutate import append_mutations, STRATEGIES
+
+    suite_cls = next((s for s in ALL_SUITES if s.name == args.suite), None)
+    if suite_cls is None:
+        names = ", ".join(s.name for s in ALL_SUITES)
+        print(f"ERROR: 未知套件 '{args.suite}'。可选: {names}")
+        return 2
+
+    strategies = [s.strip() for s in args.strategies.split(",") if s.strip()]
+    unknown = [s for s in strategies if s not in STRATEGIES]
+    if unknown:
+        print(f"ERROR: 未知策略 {unknown}。可选: {list(STRATEGIES)}")
+        return 2
+
+    suite = suite_cls()
+    data_path = suite.data_path()
+    added = append_mutations(data_path, strategies, args.count, seed=args.seed)
+    print(f"  已向 {args.suite}/data.jsonl 追加 {added} 条变异样本 (策略: {', '.join(strategies)})")
     return 0
 
 

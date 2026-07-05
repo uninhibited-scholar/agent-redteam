@@ -96,8 +96,22 @@ export const globalStyles = `
     to { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes glow {
-    0%, 100% { box-shadow: 0 0 4px ${theme.primary}40; }
-    50% { box-shadow: 0 0 16px ${theme.primary}80; }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    #root { font-size: 13px; }
+  }
+
+  @media (max-width: 480px) {
+    #root { font-size: 12px; }
   }
 `

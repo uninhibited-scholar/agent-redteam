@@ -10,6 +10,7 @@ import { LiveScan } from './pages/LiveScan'
 import { ScanLauncher } from './pages/ScanLauncher'
 import { History } from './pages/History'
 import { Compare } from './pages/Compare'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare'
 
@@ -62,6 +63,7 @@ export function App() {
   }
 
   return (
+    <ErrorBoundary>
     <div style={{ minHeight: '100vh', display: 'flex' }}>
       {/* Sidebar */}
       <nav style={{
@@ -155,6 +157,7 @@ export function App() {
         )}
       </main>
     </div>
+    </ErrorBoundary>
   )
 }
 

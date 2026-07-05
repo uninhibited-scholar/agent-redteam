@@ -22,14 +22,16 @@ class Suite(ABC):
     description: str = ""
     check = None  # Set by subclass
 
-    def load_samples(self) -> list[dict]:
-        """Load samples from data.jsonl in the suite's directory."""
-        data_dir = os.path.dirname(self.__class__.__module__)
-        # Handle both installed and dev modes
+    def data_path(self) -> str:
+        """Return the path to this suite's data.jsonl file."""
         import importlib
         mod = importlib.import_module(self.__class__.__module__)
         mod_dir = os.path.dirname(getattr(mod, "__file__", __file__))
-        data_path = os.path.join(mod_dir, "data.jsonl")
+        return os.path.join(mod_dir, "data.jsonl")
+
+    def load_samples(self) -> list[dict]:
+        """Load samples from data.jsonl in the suite's directory."""
+        data_path = self.data_path()
 
         samples = []
         if os.path.exists(data_path):
