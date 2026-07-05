@@ -104,9 +104,18 @@ export function App() {
               fontSize: 18,
               cursor: 'pointer',
               transition: theme.transition,
+              position: 'relative',
             }}
           >
             {item.icon}
+            {page === item.id && (
+              <span style={{
+                position: 'absolute', left: -8,
+                width: 3, height: 24,
+                background: theme.primary,
+                borderRadius: 2,
+              }} />
+            )}
           </button>
         ))}
       </nav>
@@ -117,6 +126,7 @@ export function App() {
         padding: 32,
         overflowY: 'auto',
         maxWidth: 1200,
+        animation: 'fadeIn 200ms ease',
       }}>
         {/* Page header */}
         <div style={{ marginBottom: 32 }}>
