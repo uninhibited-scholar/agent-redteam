@@ -13,6 +13,7 @@ import { RiskMatrix } from '../components/RiskMatrix'
 import { AttackTimeline } from '../components/AttackTimeline'
 import { SeverityDistribution } from '../components/SeverityDistribution'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
+import { ModelProfile } from '../components/ModelProfile'
 
 interface Props {
   report: ScanReport
@@ -66,6 +67,19 @@ export function Overview({ report, onSuiteClick }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Shareable model security card */}
+      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'center' }}>
+        <ModelProfile
+          model={report.target_model ?? '—'}
+          overallScore={score}
+          totalSamples={report.total_samples ?? 0}
+          totalPassed={report.total_passed ?? 0}
+          totalFailed={report.total_failed ?? 0}
+          suites={report.suites}
+          scannedAt={report.finished_at}
+        />
       </div>
 
       {/* Summary tiles */}

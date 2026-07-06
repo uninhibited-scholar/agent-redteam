@@ -16,6 +16,7 @@ import { theme } from '../theme'
 import type { ScanReport } from '../types'
 import { Panel, MonoTag } from '../components/ui'
 import { AttackPatterns } from '../components/AttackPatterns'
+import { FailurePattern } from '../components/FailurePattern'
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/DonutChart'
 import { BarChart, ColumnChart, type BarItem } from '../components/BarChart'
 import { useNotification } from '../components/NotificationToast'
@@ -31,6 +32,7 @@ const DIFFICULTY_ORDER = ['basic', 'easy', 'intermediate', 'medium', 'advanced',
 export function Metrics({ report, onDrill }: Props) {
   const { notify } = useNotification()
   const samples = report.samples || []
+  const failures = useMemo(() => samples.filter(s => s.verdict === 'fail'), [samples])
 
   // --- Derive analytics from samples ---
   const verdictSegments: DonutSegment[] = useMemo(() => {
@@ -302,6 +304,13 @@ export function Metrics({ report, onDrill }: Props) {
             ))}
           </div>
         </Panel>
+      )}
+
+      {/* Failure pattern analysis — root-cause clustering of failures */}
+      {failures.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <FailurePattern failures={failures} onSelectSample={() => {}} />
+        </div>
       )}
     </div>
   )

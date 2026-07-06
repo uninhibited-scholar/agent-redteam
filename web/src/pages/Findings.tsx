@@ -15,6 +15,7 @@ import { FilterBar, type FilterOption } from '../components/FilterBar'
 import { Pagination } from '../components/Pagination'
 import { DetailDrawer } from '../components/DetailDrawer'
 import { BatchActions } from '../components/BatchActions'
+import { IgnoreRules } from '../components/IgnoreRules'
 import { SeverityBadge as SharedSeverityBadge } from '../components/ui'
 import { useNotification } from '../components/NotificationToast'
 
@@ -233,6 +234,13 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
             }} />
           : <div style={{ color: theme.textFaint, fontSize: 12, padding: 12 }}>No report loaded.</div>}
       </div>
+
+      {/* Ignore rules — mark known/acceptable failures to exclude from scoring */}
+      {reportSamples.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <IgnoreRules failures={reportSamples.filter(s => s.verdict === 'fail')} />
+        </div>
+      )}
 
       {/* Filter row */}
       <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>

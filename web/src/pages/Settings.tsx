@@ -6,6 +6,7 @@ import { theme } from '../theme'
 import type { ScanReport } from '../types'
 import { SettingsPanel } from '../components/SettingsPanel'
 import { ExportCenter } from '../components/ExportCenter'
+import { ScanScheduler } from '../components/ScanScheduler'
 
 interface Props {
   version?: string
@@ -31,6 +32,14 @@ export function Settings({ version = '0.1.0', report }: Props) {
           <ExportCenter report={report} />
         </div>
       )}
+
+      {/* Recurring scan schedules — front-end config only, drives an external crontab */}
+      <div style={{ marginBottom: 24 }}>
+        <ScanScheduler
+          defaultModel={report?.target_model ?? ''}
+          availableSuites={(report?.suites ?? []).map(s => s.name)}
+        />
+      </div>
 
       {/* Quick reference card */}
       <div style={{
