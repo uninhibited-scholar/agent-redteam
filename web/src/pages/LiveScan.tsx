@@ -9,6 +9,7 @@ import { theme } from '../theme'
 import type { SampleResult } from '../types'
 import { TelemetryStream } from '../components/TelemetryStream'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
+import { ConnectionStatus } from '../components/ConnectionStatus'
 import { Panel } from '../components/ui'
 
 interface SuiteProgress {
@@ -118,13 +119,17 @@ export function LiveScan() {
       {/* Status bar */}
       <Panel padding="14px 20px">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{
-            width: 10, height: 10, borderRadius: '50%',
-            background: connected ? (scanning ? theme.warning : scanDone ? theme.success : theme.success) : theme.danger,
-            animation: scanning ? 'pulse 1s ease infinite' : 'none',
-          }} />
+          <ConnectionStatus
+            status={connected ? (scanning ? 'connected' : 'connected') : 'disconnected'}
+            lastMessageAt={events.length > 0 ? recentTimestamps[recentTimestamps.length - 1] : undefined}
+            onReconnect={() => {
+              wsRef.current?.close()
+              // effect cleanup will re-create on next render cycle
+              setTimeout(() => window.location.reload(), 200)
+            }}
+          />
           <span style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>
-            {scanning ? '扫描中…' : scanDone ? '扫描完成' : connected ? '已连接 — 待命' : '未连接'}
+            {scanning ? '扫描中…' : scanDone ? '扫描完成' : ''}
           </span>
           <div style={{ flex: 1 }} />
           <span style={{

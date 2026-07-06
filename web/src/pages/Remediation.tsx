@@ -11,6 +11,7 @@ import { useMemo } from 'react'
 import { theme } from '../theme'
 import type { ScanReport, SampleResult } from '../types'
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
+import { RemediationExport, type RemediationItem } from '../components/RemediationExport'
 import { useNotification } from '../components/NotificationToast'
 
 interface Props {
@@ -156,6 +157,12 @@ export function Remediation({ report, onDrill }: Props) {
   const criticalCount = failures.filter(f => f.severity === 'critical').length
   const highCount = failures.filter(f => f.severity === 'high').length
 
+  // Build export items from suiteRisk + guidance knowledge base
+  const exportItems = useMemo<RemediationItem[]>(() => suiteRisk.map(({ suite, fails, risk }) => {
+    const g = SUITE_GUIDANCE[suite] || DEFAULT_GUIDANCE
+    return { suite, title: g.title, steps: g.steps, refs: g.refs, failCount: fails.length, riskScore: risk }
+  }), [suiteRisk])
+
   if (failures.length === 0) {
     return (
       <Panel title="修复建议" subtitle="根据扫描失败自动生成">
@@ -172,6 +179,13 @@ export function Remediation({ report, onDrill }: Props) {
 
   return (
     <div style={{ animation: 'fadeIn 300ms ease' }}>
+      {/* Export bar */}
+      {exportItems.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <RemediationExport items={exportItems} modelLabel={report.target_model} />
+        </div>
+      )}
+
       {/* Risk summary header */}
       <Panel padding={20}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>

@@ -14,6 +14,7 @@ import { DataTable, type Column } from '../components/DataTable'
 import { FilterBar, type FilterOption } from '../components/FilterBar'
 import { Pagination } from '../components/Pagination'
 import { DetailDrawer } from '../components/DetailDrawer'
+import { BatchActions } from '../components/BatchActions'
 import { SeverityBadge as SharedSeverityBadge } from '../components/ui'
 import { useNotification } from '../components/NotificationToast'
 
@@ -51,6 +52,8 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const [selected, setSelected] = useState<SampleResult | null>(null)
+  // Multi-select for batch operations
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // Debounce search input
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -120,6 +123,29 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
 
   // DataTable columns
   const columns: Column<SampleResult>[] = [
+    {
+      key: 'select', label: '', align: 'center',
+      render: s => {
+        const id = `${s.suite}:${s.sample_id}`
+        const checked = selectedIds.has(id)
+        return (
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => {
+              setSelectedIds(prev => {
+                const next = new Set(prev)
+                if (e.target.checked) next.add(id)
+                else next.delete(id)
+                return next
+              })
+            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ cursor: 'pointer', accentColor: theme.primary }}
+          />
+        )
+      },
+    },
     {
       key: 'severity', label: 'Severity', sortable: true, align: 'left',
       render: s => <SharedSeverityBadge severity={s.severity} />,
@@ -287,6 +313,18 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
 
       {/* Detail drawer */}
       <DetailDrawer sample={selected} onClose={() => setSelected(null)} />
+
+      {/* Batch actions bar (floating, only when selection non-empty) */}
+      <BatchActions
+        selected={selectedIds}
+        visibleSamples={data?.items || []}
+        totalMatched={data?.total || 0}
+        onSelectAll={() => {
+          const ids = (data?.items || []).map(s => `${s.suite}:${s.sample_id}`)
+          setSelectedIds(new Set(ids))
+        }}
+        onClear={() => setSelectedIds(new Set())}
+      />
     </div>
   )
 }
