@@ -14,6 +14,7 @@ import { Compare } from './pages/Compare'
 import { Settings } from './pages/Settings'
 import { Metrics } from './pages/Metrics'
 import { SuiteDetail } from './pages/SuiteDetail'
+import { Remediation } from './pages/Remediation'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LoadingState } from './components/EmptyState'
 import { CommandPalette, type Command } from './components/CommandPalette'
@@ -22,9 +23,9 @@ import { DetailDrawer } from './components/DetailDrawer'
 import { NotificationProvider, useNotification } from './components/NotificationToast'
 import type { SampleResult } from './types'
 
-type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare' | 'settings' | 'metrics' | 'suite-detail'
+type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare' | 'settings' | 'metrics' | 'suite-detail' | 'remediation'
 
-const PAGE_ORDER: Page[] = ['overview', 'metrics', 'findings', 'launcher', 'live', 'history', 'compare', 'settings']
+const PAGE_ORDER: Page[] = ['overview', 'metrics', 'findings', 'remediation', 'launcher', 'live', 'history', 'compare', 'settings']
 
 function AppInner() {
   const [page, setPage] = useState<Page>('overview')
@@ -126,6 +127,7 @@ function AppInner() {
     { id: 'overview', label: 'Overview', icon: '◈' },
     { id: 'metrics', label: 'Metrics', icon: '⊞' },
     { id: 'findings', label: 'Findings', icon: '◉' },
+    { id: 'remediation', label: 'Remediation', icon: '⚒' },
     { id: 'launcher', label: 'Scan', icon: '⚡' },
     { id: 'live', label: 'Live Scan', icon: '◐' },
     { id: 'history', label: 'History', icon: '▤' },
@@ -137,6 +139,7 @@ function AppInner() {
     overview: 'Security posture overview',
     metrics: 'Deep analytics across all suites',
     findings: 'Detailed vulnerability findings',
+    remediation: 'Prioritized hardening recommendations',
     'suite-detail': 'Single suite deep dive',
     launcher: 'Launch a new red team scan',
     live: 'Real-time scan telemetry',
@@ -359,6 +362,8 @@ function AppInner() {
             <Overview report={report} onSuiteClick={s => drillToSuite(s.name)} />
           ) : page === 'metrics' ? (
             <Metrics report={report} onDrill={drillToFindings} />
+          ) : page === 'remediation' ? (
+            <Remediation report={report} onDrill={drillToFindings} />
           ) : (
             <Findings
               initialSuite={pendingSuite}
