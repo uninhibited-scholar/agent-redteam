@@ -143,13 +143,15 @@ SettingsPanel + HelpOverlay 去重，改用共享原语。
 
 ---
 
-## 当前体量（2026-07-06）
+## 当前体量（2026-07-07）
 
 | 维度 | 数值 |
 |------|------|
 | Python 核心 | **3,865 行** |
-| 前端 TS | **4,927 行** |
-| **总计** | **8,792 行** |
+| 前端 TS | **7,924 行**（对标 Cherry Studio 8,000 行目标已达成 99%） |
+| **总计** | **11,789 行** |
+| 组件数 | 32 个 |
+| 页面数 | 10 个（Overview/Metrics/Findings/Remediation/SuiteDetail/ScanLauncher/LiveScan/History/Compare/Settings） |
 | 测试 | **75 passed** |
 | tsc 严格模式 | 零警告 |
 | 攻击样本 | ~2,089 条（10 套件） |
@@ -194,16 +196,16 @@ SettingsPanel + HelpOverlay 去重，改用共享原语。
 **已稳定的部分**（可运行、有测试、已接入）：
 - 核心 Python 引擎 + CLI + TUI + Dashboard 后端
 - 10 个攻击套件 ~2,089 条样本 + 11 种变异策略
-- Dashboard 前端 7 个页面，全部接真实 API，图表有 hover/click 交互
-- 共享 UI 原语层 + 全局命令面板 + 通知系统
+- Dashboard 前端 **10 个页面**（Overview/Metrics/Findings/Remediation/SuiteDetail/ScanLauncher/LiveScan/History/Compare/Settings），全部接真实 API
+- **32 个组件**，图表全部有 hover/click 交互与下钻链路
+- 共享 UI 原语层 + 全局命令面板 + 通知系统 + 键盘快捷键
+- 5 种新可视化（DonutChart/TrendChart/BarChart/SuiteRadarCompare/DiffMatrix/AttackPatterns）
+- Remediation 页内置 OWASP LLM01-10 加固知识库
 
 **正在进行 / 下一步可推进的方向**（按优先级，由用户决定）：
 
-1. **扩大前端规模至 8,000+ 行**（当前 4,927，差约 3,000 行）
-   - 更多可视化：趋势图、分布图、多模型对比图、时间线详情
-   - 样本详情/编辑视图、套件管理界面
-   - 这是"对标 Cherry Studio 体量"的核心指标，未达标
-2. **多模型比较数据** — 跑 2-3 个模型（GLM-5.2 / GPT-4o / Claude），生成真实对比报告
+1. ~~扩大前端规模至 8,000+ 行~~ ✅ 已达成 99%（7,924 行）。可继续深化：样本编辑视图、套件管理、多模型基准面板
+2. **多模型比较数据** — 跑 2-3 个模型（GLM-5.2 / GPT-4o / Claude），生成真实对比报告（Compare/SuiteRadarCompare 页已就绪，缺数据）
 3. **PyPI 发布** + 文档网站 + 技术文章
 4. **安全审计** — 对自身做一次红队测试（吃自己的狗粮）
 
