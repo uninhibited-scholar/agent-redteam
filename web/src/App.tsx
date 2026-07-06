@@ -381,7 +381,11 @@ function AppInner() {
       {helpOpen && (
         <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       )}
-      <DetailDrawer sample={drawerSample} onClose={() => setDrawerSample(null)} />
+      <DetailDrawer
+        sample={drawerSample}
+        onClose={() => setDrawerSample(null)}
+        onJumpToSuite={drillToSuite}
+      />
     </div>
     </ErrorBoundary>
   )

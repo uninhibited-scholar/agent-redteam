@@ -1,8 +1,11 @@
 /**
  * DetailDrawer — right-side slide-in drawer with full sample detail.
  * Closes on ESC, backdrop click, or the close button.
+ *
+ * "Mark reviewed" toggles a per-sample review flag persisted in localStorage
+ * (keyed by sample_id). "Jump to suite" delegates to the host via onJumpToSuite.
  */
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { theme } from '../theme'
 import type { SampleResult } from '../types'
 import { SeverityBadge } from './ui'
@@ -11,9 +14,34 @@ interface Props {
   sample: SampleResult | null
   onClose: () => void
   timestamp?: string
+  /** Called when the user clicks "Jump to suite". Host navigates to SuiteDetail. */
+  onJumpToSuite?: (suite: string) => void
 }
 
-export function DetailDrawer({ sample, onClose, timestamp }: Props) {
+const REVIEW_KEY = 'agent-redteam:reviewed-samples'
+
+/** Read the set of reviewed sample_ids from localStorage. */
+function readReviewed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(REVIEW_KEY)
+    return new Set(raw ? JSON.parse(raw) : [])
+  } catch {
+    return new Set()
+  }
+}
+
+/** Persist the reviewed set back to localStorage. */
+function writeReviewed(set: Set<string>) {
+  try {
+    localStorage.setItem(REVIEW_KEY, JSON.stringify([...set]))
+  } catch {
+    /* localStorage may be unavailable (private mode); fail silently */
+  }
+}
+
+export function DetailDrawer({ sample, onClose, timestamp, onJumpToSuite }: Props) {
+  const [reviewed, setReviewed] = useState<Set<string>>(readReviewed)
+
   useEffect(() => {
     if (!sample) return
     function onKey(e: KeyboardEvent) {
@@ -26,9 +54,26 @@ export function DetailDrawer({ sample, onClose, timestamp }: Props) {
   if (!sample) return null
 
   const failed = sample.verdict === 'fail'
+  const isReviewed = reviewed.has(sample.sample_id)
 
   function copyAttack() {
     navigator.clipboard?.writeText(sample!.question)
+  }
+
+  function toggleReviewed() {
+    setReviewed(prev => {
+      const next = new Set(prev)
+      if (next.has(sample!.sample_id)) next.delete(sample!.sample_id)
+      else next.add(sample!.sample_id)
+      writeReviewed(next)
+      return next
+    })
+  }
+
+  function jumpToSuite() {
+    if (!onJumpToSuite) return
+    onClose()
+    onJumpToSuite(sample!.suite)
   }
 
   return (
@@ -163,8 +208,16 @@ export function DetailDrawer({ sample, onClose, timestamp }: Props) {
           borderTop: `1px solid ${theme.border}`,
         }}>
           <ActionButton label="Copy attack" onClick={copyAttack} />
-          <ActionButton label="Mark reviewed" onClick={() => {}} />
-          <ActionButton label="Jump to suite" onClick={() => {}} />
+          <ActionButton
+            label={isReviewed ? '✓ Reviewed' : 'Mark reviewed'}
+            active={isReviewed}
+            onClick={toggleReviewed}
+          />
+          <ActionButton
+            label="Jump to suite"
+            onClick={jumpToSuite}
+            disabled={!onJumpToSuite}
+          />
         </div>
       </div>
     </div>
@@ -185,14 +238,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function ActionButton({ label, onClick }: { label: string; onClick: () => void }) {
+function ActionButton({ label, onClick, active, disabled }: {
+  label: string
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+}) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         flex: 1, padding: '8px 10px', fontSize: 12,
-        background: theme.bg, border: `1px solid ${theme.border}`,
-        borderRadius: theme.radiusSm, color: theme.textDim, cursor: 'pointer',
+        background: active ? theme.success + '15' : theme.bg,
+        border: `1px solid ${active ? theme.success + '60' : theme.border}`,
+        borderRadius: theme.radiusSm,
+        color: active ? theme.success : disabled ? theme.textFaint : theme.textDim,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
         transition: theme.transition,
       }}
     >
