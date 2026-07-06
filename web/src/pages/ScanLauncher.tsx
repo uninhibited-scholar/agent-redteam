@@ -6,8 +6,9 @@
  */
 import { useState, useEffect } from 'react'
 import { theme } from '../theme'
-import type { ScanConfigStatus, SuiteOption } from '../types'
+import type { ScanConfigStatus } from '../types'
 import { useNotification } from '../components/NotificationToast'
+import { SuiteSelector } from '../components/SuiteSelector'
 
 interface Props {
   onScanStarted: () => void
@@ -46,9 +47,6 @@ export function ScanLauncher({ onScanStarted }: Props) {
       return next
     })
   }
-
-  const selectAll = () => setSelected(new Set(config?.suites.map(s => s.name) || []))
-  const selectNone = () => setSelected(new Set())
 
   const handleSubmit = async () => {
     setError(null)
@@ -184,65 +182,11 @@ export function ScanLauncher({ onScanStarted }: Props) {
 
       {/* Suites */}
       <Section title="Suites">
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <MiniBtn onClick={selectAll}>Select all</MiniBtn>
-          <MiniBtn onClick={selectNone}>Clear</MiniBtn>
-          <div style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: theme.textFaint, alignSelf: 'center' }}>
-            {selected.size} / {config.suites.length} selected
-          </span>
-        </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
-          gap: 8,
-        }}>
-          {config.suites.map((s: SuiteOption) => {
-            const on = selected.has(s.name)
-            return (
-              <button
-                key={s.name}
-                onClick={() => toggleSuite(s.name)}
-                style={{
-                  textAlign: 'left',
-                  padding: '10px 12px',
-                  background: on ? theme.primary + '12' : theme.surface,
-                  border: `1px solid ${on ? theme.primary + '60' : theme.border}`,
-                  borderRadius: theme.radius,
-                  cursor: 'pointer', transition: theme.transition,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                  <span style={{
-                    width: 14, height: 14, borderRadius: 3,
-                    border: `1.5px solid ${on ? theme.primary : theme.borderActive}`,
-                    background: on ? theme.primary : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, color: theme.bg, fontWeight: 700,
-                  }}>
-                    {on ? '✓' : ''}
-                  </span>
-                  <span style={{
-                    fontSize: 13, fontWeight: 600,
-                    color: on ? theme.primary : theme.text,
-                  }}>
-                    {s.name.replace(/_/g, ' ')}
-                  </span>
-                  <span style={{
-                    fontSize: 9, fontFamily: theme.monoFamily,
-                    color: theme.primary, background: theme.primary + '15',
-                    padding: '1px 5px', borderRadius: 3, marginLeft: 'auto',
-                  }}>
-                    {s.owasp}
-                  </span>
-                </div>
-                <div style={{ fontSize: 11, color: theme.textFaint, paddingLeft: 22 }}>
-                  {s.count} samples · {s.description}
-                </div>
-              </button>
-            )
-          })}
-        </div>
+        <SuiteSelector
+          suites={config.suites}
+          selected={selected}
+          onToggle={toggleSuite}
+        />
       </Section>
 
       {/* Parameters */}
@@ -337,24 +281,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </label>
       {children}
     </div>
-  )
-}
-
-function MiniBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '5px 12px',
-        background: theme.bg,
-        border: `1px solid ${theme.border}`,
-        borderRadius: theme.radiusSm,
-        color: theme.textDim,
-        fontSize: 11, fontWeight: 600,
-        cursor: 'pointer', transition: theme.transition,
-      }}
-    >
-      {children}
-    </button>
   )
 }

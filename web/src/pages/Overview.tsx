@@ -10,7 +10,7 @@ import { ScoreGauge } from '../components/ScoreGauge'
 import { SuiteBar } from '../components/SuiteBar'
 import { SummaryTiles } from '../components/SummaryTiles'
 import { RiskMatrix } from '../components/RiskMatrix'
-import { SampleTimeline } from '../components/SampleTimeline'
+import { AttackTimeline } from '../components/AttackTimeline'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 
 interface Props {
@@ -90,9 +90,9 @@ export function Overview({ report, onSuiteClick }: Props) {
             ? <RiskMatrix samples={samples} />
             : <Hint text="No samples in this report." />}
         </Panel>
-        <Panel title="Execution Timeline" subtitle="按套件顺序的结果流">
+        <Panel title="Execution Timeline" subtitle="按执行顺序的结果流 · 连续失败高亮">
           {samples.length > 0
-            ? <SampleTimeline samples={samples} />
+            ? <AttackTimeline entries={samples.map((s, i) => ({ index: i, sample: s }))} maxEntries={60} />
             : <Hint text="No samples in this report." />}
         </Panel>
       </div>

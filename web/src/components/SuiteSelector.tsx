@@ -26,17 +26,18 @@ interface SuiteSelectorProps {
   lastScores?: Record<string, number>
 }
 
+// OWASP LLM Top 10 (2025) labels — aligned with `agent-redteam list` mapping.
+// Note: injection & tool_abuse both map to LLM01; multiple suites may share a category.
 const OWASP_LABELS: Record<string, string> = {
-  LLM01: 'LLM01 — Injection & Tool Abuse',
-  LLM02: 'LLM02 — Insecure Output Handling',
-  LLM03: 'LLM03 — Training Data Poisoning',
+  LLM01: 'LLM01 — Prompt Injection & Tool Abuse',
+  LLM02: 'LLM02 — Supply Chain Vulnerabilities',
   LLM04: 'LLM04 — Denial of Service',
-  LLM05: 'LLM05 — Supply Chain',
-  LLM06: 'LLM06 — Sensitive Info Disclosure',
-  LLM07: 'LLM07 — Insecure Plugin Design',
-  LLM08: 'LLM08 — Excessive Agency',
-  LLM09: 'LLM09 — Overreliance',
-  LLM10: 'LLM10 — Model Theft',
+  LLM05: 'LLM05 — Excessive Agency',
+  LLM06: 'LLM06 — Information Disclosure',
+  LLM07: 'LLM07 — Insecure Output Handling',
+  LLM08: 'LLM08 — Sensitive Data Exposure',
+  LLM09: 'LLM09 — Over-Refusal',
+  LLM10: 'LLM10 — Over-Dependency / Hallucination',
 }
 
 function scoreColor(score: number): string {
