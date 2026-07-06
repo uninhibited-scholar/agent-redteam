@@ -120,7 +120,7 @@ def _run_scan_in_background(req: dict) -> None:
     try:
         from ..core.config import load_scan_config
         from ..core.engine import Engine
-        from ..targets import OpenAITarget, ClaudeTarget, LocalTarget
+        from ..targets import OpenAITarget, ClaudeTarget, LocalTarget, ZaiTarget
         from ..core.storage import save_report
 
         cfg = load_scan_config()
@@ -141,6 +141,8 @@ def _run_scan_in_background(req: dict) -> None:
         elif target_type == "local":
             endpoint = req.get("endpoint", "")
             target = LocalTarget(endpoint=endpoint, model=model)
+        elif target_type == "zai":
+            target = ZaiTarget(model=model, api_key=api_key, max_tokens=max_tokens)
         else:
             target = OpenAITarget(
                 model=model, api_key=api_key,

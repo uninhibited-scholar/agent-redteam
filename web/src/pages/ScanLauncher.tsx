@@ -17,7 +17,7 @@ export function ScanLauncher({ onScanStarted }: Props) {
   const { notify } = useNotification()
   const [config, setConfig] = useState<ScanConfigStatus | null>(null)
   const [model, setModel] = useState('')
-  const [target, setTarget] = useState<'openai' | 'claude' | 'local'>('openai')
+  const [target, setTarget] = useState<'openai' | 'claude' | 'zai' | 'local'>('openai')
   const [baseUrl, setBaseUrl] = useState('')
   const [workers, setWorkers] = useState(4)
   const [maxTokens, setMaxTokens] = useState(500)
@@ -140,7 +140,7 @@ export function ScanLauncher({ onScanStarted }: Props) {
         </Field>
         <Field label="Target type">
           <div style={{ display: 'flex', gap: 8 }}>
-            {(['openai', 'claude', 'local'] as const).map(t => (
+            {(['openai', 'claude', 'zai', 'local'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTarget(t)}
@@ -168,6 +168,17 @@ export function ScanLauncher({ onScanStarted }: Props) {
               style={inputStyle}
             />
           </Field>
+        )}
+        {target === 'zai' && (
+          <div style={{
+            fontSize: 11, color: theme.textFaint, padding: '8px 12px',
+            background: theme.bg, borderRadius: theme.radiusSm,
+            border: `1px solid ${theme.border}`,
+          }}>
+            Z.ai（智谱 Anthropic 端点）：API key 从 ~/.agent-redteam/config 读取，
+            系统代理自动检测（7897/7890/1087/8080）。
+            model 填 GLM-5.2 / GLM-4.5 等。
+          </div>
         )}
       </Section>
 
