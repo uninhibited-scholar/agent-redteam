@@ -89,6 +89,7 @@ function DiffColumn({ side, lines, which }: {
   which: 'a' | 'b'
 }) {
   const highlightType = which === 'a' ? 'a-only' : 'b-only'
+  const otherOnly = which === 'a' ? 'b-only' : 'a-only'
   const highlightColor = which === 'a' ? theme.danger : theme.success
 
   return (
@@ -109,6 +110,9 @@ function DiffColumn({ side, lines, which }: {
         {lines.map((line, idx) => {
           const num = which === 'a' ? line.aLine : line.bLine
           const isHighlighted = line.type === highlightType
+          // Lines that belong to the OTHER side are rendered as blank spacers
+          // (preserving row alignment) without leaking the other model's text.
+          const isSpacer = line.type === otherOnly
           return (
             <div
               key={idx}
@@ -117,6 +121,7 @@ function DiffColumn({ side, lines, which }: {
                 borderLeft: isHighlighted ? `3px solid ${highlightColor}` : '3px solid transparent',
                 background: isHighlighted ? highlightColor + '10' : 'transparent',
                 lineHeight: 1.6,
+                opacity: isSpacer ? 0.3 : 1,
               }}
             >
               <span style={{
@@ -129,7 +134,7 @@ function DiffColumn({ side, lines, which }: {
                 whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: theme.text,
                 padding: '0 8px 0 0', flex: 1,
               }}>
-                {line.text || ' '}
+                {isSpacer ? '' : (line.text || ' ')}
               </span>
             </div>
           )

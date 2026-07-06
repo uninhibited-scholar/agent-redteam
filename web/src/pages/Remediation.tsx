@@ -38,7 +38,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       '对工具参数做 schema 校验，拒绝超范围参数（如路径穿越、命令注入）',
       '记录所有工具调用到不可篡改的审计日志',
     ],
-    refs: ['OWASP LLM02', 'Tool Use Sandboxing'],
+    refs: ['OWASP LLM01', 'Tool Use Sandboxing'],
   },
   supply_chain: {
     title: '供应链完整性验证',
@@ -48,7 +48,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       'CI/CD 流水线扫描 package.json/requirements.txt 中的可疑包名',
       '使用内部镜像源代理，拦截未审批的新依赖',
     ],
-    refs: ['OWASP LLM03', 'SLSA Framework'],
+    refs: ['OWASP LLM02', 'SLSA Framework'],
   },
   model_dos: {
     title: '资源耗尽防护',
@@ -68,7 +68,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       '对"我能/我会/我有权"类声明做事实性校验',
       '高风险动作（支付、删除、外发）必须降级为建议而非自动执行',
     ],
-    refs: ['OWASP LLM06', 'Excessive Agency'],
+    refs: ['OWASP LLM05', 'Excessive Agency'],
   },
   info_leak: {
     title: '防止系统信息泄露',
@@ -78,7 +78,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       '脱敏日志和错误信息，不暴露内部架构细节',
       '定期用 info_leak 套件做回归测试',
     ],
-    refs: ['OWASP LLM07', 'System Prompt Leakage'],
+    refs: ['OWASP LLM06', 'System Prompt Leakage'],
   },
   insecure_output: {
     title: '输出安全过滤',
@@ -88,7 +88,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       '在 UI 层对代码块做沙箱渲染，禁止自动执行',
       '对涉及网络/文件/进程的 API 调用做白名单过滤',
     ],
-    refs: ['OWASP LLM09', 'Insecure Output Handling'],
+    refs: ['OWASP LLM07', 'Insecure Output Handling'],
   },
   sensitive_data: {
     title: '敏感数据保护',
@@ -98,7 +98,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       '对训练数据做脱敏，防止成员推理攻击泄露训练样本',
       '记录所有数据访问请求，建立数据血缘审计',
     ],
-    refs: ['OWASP LLM10', 'Sensitive Information Disclosure'],
+    refs: ['OWASP LLM08', 'Sensitive Information Disclosure'],
   },
   over_refusal: {
     title: '降低过度拒绝（可用性优化）',
@@ -108,7 +108,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       '对被拒请求记录上下文，人工抽审误拒率',
       '系统提示中明确允许的安全讨论边界（如 CTF、安全研究）',
     ],
-    refs: ['可用性', 'Over-Refusal'],
+    refs: ['OWASP LLM09', 'Over-Refusal'],
   },
   over_dependency: {
     title: '减少幻觉与过度自信',
@@ -118,7 +118,7 @@ const SUITE_GUIDANCE: Record<string, { title: string; steps: string[]; refs: str
       '降低 temperature（0.3-0.5）用于事实问答场景',
       '部署幻觉检测器，对低置信度输出触发复核',
     ],
-    refs: ['可靠性', 'Hallucination Mitigation'],
+    refs: ['OWASP LLM10', 'Hallucination Mitigation'],
   },
 }
 

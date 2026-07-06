@@ -1,13 +1,29 @@
 /**
  * Compare — side-by-side comparison of two scans with per-suite deltas.
+ *
+ * Two layers:
+ * 1. Suite-level deltas (radar overlay, diverging bars, ranked comparison, diff matrix)
+ * 2. Sample-level diffs — for samples where the verdict FLIPPED between scans,
+ *    click to open DiffViewer and see exactly why one model resisted and the other didn't.
  */
 import { useState, useEffect, useMemo } from 'react'
 import { theme } from '../theme'
-import type { HistoryItem, CompareResult, SuiteComparison } from '../types'
+import type { HistoryItem, CompareResult, SuiteComparison, ScanReport } from '../types'
 import { BarChart, type BarItem } from '../components/BarChart'
 import { DiffMatrix } from '../components/DiffMatrix'
 import { SuiteRadarCompare } from '../components/SuiteRadar'
-import { Panel } from '../components/ui'
+import { DiffViewer, type DiffSide } from '../components/DiffViewer'
+import { Panel, SeverityBadge, MonoTag } from '../components/ui'
+
+/** A sample whose verdict differs between scan A and scan B. */
+interface SampleDiff {
+  sample_id: string
+  suite: string
+  severity: string
+  question: string
+  sideA: DiffSide
+  sideB: DiffSide
+}
 
 export function Compare() {
   const [scans, setScans] = useState<HistoryItem[]>([])
@@ -16,6 +32,11 @@ export function Compare() {
   const [result, setResult] = useState<CompareResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Full reports (with samples) for sample-level diffing
+  const [reportA, setReportA] = useState<ScanReport | null>(null)
+  const [reportB, setReportB] = useState<ScanReport | null>(null)
+  // Selected sample diff to show in DiffViewer
+  const [selectedDiff, setSelectedDiff] = useState<SampleDiff | null>(null)
 
   useEffect(() => {
     fetch('/api/history?limit=50')
@@ -28,16 +49,49 @@ export function Compare() {
     if (!runA || !runB) { setError('Pick two scans to compare'); return }
     if (runA === runB) { setError('Pick two different scans'); return }
     setError(null); setLoading(true); setResult(null)
+    setReportA(null); setReportB(null); setSelectedDiff(null)
     try {
       const resp = await fetch(`/api/compare?run_a=${encodeURIComponent(runA)}&run_b=${encodeURIComponent(runB)}`)
       const data = await resp.json()
       if (!resp.ok) { setError(data.error || 'Compare failed'); setLoading(false); return }
       setResult(data)
+      // Fetch full reports in parallel for sample-level diffing
+      const [ra, rb] = await Promise.all([
+        fetch(`/api/report/${encodeURIComponent(runA)}`).then(r => r.json()) as Promise<ScanReport>,
+        fetch(`/api/report/${encodeURIComponent(runB)}`).then(r => r.json()) as Promise<ScanReport>,
+      ])
+      setReportA(ra); setReportB(rb)
     } catch (e) {
       setError(String(e))
     }
     setLoading(false)
   }
+
+  // Samples where the verdict flipped between A and B — these are the interesting diffs.
+  const flippedSamples = useMemo<SampleDiff[]>(() => {
+    if (!reportA?.samples || !reportB?.samples) return []
+    const byIdB = new Map(reportB.samples.map(s => [s.sample_id, s]))
+    const diffs: SampleDiff[] = []
+    for (const sa of reportA.samples) {
+      const sb = byIdB.get(sa.sample_id)
+      if (!sb) continue
+      if (sa.verdict !== sb.verdict) {
+        diffs.push({
+          sample_id: sa.sample_id,
+          suite: sa.suite,
+          severity: sa.severity,
+          question: sa.question,
+          sideA: { model: reportA.target_model, verdict: sa.verdict as DiffSide['verdict'], response: sa.response },
+          sideB: { model: reportB.target_model, verdict: sb.verdict as DiffSide['verdict'], response: sb.response },
+        })
+      }
+    }
+    // Most severe regressions first: A pass → B fail ranks above A fail → B pass
+    return diffs.sort((x, y) => {
+      const score = (d: SampleDiff) => (d.sideA.verdict === 'pass' && d.sideB.verdict === 'fail' ? 0 : 1)
+      return score(x) - score(y)
+    })
+  }, [reportA, reportB])
 
   return (
     <div style={{ maxWidth: 880 }}>
@@ -153,6 +207,83 @@ export function Compare() {
               </div>
             </Panel>
           </div>
+
+          {/* Sample-level verdict flips — the "why" behind the deltas */}
+          {flippedSamples.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <Panel
+                title="判定翻转样本"
+                subtitle={`${flippedSamples.length} 个样本在两次扫描间判定不同 — 点击查看响应差异`}
+                padding={24}
+              >
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {flippedSamples.slice(0, 20).map(d => {
+                    const regressed = d.sideA.verdict === 'pass' && d.sideB.verdict === 'fail'
+                    return (
+                      <button
+                        key={d.sample_id}
+                        onClick={() => setSelectedDiff(d)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '10px 12px', textAlign: 'left',
+                          background: theme.bg,
+                          border: `1px solid ${regressed ? theme.danger + '40' : theme.success + '40'}`,
+                          borderRadius: theme.radiusSm, cursor: 'pointer',
+                          transition: theme.transition, fontFamily: theme.fontFamily,
+                        }}
+                      >
+                        <SeverityBadge severity={d.severity} />
+                        <MonoTag tone="dim">{d.sample_id}</MonoTag>
+                        <span style={{
+                          fontSize: 12, color: theme.textDim, flex: 1,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {d.question}
+                        </span>
+                        <span style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 10, fontWeight: 700 }}>
+                          <VerdictTag verdict={d.sideA.verdict} />
+                          <span style={{ color: theme.textFaint }}>→</span>
+                          <VerdictTag verdict={d.sideB.verdict} />
+                        </span>
+                        {regressed && (
+                          <span style={{ fontSize: 10, color: theme.danger, fontWeight: 700 }}>退化</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                  {flippedSamples.length > 20 && (
+                    <span style={{ fontSize: 11, color: theme.textFaint, textAlign: 'center', padding: 8 }}>
+                      + {flippedSamples.length - 20} 更多翻转样本
+                    </span>
+                  )}
+                </div>
+              </Panel>
+            </div>
+          )}
+
+          {/* DiffViewer modal for the selected flipped sample */}
+          {selectedDiff && (
+            <div
+              onClick={() => setSelectedDiff(null)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 100,
+                background: 'rgba(4,7,14,0.7)',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                padding: 40, overflowY: 'auto',
+                animation: 'fadeIn 150ms ease',
+              }}
+            >
+              <div onClick={e => e.stopPropagation()} style={{ maxWidth: 1100, width: '100%' }}>
+                <DiffViewer
+                  sampleId={selectedDiff.sample_id}
+                  question={selectedDiff.question}
+                  sideA={selectedDiff.sideA}
+                  sideB={selectedDiff.sideB}
+                  onClose={() => setSelectedDiff(null)}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -298,6 +429,20 @@ function RankedComparison({ suites }: { suites: SuiteComparison[] }) {
         </div>
       </Panel>
     </div>
+  )
+}
+
+/** Compact verdict tag used in the flipped-sample list. */
+function VerdictTag({ verdict }: { verdict: DiffSide['verdict'] }) {
+  const color = verdict === 'pass' ? theme.success : verdict === 'fail' ? theme.danger : theme.warning
+  return (
+    <span style={{
+      padding: '2px 6px', borderRadius: theme.radiusSm,
+      color, background: color + '18', textTransform: 'uppercase',
+      fontFamily: theme.monoFamily,
+    }}>
+      {verdict}
+    </span>
   )
 }
 
