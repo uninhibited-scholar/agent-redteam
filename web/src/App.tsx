@@ -344,7 +344,7 @@ function AppInner() {
         ) : page === 'live' ? (
           <LiveScan />
         ) : page === 'settings' ? (
-          <Settings />
+          <Settings report={report} />
         ) : page === 'suite-detail' && report && activeSuite ? (
           <SuiteDetail
             suiteName={activeSuite}

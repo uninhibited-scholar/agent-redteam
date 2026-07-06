@@ -1,18 +1,20 @@
 /**
- * Settings — app configuration page.
- * Wraps SettingsPanel (which talks to /api/settings) in a page container
- * consistent with the other pages.
+ * Settings — app configuration + data export page.
+ * Wraps SettingsPanel (which talks to /api/settings) and ExportCenter.
  */
 import { theme } from '../theme'
+import type { ScanReport } from '../types'
 import { SettingsPanel } from '../components/SettingsPanel'
+import { ExportCenter } from '../components/ExportCenter'
 
 interface Props {
   version?: string
+  report?: ScanReport | null
 }
 
-export function Settings({ version = '0.1.0' }: Props) {
+export function Settings({ version = '0.1.0', report }: Props) {
   return (
-    <div style={{ animation: 'fadeIn 300ms ease' }}>
+    <div style={{ animation: 'fadeIn 300ms ease', maxWidth: 640 }}>
       <div style={{
         background: theme.surface,
         borderRadius: theme.radius,
@@ -22,6 +24,13 @@ export function Settings({ version = '0.1.0' }: Props) {
       }}>
         <SettingsPanel version={version} />
       </div>
+
+      {/* Export center — only if a report is loaded */}
+      {report && (
+        <div style={{ marginBottom: 24 }}>
+          <ExportCenter report={report} />
+        </div>
+      )}
 
       {/* Quick reference card */}
       <div style={{

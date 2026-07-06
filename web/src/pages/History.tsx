@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { theme } from '../theme'
 import type { HistoryItem } from '../types'
 import { TrendChart, TrendLegend, type TrendSeries, type TrendPoint } from '../components/TrendChart'
+import { StatSparkline } from '../components/StatSparkline'
 import { Panel } from '../components/ui'
 
 interface Props {
@@ -102,7 +103,12 @@ export function History({ onLoad }: Props) {
       {scans.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, margin: '20px 0' }}>
           <SummaryTile label="总扫描数" value={scans.length} color={theme.primary} />
-          <SummaryTile label="平均分" value={(scans.reduce((s, x) => s + x.overall_score, 0) / scans.length).toFixed(1)} color={theme.text} />
+          <SummaryTile
+            label="平均分"
+            value={(scans.reduce((s, x) => s + x.overall_score, 0) / scans.length).toFixed(1)}
+            color={theme.text}
+            sparkline={[...scans].reverse().map(s => s.overall_score)}
+          />
           <SummaryTile label="最高分" value={Math.max(...scans.map(s => s.overall_score)).toFixed(1)} color={theme.success} />
           <SummaryTile label="最低分" value={Math.min(...scans.map(s => s.overall_score)).toFixed(1)} color={theme.danger} />
           <SummaryTile label="总样本" value={scans.reduce((s, x) => s + x.total_samples, 0)} color={theme.textDim} />
@@ -215,7 +221,12 @@ function SortCol({ label, active, dir, onClick, align }: {
   )
 }
 
-function SummaryTile({ label, value, color }: { label: string; value: number | string; color: string }) {
+function SummaryTile({ label, value, color, sparkline }: {
+  label: string
+  value: number | string
+  color: string
+  sparkline?: number[]
+}) {
   return (
     <div style={{
       padding: 12, borderRadius: theme.radius,
@@ -224,8 +235,13 @@ function SummaryTile({ label, value, color }: { label: string; value: number | s
       <div style={{ fontSize: 10, color: theme.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
         {label}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: theme.monoFamily, color }}>
-        {typeof value === 'number' ? value.toLocaleString() : value}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, fontFamily: theme.monoFamily, color }}>
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </div>
+        {sparkline && sparkline.length >= 2 && (
+          <StatSparkline values={sparkline} width={60} height={20} fill domain={[0, 100]} />
+        )}
       </div>
     </div>
   )
