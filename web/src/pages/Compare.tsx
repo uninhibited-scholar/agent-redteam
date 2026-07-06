@@ -1,9 +1,11 @@
 /**
  * Compare — side-by-side comparison of two scans with per-suite deltas.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { theme } from '../theme'
 import type { HistoryItem, CompareResult, SuiteComparison } from '../types'
+import { BarChart, type BarItem } from '../components/BarChart'
+import { Panel } from '../components/ui'
 
 export function Compare() {
   const [scans, setScans] = useState<HistoryItem[]>([])
@@ -118,6 +120,9 @@ export function Compare() {
               <DeltaBar key={s.suite} suite={s} />
             ))}
           </div>
+
+          {/* Ranked comparison bars (B vs A reference) */}
+          <RankedComparison suites={result.suites} />
         </>
       )}
     </div>
@@ -222,6 +227,46 @@ function DeltaBar({ suite }: { suite: SuiteComparison }) {
           transition: 'width 600ms ease',
         }} />
       </div>
+    </div>
+  )
+}
+
+/** Side-by-side ranked bars showing scan B score with scan A as faded reference. */
+function RankedComparison({ suites }: { suites: SuiteComparison[] }) {
+  const items: BarItem[] = useMemo(() =>
+    suites
+      .map(s => ({
+        label: s.suite.replace(/_/g, ' '),
+        value: s.score_b,
+        reference: s.score_a,
+        color: s.score_b >= 80 ? theme.success : s.score_b >= 50 ? theme.warning : theme.danger,
+        detail: `${s.suite}: A=${s.score_a.toFixed(1)} → B=${s.score_b.toFixed(1)} (Δ${s.delta > 0 ? '+' : ''}${s.delta.toFixed(1)})`,
+      }))
+      .sort((a, b) => b.value - a.value)
+  , [suites])
+
+  const improved = suites.filter(s => s.delta > 0).length
+  const regressed = suites.filter(s => s.delta < 0).length
+  const unchanged = suites.filter(s => s.delta === 0).length
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <Panel
+        title="排名对比"
+        subtitle="Scan B 分数（实色）vs Scan A 基线（淡色），按 B 降序"
+        action={
+          <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
+            <span style={{ color: theme.success }}>↑ {improved} 改善</span>
+            <span style={{ color: theme.danger }}>↓ {regressed} 退化</span>
+            <span style={{ color: theme.textFaint }}>→ {unchanged} 持平</span>
+          </div>
+        }
+        padding={24}
+      >
+        <div style={{ marginTop: 12 }}>
+          <BarChart items={items} suffix="" maxValue={100} />
+        </div>
+      </Panel>
     </div>
   )
 }

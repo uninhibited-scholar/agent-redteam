@@ -12,15 +12,19 @@ import { ScanLauncher } from './pages/ScanLauncher'
 import { History } from './pages/History'
 import { Compare } from './pages/Compare'
 import { Settings } from './pages/Settings'
+import { Metrics } from './pages/Metrics'
+import { SuiteDetail } from './pages/SuiteDetail'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LoadingState } from './components/EmptyState'
 import { CommandPalette, type Command } from './components/CommandPalette'
 import { HelpOverlay } from './components/HelpOverlay'
+import { DetailDrawer } from './components/DetailDrawer'
 import { NotificationProvider, useNotification } from './components/NotificationToast'
+import type { SampleResult } from './types'
 
-type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare' | 'settings'
+type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare' | 'settings' | 'metrics' | 'suite-detail'
 
-const PAGE_ORDER: Page[] = ['overview', 'findings', 'launcher', 'live', 'history', 'compare', 'settings']
+const PAGE_ORDER: Page[] = ['overview', 'metrics', 'findings', 'launcher', 'live', 'history', 'compare', 'settings']
 
 function AppInner() {
   const [page, setPage] = useState<Page>('overview')
@@ -30,14 +34,30 @@ function AppInner() {
   const [helpOpen, setHelpOpen] = useState(false)
   // Pending suite filter applied when drilling from Overview → Findings
   const [pendingSuite, setPendingSuite] = useState<string | null>(null)
+  // Pending severity/verdict filter for drilldowns
+  const [pendingSeverity, setPendingSeverity] = useState<string | null>(null)
+  const [pendingVerdict, setPendingVerdict] = useState<string | null>(null)
+  // Suite being viewed in SuiteDetail page
+  const [activeSuite, setActiveSuite] = useState<string | null>(null)
+  // Sample shown in the global DetailDrawer
+  const [drawerSample, setDrawerSample] = useState<SampleResult | null>(null)
   const { notify } = useNotification()
 
-  // Drill from a chart vertex/bar into Findings, pre-filtered to that suite
-  const drillToSuite = useCallback((suiteName: string) => {
-    setPendingSuite(suiteName)
+  // Drill from a chart into Findings with optional filters
+  const drillToFindings = useCallback((suite?: string | null, severity?: string | null, verdict?: string | null) => {
+    setPendingSuite(suite ?? null)
+    setPendingSeverity(severity ?? null)
+    setPendingVerdict(verdict ?? null)
     setPage('findings')
-    notify(`已筛选套件：${suiteName.replace(/_/g, ' ')}`, 'info')
+    const parts = [suite, severity, verdict].filter(Boolean).map(x => String(x).replace(/_/g, ' '))
+    if (parts.length) notify(`筛选：${parts.join(' · ')}`, 'info')
   }, [notify])
+
+  // Drill into the SuiteDetail deep-dive page
+  const drillToSuite = useCallback((suiteName: string) => {
+    setActiveSuite(suiteName)
+    setPage('suite-detail')
+  }, [])
 
   useEffect(() => {
     // Inject global styles
@@ -104,6 +124,7 @@ function AppInner() {
 
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '◈' },
+    { id: 'metrics', label: 'Metrics', icon: '⊞' },
     { id: 'findings', label: 'Findings', icon: '◉' },
     { id: 'launcher', label: 'Scan', icon: '⚡' },
     { id: 'live', label: 'Live Scan', icon: '◐' },
@@ -114,7 +135,9 @@ function AppInner() {
 
   const subtitles: Record<Page, string> = {
     overview: 'Security posture overview',
+    metrics: 'Deep analytics across all suites',
     findings: 'Detailed vulnerability findings',
+    'suite-detail': 'Single suite deep dive',
     launcher: 'Launch a new red team scan',
     live: 'Real-time scan telemetry',
     history: 'Past scan records',
@@ -179,6 +202,15 @@ function AppInner() {
         run: () => setPage('launcher'),
       },
     ]
+    // One command per suite for quick drill-down
+    const suiteCmds: Command[] = (report?.suites || []).map(s => ({
+      id: `suite-${s.name}`,
+      label: `分析套件 ${s.name.replace(/_/g, ' ')}`,
+      icon: '◉',
+      group: 'Suite',
+      keywords: [s.name, 'suite', 'detail', 'analyze', '套件', '分析', s.name.replace(/_/g, ' ')],
+      run: () => drillToSuite(s.name),
+    }))
     const helpCmds: Command[] = [
       {
         id: 'help-shortcuts',
@@ -189,8 +221,8 @@ function AppInner() {
         run: () => setHelpOpen(true),
       },
     ]
-    return [...navCmds, ...actionCmds, ...helpCmds]
-  }, [loadLatestReport, notify])
+    return [...navCmds, ...suiteCmds, ...actionCmds, ...helpCmds]
+  }, [loadLatestReport, notify, report, drillToSuite])
 
   return (
     <ErrorBoundary>
@@ -313,13 +345,27 @@ function AppInner() {
           <LiveScan />
         ) : page === 'settings' ? (
           <Settings />
+        ) : page === 'suite-detail' && report && activeSuite ? (
+          <SuiteDetail
+            suiteName={activeSuite}
+            report={report}
+            onBack={() => setPage('overview')}
+            onOpenSample={setDrawerSample}
+          />
         ) : loading ? (
           <LoadingState message="Loading scan report..." />
         ) : report ? (
           page === 'overview' ? (
             <Overview report={report} onSuiteClick={s => drillToSuite(s.name)} />
+          ) : page === 'metrics' ? (
+            <Metrics report={report} onDrill={drillToFindings} />
           ) : (
-            <Findings initialSuite={pendingSuite} onConsumedFilter={() => setPendingSuite(null)} />
+            <Findings
+              initialSuite={pendingSuite}
+              initialSeverity={pendingSeverity}
+              initialVerdict={pendingVerdict}
+              onConsumedFilter={() => { setPendingSuite(null); setPendingSeverity(null); setPendingVerdict(null) }}
+            />
           )
         ) : (
           <NoReportState onLaunch={() => setPage('launcher')} />
@@ -335,6 +381,7 @@ function AppInner() {
       {helpOpen && (
         <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       )}
+      <DetailDrawer sample={drawerSample} onClose={() => setDrawerSample(null)} />
     </div>
     </ErrorBoundary>
   )

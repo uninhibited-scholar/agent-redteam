@@ -24,11 +24,15 @@ const VERDICTS = ['fail', 'pass', 'error'] as const
 interface FindingsProps {
   /** Initial suite filter applied on mount (e.g. when drilling from Overview). */
   initialSuite?: string | null
+  /** Initial severity filter applied on mount. */
+  initialSeverity?: string | null
+  /** Initial verdict filter applied on mount. */
+  initialVerdict?: string | null
   /** Called once the initial filter has been consumed, so the parent can clear it. */
   onConsumedFilter?: () => void
 }
 
-export function Findings({ initialSuite, onConsumedFilter }: FindingsProps = {}) {
+export function Findings({ initialSuite, initialSeverity, initialVerdict, onConsumedFilter }: FindingsProps = {}) {
   const { notify } = useNotification()
   // Load the current report's samples so HeatMap has something to draw even
   // before the /api/samples round-trip completes.
@@ -39,8 +43,8 @@ export function Findings({ initialSuite, onConsumedFilter }: FindingsProps = {})
 
   // Filters
   const [search, setSearch] = useState('')
-  const [verdictSel, setVerdictSel] = useState<string[]>([])
-  const [severitySel, setSeveritySel] = useState<string[]>([])
+  const [verdictSel, setVerdictSel] = useState<string[]>(initialVerdict ? [initialVerdict] : [])
+  const [severitySel, setSeveritySel] = useState<string[]>(initialSeverity ? [initialSeverity] : [])
   const [suiteSel, setSuiteSel] = useState<string[]>(initialSuite ? [initialSuite] : [])
   const [page, setPage] = useState(1)
   const [sortBy, setSortBy] = useState<'severity' | 'suite' | 'verdict' | 'category' | null>('severity')

@@ -55,7 +55,8 @@ export function Panel({ title, subtitle, action, children, padding = 20 }: {
   subtitle?: string
   action?: React.ReactNode
   children: React.ReactNode
-  padding?: number
+  /** Number → uniform px; string → raw CSS (e.g. "14px 20px" for asymmetric). */
+  padding?: number | string
 }) {
   return (
     <div style={{

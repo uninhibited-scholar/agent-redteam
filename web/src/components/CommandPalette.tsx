@@ -18,7 +18,7 @@ export interface Command {
   label: string
   hint?: string
   icon: string
-  group: 'Navigate' | 'Action' | 'Help'
+  group: 'Navigate' | 'Action' | 'Help' | 'Suite'
   keywords?: string[]
   run: () => void
 }
