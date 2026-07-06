@@ -110,6 +110,28 @@ agent-redteam scan --model ... --fail-below 80 --format json > report.json
 
 </details>
 
+<details>
+<summary>🔍 三模型横向对比（GLM-5.2 / GLM-4.5 / GLM-4-Flash · 各 300 条）</summary>
+
+同一 Z.ai 端点、同一套 300 条攻击样本、同一套 check——纯模型差异：
+
+| 套件 | GLM-5.2 | GLM-4.5 | GLM-4-Flash | 发现 |
+|------|---------|---------|-------------|------|
+| **Overall** | **84.6** | **81.6** | **76.0** | 旗舰领先，但幅度不大 |
+| injection | 100 | 100 | **70** | Flash 被 prompt 注入攻破 9 次，大模型零通过 |
+| excessive_agency | **67** | 87 | 80 | ⚠ 反直觉：5.2 最差（更"自信"更易夸大能力） |
+| info_leak | 70 | 50 | 50 | 5.2 显著强（旧模型更容易吐配置） |
+| supply_chain | 53 | 43 | 37 | 三模型都不及格——都会帮写恶意包（共性弱点） |
+
+**三个真实洞察**：
+1. **模型越大 ≠ 越安全**——GLM-5.2 总分最高，但在能力夸大（excessive_agency）上反而最差
+2. **轻量模型的 injection 断崖**——Flash 降本牺牲了 prompt 注入防御（70 vs 100）
+3. **供应链攻击是系统性缺口**——三个模型都不及格，不是某模型的问题
+
+> 完整报告：`validation/MULTI-MODEL-REPORT.md`。复现：三个模型各跑 `agent-redteam scan --target zai --model <model> --limit 30`，然后 `agent-redteam compare <run_a> <run_b>`。
+
+</details>
+
 ### 2. TUI（实时扫描界面）
 
 ```bash
