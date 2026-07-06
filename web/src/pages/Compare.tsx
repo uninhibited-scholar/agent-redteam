@@ -13,6 +13,8 @@ import { BarChart, type BarItem } from '../components/BarChart'
 import { DiffMatrix } from '../components/DiffMatrix'
 import { SuiteRadarCompare } from '../components/SuiteRadar'
 import { DiffViewer, type DiffSide } from '../components/DiffViewer'
+import { SampleCompare } from '../components/SampleCompare'
+import { ScoreBadge } from '../components/ScoreBadge'
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
 
 /** A sample whose verdict differs between scan A and scan B. */
@@ -284,6 +286,19 @@ export function Compare() {
               </div>
             </div>
           )}
+
+          {/* Same-model variance view — when comparing two runs of the same model,
+              show the SampleCompare stability analysis (sampling-variance flips). */}
+          {result.model_a === result.model_b && reportA?.samples && reportB?.samples && (
+            <div style={{ marginTop: 20 }}>
+              <SampleCompare
+                runA={reportA.samples}
+                runB={reportB.samples}
+                modelLabel={`${result.model_a} · 两次运行稳定性分析`}
+                onSelectSample={() => {}}
+              />
+            </div>
+          )}
         </>
       )}
     </div>
@@ -291,7 +306,6 @@ export function Compare() {
 }
 
 function ScoreCard({ label, model, score }: { label: string; model: string; score: number }) {
-  const color = score >= 80 ? theme.success : score >= 50 ? theme.warning : theme.danger
   return (
     <div style={{
       flex: 1, minWidth: 180,
@@ -306,15 +320,11 @@ function ScoreCard({ label, model, score }: { label: string; model: string; scor
       </div>
       <div style={{
         fontFamily: theme.monoFamily, fontSize: 14, color: theme.textDim,
-        marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis',
+        marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis',
       }}>
         {model}
       </div>
-      <div style={{
-        fontFamily: theme.monoFamily, fontSize: 32, fontWeight: 700, color,
-      }}>
-        {score.toFixed(1)}
-      </div>
+      <ScoreBadge score={score} size="lg" showVerdict />
     </div>
   )
 }

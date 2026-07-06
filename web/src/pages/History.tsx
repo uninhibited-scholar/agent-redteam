@@ -9,6 +9,7 @@ import { theme } from '../theme'
 import type { HistoryItem } from '../types'
 import { TrendChart, TrendLegend, type TrendSeries, type TrendPoint } from '../components/TrendChart'
 import { StatSparkline } from '../components/StatSparkline'
+import { ScoreBadge } from '../components/ScoreBadge'
 import { Panel } from '../components/ui'
 
 interface Props {
@@ -173,11 +174,8 @@ export function History({ onLoad }: Props) {
                   {s.run_id}
                 </span>
                 <span style={{ color: theme.textDim }}>{s.target_model}</span>
-                <span style={{
-                  textAlign: 'right', fontWeight: 700,
-                  color: scoreColor(s.overall_score),
-                }}>
-                  {s.overall_score.toFixed(1)}
+                <span style={{ textAlign: 'right' }}>
+                  <ScoreBadge score={s.overall_score} size="sm" showGrade={false} />
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ flexShrink: 0 }}>
