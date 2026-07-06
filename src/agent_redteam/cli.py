@@ -4,7 +4,7 @@ import argparse, os, sys
 
 from .core.engine import Engine
 from .targets import OpenAITarget, ClaudeTarget, LocalTarget
-from .report import render_report, render_json
+from .report import render_report, render_json, render_markdown
 from . import __version__
 
 
@@ -198,6 +198,8 @@ def _cmd_scan(args) -> int:
     if not args.serve:
         if args.format == "json":
             print(render_json(report))
+        elif args.format == "markdown":
+            print(render_markdown(report))
         else:
             render_report(report)
 

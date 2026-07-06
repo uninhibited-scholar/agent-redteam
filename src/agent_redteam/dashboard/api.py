@@ -200,6 +200,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self._handle_compare(parsed)
         elif path == "/api/scan/config":
             self._handle_scan_config()
+        elif path.startswith("/api/export/"):
+            fmt = path[len("/api/export/"):]
+            self._handle_export(fmt)
         elif path.startswith("/api/report/"):
             run_id = path[len("/api/report/"):]
             self._handle_report_by_id(run_id)
@@ -246,6 +249,59 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self._json_response('{"error":"scan not found"}', status=404)
             return
         self._json_response(json.dumps(report, ensure_ascii=False))
+
+    def _handle_export(self, fmt: str):
+        """Export current report as JSON or Markdown for download."""
+        if not _state.report_json or _state.report_json == '{"suites": [], "samples": []}':
+            self._json_response('{"error":"no report available"}', status=404)
+            return
+
+        if fmt == "json":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="agent-redteam-report.json"')
+            self.end_headers()
+            self.wfile.write(_state.report_json.encode("utf-8"))
+        elif fmt == "markdown":
+            from ..core.result import ScanReport, SuiteResult, SampleResult, Verdict
+            from ..report.markdown_report import render_markdown
+            import json as _json
+            data = _json.loads(_state.report_json)
+            # Rebuild a minimal ScanReport for render_markdown
+            report = ScanReport(
+                target_model=data.get("target_model", "unknown"),
+                started_at=data.get("started_at", ""),
+                finished_at=data.get("finished_at", ""),
+            )
+            report.suites = []
+            for s in data.get("suites", []):
+                sr = SuiteResult(name=s["name"])
+                sr.total = s["total"]
+                sr.passed = s["passed"]
+                sr.failed = s["failed"]
+                sr.errors = s.get("errors", 0)
+                sr.skipped = s.get("skipped", 0)
+                # score is a property, don't set it directly
+                # Rebuild samples for markdown detail
+                for sm in data.get("samples", []):
+                    if sm["suite"] == s["name"]:
+                        sr.samples.append(SampleResult(
+                            suite=sm["suite"], sample_id=sm["sample_id"],
+                            category=sm["category"], difficulty=sm["difficulty"],
+                            question=sm["question"], expected=sm["expected"],
+                            response=sm["response"], verdict=Verdict(sm["verdict"]),
+                            severity=sm["severity"], owasp=sm["owasp"],
+                            tags=sm["tags"],
+                        ))
+                report.suites.append(sr)
+            md = render_markdown(report)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/markdown; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="agent-redteam-report.md"')
+            self.end_headers()
+            self.wfile.write(md.encode("utf-8"))
+        else:
+            self._json_response('{"error":"unsupported format. Use json or markdown"}', status=400)
 
     def _handle_scan_config(self):
         """Externally-safe config status — NEVER includes the api_key."""
