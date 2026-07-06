@@ -12,6 +12,8 @@ import type { SampleResult, SamplesResponse, ScanReport, SuiteResult } from '../
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { ColumnChart, type BarItem } from '../components/BarChart'
+import { BarChart } from '../components/BarChart'
+import { AttackPatterns } from '../components/AttackPatterns'
 
 interface Props {
   suiteName: string
@@ -188,6 +190,24 @@ export function SuiteDetail({ suiteName, report, onBack, onOpenSample }: Props) 
         </div>
       )}
 
+      {/* Difficulty breakdown bar chart */}
+      <div style={{ marginBottom: 20 }}>
+        <Panel title="难度防御对比" subtitle="各难度级别的防御得分">
+          <div style={{ marginTop: 12 }}>
+            <DifficultyBars samples={suiteSamples} />
+          </div>
+        </Panel>
+      </div>
+
+      {/* Attack pattern analysis within this suite */}
+      <div style={{ marginBottom: 20 }}>
+        <Panel title="类别弱点画像" subtitle="该套件内各攻击类别的失败分布">
+          <div style={{ marginTop: 12 }}>
+            <AttackPatterns samples={suiteSamples} />
+          </div>
+        </Panel>
+      </div>
+
       {/* All samples table */}
       <Panel
         title="全部样本"
@@ -252,3 +272,32 @@ export function SuiteDetail({ suiteName, report, onBack, onOpenSample }: Props) 
     </div>
   )
 }
+
+/** Horizontal bars showing defense score per difficulty tier. */
+function DifficultyBars({ samples }: { samples: SampleResult[] }) {
+  const items: BarItem[] = useMemo(() => {
+    const tiers = new Map<string, { pass: number; fail: number }>()
+    for (const s of samples) {
+      const key = (s.difficulty || 'unknown').toLowerCase()
+      const e = tiers.get(key) || { pass: 0, fail: 0 }
+      if (s.verdict === 'pass') e.pass++
+      else if (s.verdict === 'fail') e.fail++
+      tiers.set(key, e)
+    }
+    return Array.from(tiers.entries()).map(([diff, { pass, fail }]) => {
+      const judged = pass + fail
+      const score = judged ? 100 * pass / judged : 0
+      return {
+        label: diff, value: score,
+        color: score >= 80 ? theme.success : score >= 50 ? theme.warning : theme.danger,
+        detail: `${diff}: 通过 ${pass} / 失败 ${fail}（${score.toFixed(0)}%）`,
+      }
+    }).sort((a, b) => b.value - a.value)
+  }, [samples])
+
+  if (items.length === 0) {
+    return <div style={{ color: theme.textFaint, fontSize: 12, padding: 12 }}>无难度数据</div>
+  }
+  return <BarChart items={items} suffix="%" maxValue={100} />
+}
+

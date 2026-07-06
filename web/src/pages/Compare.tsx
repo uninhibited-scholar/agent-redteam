@@ -6,6 +6,7 @@ import { theme } from '../theme'
 import type { HistoryItem, CompareResult, SuiteComparison } from '../types'
 import { BarChart, type BarItem } from '../components/BarChart'
 import { DiffMatrix } from '../components/DiffMatrix'
+import { SuiteRadarCompare } from '../components/SuiteRadar'
 import { Panel } from '../components/ui'
 
 export function Compare() {
@@ -102,6 +103,21 @@ export function Compare() {
             <ScoreCard label="A" model={result.model_a} score={result.score_a} />
             <DeltaCard delta={result.score_delta} />
             <ScoreCard label="B" model={result.model_b} score={result.score_b} />
+          </div>
+
+          {/* Overlaid radar comparison */}
+          <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
+            <Panel title="套件雷达叠加" subtitle="两个扫描的安全覆盖面对比（虚线=基线 A，实线=当前 B）" padding={24}>
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+                <SuiteRadarCompare
+                  suitesA={result.suites.map(s => ({ name: s.suite, score: s.score_a }))}
+                  suitesB={result.suites.map(s => ({ name: s.suite, score: s.score_b }))}
+                  labelA={result.model_a}
+                  labelB={result.model_b}
+                  size={300}
+                />
+              </div>
+            </Panel>
           </div>
 
           {/* Per-suite deltas */}
