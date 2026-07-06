@@ -15,6 +15,7 @@ import { useMemo } from 'react'
 import { theme } from '../theme'
 import type { ScanReport } from '../types'
 import { Panel, MonoTag } from '../components/ui'
+import { AttackPatterns } from '../components/AttackPatterns'
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/DonutChart'
 import { BarChart, ColumnChart, type BarItem } from '../components/BarChart'
 import { useNotification } from '../components/NotificationToast'
@@ -262,6 +263,15 @@ export function Metrics({ report, onDrill }: Props) {
           <div style={{ color: theme.textFaint, fontSize: 12, padding: 20 }}>样本未标记 OWASP 编号</div>
         )}
       </Panel>
+
+      {/* Attack patterns — weakness profile by category */}
+      <div style={{ marginBottom: 20 }}>
+        <Panel title="攻击模式分析" subtitle="模型最脆弱的攻击类别（按失败数 + 失败率排序）">
+          <div style={{ marginTop: 12 }}>
+            <AttackPatterns samples={samples} onCategoryClick={() => notify('请在 Findings 页按类别筛选', 'info')} />
+          </div>
+        </Panel>
+      </div>
 
       {/* Row 4: tag frequency */}
       {tagFrequency.length > 0 && (

@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { theme } from '../theme'
 import type { HistoryItem, CompareResult, SuiteComparison } from '../types'
 import { BarChart, type BarItem } from '../components/BarChart'
+import { DiffMatrix } from '../components/DiffMatrix'
 import { Panel } from '../components/ui'
 
 export function Compare() {
@@ -123,6 +124,19 @@ export function Compare() {
 
           {/* Ranked comparison bars (B vs A reference) */}
           <RankedComparison suites={result.suites} />
+
+          {/* Diff matrix — precise per-suite delta table */}
+          <div style={{ marginTop: 20 }}>
+            <Panel title="差值矩阵" subtitle="每个套件的精确分数变化（绿=改善，红=退化）" padding={24}>
+              <div style={{ marginTop: 12 }}>
+                <DiffMatrix
+                  headerA={result.model_a}
+                  headerB={result.model_b}
+                  rows={result.suites.map(s => ({ label: s.suite, a: s.score_a, b: s.score_b }))}
+                />
+              </div>
+            </Panel>
+          </div>
         </>
       )}
     </div>

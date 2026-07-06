@@ -1,7 +1,8 @@
 /**
- * Overview — dashboard landing page with radar chart, gauge, suite bars,
- * risk matrix, and execution timeline.
+ * Overview — dashboard landing page with gauge, radar, verdict donut,
+ * suite bars, risk matrix, and execution timeline.
  */
+import { useMemo } from 'react'
 import { theme } from '../theme'
 import type { ScanReport, SuiteResult } from '../types'
 import { RadarChart } from '../components/RadarChart'
@@ -10,6 +11,7 @@ import { SuiteBar } from '../components/SuiteBar'
 import { SummaryTiles } from '../components/SummaryTiles'
 import { RiskMatrix } from '../components/RiskMatrix'
 import { SampleTimeline } from '../components/SampleTimeline'
+import { DonutChart, type DonutSegment } from '../components/DonutChart'
 
 interface Props {
   report: ScanReport
@@ -21,9 +23,20 @@ export function Overview({ report, onSuiteClick }: Props) {
   const samples = report.samples || []
   const score = report.overall_score ?? 0
 
+  const verdictSegs: DonutSegment[] = useMemo(() => {
+    const p = samples.filter(s => s.verdict === 'pass').length
+    const f = samples.filter(s => s.verdict === 'fail').length
+    const e = samples.filter(s => s.verdict === 'error').length
+    return [
+      { label: '通过', value: p, color: theme.success },
+      { label: '失败', value: f, color: theme.danger },
+      { label: '错误', value: e, color: theme.warning },
+    ].filter(s => s.value > 0)
+  }, [samples])
+
   return (
     <div style={{ animation: 'fadeIn 300ms ease' }}>
-      {/* Hero: gauge + radar */}
+      {/* Hero: gauge + radar + donut */}
       <div style={{
         display: 'flex', gap: 40, alignItems: 'center',
         justifyContent: 'center',
@@ -32,10 +45,26 @@ export function Overview({ report, onSuiteClick }: Props) {
       }}>
         <div style={{ textAlign: 'center' }}>
           <ScoreGauge score={score} size={180} />
+          <div style={{ fontSize: 11, color: theme.textFaint, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            总评分
+          </div>
         </div>
         <div>
           <RadarChart suites={report.suites} size={280} onSuiteClick={onSuiteClick} />
         </div>
+        {verdictSegs.length > 0 && (
+          <div style={{ textAlign: 'center' }}>
+            <DonutChart
+              segments={verdictSegs}
+              size={160}
+              centerValue={samples.length}
+              centerLabel="样本"
+            />
+            <div style={{ fontSize: 11, color: theme.textFaint, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              判定分布
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Summary tiles */}
@@ -115,4 +144,5 @@ function Panel({ title, subtitle, children }: { title: string; subtitle?: string
 function Hint({ text }: { text: string }) {
   return <div style={{ color: theme.textFaint, fontSize: 12, padding: 20, textAlign: 'center' }}>{text}</div>
 }
+
 

@@ -14,3 +14,6 @@ web/dist/
 *.log
 predictions_*.jsonl
 results/
+
+# TypeScript incremental build cache
+web/tsconfig.tsbuildinfo
