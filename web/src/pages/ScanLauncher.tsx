@@ -9,6 +9,7 @@ import { theme } from '../theme'
 import type { ScanConfigStatus } from '../types'
 import { useNotification } from '../components/NotificationToast'
 import { SuiteSelector } from '../components/SuiteSelector'
+import { ScanPreset } from '../components/ScanPreset'
 
 interface Props {
   onScanStarted: () => void
@@ -178,6 +179,27 @@ export function ScanLauncher({ onScanStarted }: Props) {
             model 填 GLM-5.2 / GLM-4.5 等。
           </div>
         )}
+      </Section>
+
+      {/* Presets — save/load common scan configs */}
+      <Section title="Presets">
+        <ScanPreset
+          current={{
+            model: model.trim(),
+            target,
+            suites: [...selected],
+            workers,
+            max_tokens: maxTokens,
+          }}
+          onApply={(p) => {
+            setModel(p.model)
+            setTarget(p.target)
+            setWorkers(p.workers)
+            setMaxTokens(p.max_tokens)
+            setSelected(new Set(p.suites))
+            notify(`已加载预设（${p.suites.length} 套件）`, 'info')
+          }}
+        />
       </Section>
 
       {/* Suites */}

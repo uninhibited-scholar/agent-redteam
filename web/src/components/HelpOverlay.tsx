@@ -3,12 +3,16 @@
  */
 import { useState } from 'react'
 import { theme } from '../theme'
-import { Section, KbdRow } from './ui'
+import { Section } from './ui'
+import { ShortcutHelp, type Shortcut } from './ShortcutHelp'
 
-const SHORTCUTS: [string, string][] = [
-  ['⌘K / Ctrl+K', '打开命令面板'],
-  ['ESC', '关闭弹层/抽屉'],
-  ['1 - 6', '切换页面'],
+const SHORTCUTS: Shortcut[] = [
+  { group: '导航', keys: '⌘+K / Ctrl+K', description: '打开命令面板' },
+  { group: '导航', keys: '1 - 9', description: '切换到第 N 个页面' },
+  { group: '导航', keys: 'G', description: '聚焦命令面板（同 ⌘K）' },
+  { group: '操作', keys: 'R', description: '刷新当前报告数据' },
+  { group: '操作', keys: '?', description: '打开/关闭本帮助面板' },
+  { group: '操作', keys: 'ESC', description: '关闭弹层/抽屉/对话框' },
 ]
 
 const SUITES: [string, string][] = [
@@ -99,9 +103,7 @@ export function HelpOverlay({ repoUrl = 'https://github.com/uninhibited-scholar/
             </div>
 
             <Section title="快捷键" variant="subtle">
-              {SHORTCUTS.map(([key, desc]) => (
-                <KbdRow key={key} k={key} d={desc} />
-              ))}
+              <ShortcutHelp shortcuts={SHORTCUTS} searchable={false} />
             </Section>
 
             <Section title="十个攻击套件" variant="subtle">

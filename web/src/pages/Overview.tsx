@@ -11,6 +11,7 @@ import { SuiteBar } from '../components/SuiteBar'
 import { SummaryTiles } from '../components/SummaryTiles'
 import { RiskMatrix } from '../components/RiskMatrix'
 import { AttackTimeline } from '../components/AttackTimeline'
+import { SeverityDistribution } from '../components/SeverityDistribution'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 
 interface Props {
@@ -96,6 +97,13 @@ export function Overview({ report, onSuiteClick }: Props) {
             : <Hint text="No samples in this report." />}
         </Panel>
       </div>
+
+      {/* Severity distribution — where do failures concentrate? */}
+      {samples.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <SeverityDistribution samples={samples} />
+        </div>
+      )}
 
       {/* Suite bars */}
       <div style={{
