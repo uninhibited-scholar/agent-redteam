@@ -137,3 +137,240 @@ def test_api_scan_start_rejects_without_key():
                 assert "sk-liveserver-key" not in json.dumps(body)
         finally:
             server.shutdown()
+
+
+# ===== /api/settings — GET/POST round-trip =====
+
+def test_api_settings_get_post_round_trip():
+    """POST /api/settings must persist, then GET must return the merged value."""
+    base, server = _start_server()
+    # Use an isolated temp settings file so we don't clobber real settings
+    with tempfile.TemporaryDirectory() as d:
+        settings_path = os.path.join(d, "settings.json")
+        with mock.patch("agent_redteam.dashboard.settings_api.SETTINGS_PATH", settings_path):
+            try:
+                # GET default first
+                _, before = _get(f"{base}/api/settings")
+                assert before["workers"] == 4  # default
+
+                # POST an update
+                req = urllib.request.Request(
+                    f"{base}/api/settings",
+                    data=json.dumps({"workers": 12, "fail_below": 65}).encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=5) as r:
+                    posted = json.loads(r.read().decode())
+                assert posted["workers"] == 12
+                assert posted["fail_below"] == 65
+
+                # GET must reflect the persisted merge
+                _, after = _get(f"{base}/api/settings")
+                assert after["workers"] == 12
+                assert after["fail_below"] == 65
+            finally:
+                server.shutdown()
+
+
+def test_api_settings_post_rejects_invalid_json():
+    base, server = _start_server()
+    try:
+        req = urllib.request.Request(
+            f"{base}/api/settings",
+            data=b"not json",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(req, timeout=5)
+            assert False, "should have raised"
+        except urllib.error.HTTPError as e:
+            assert e.code == 400
+    finally:
+        server.shutdown()
+
+
+# ===== /api/samples — paginated drill-down =====
+
+def _seed_report_into_state():
+    """Populate the shared _state with a known ScanReport for samples tests."""
+    from agent_redteam.core.result import (
+        ScanReport, SuiteResult, SampleResult, Verdict,
+    )
+
+    def mk(suite, sid, verdict, severity="medium", category="cat",
+           question="hello", response="world", difficulty="basic"):
+        return SampleResult(
+            suite=suite, sample_id=sid, category=category, difficulty=difficulty,
+            question=question, expected="e", response=response, verdict=verdict,
+            severity=severity, owasp="LLM01", tags=[],
+        )
+
+    report = ScanReport(target_model="test-model", started_at="t0", finished_at="t1")
+    inj = SuiteResult(name="injection")
+    inj.total = 3
+    inj.samples = [
+        mk("injection", "i1", Verdict.FAIL, "critical", "prompt_injection", "bypass", "got it"),
+        mk("injection", "i2", Verdict.PASS, "medium", "prompt_injection", "jailbreak", "refused"),
+        mk("injection", "i3", Verdict.FAIL, "high", "prompt_injection", "inject", "leaked"),
+    ]
+    inj.passed = 1
+    inj.failed = 2
+    leak = SuiteResult(name="info_leak")
+    leak.total = 1
+    leak.samples = [mk("info_leak", "l1", Verdict.ERROR, "low", "pii", "secret?", "")]
+    leak.errors = 1
+    report.suites = [inj, leak]
+    _state.set_report(report)
+
+
+def test_api_samples_default_returns_all_with_facets():
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        status, body = _get(f"{base}/api/samples?page=1&page_size=25")
+        assert status == 200
+        assert body["total"] == 4
+        assert body["total_pages"] == 1
+        assert body["page"] == 1
+        assert body["facets"]["verdict"] == {"fail": 2, "pass": 1, "error": 1}
+        assert body["facets"]["suite"] == {"injection": 3, "info_leak": 1}
+        # report meta is echoed
+        assert body["report"]["target_model"] == "test-model"
+    finally:
+        server.shutdown()
+
+
+def test_api_samples_verdict_filter():
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, body = _get(f"{base}/api/samples?verdict=fail")
+        assert body["total"] == 2
+        assert all(i["verdict"] == "fail" for i in body["items"])
+    finally:
+        server.shutdown()
+
+
+def test_api_samples_suite_and_severity_filter():
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, body = _get(f"{base}/api/samples?suite=injection&severity=critical")
+        assert body["total"] == 1
+        assert body["items"][0]["sample_id"] == "i1"
+    finally:
+        server.shutdown()
+
+
+def test_api_samples_search_substring():
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, body = _get(f"{base}/api/samples?search=bypass")
+        assert body["total"] == 1
+        assert body["items"][0]["sample_id"] == "i1"
+    finally:
+        server.shutdown()
+
+
+def test_api_samples_sort_severity_desc_riskiest_first():
+    """sort_dir=desc must surface critical before low (security convention)."""
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, body = _get(f"{base}/api/samples?sort_by=severity&sort_dir=desc&page_size=10")
+        sevs = [i["severity"] for i in body["items"]]
+        # critical(3) > high(2) > medium(1) > low(0) in rank, so desc order:
+        assert sevs == ["critical", "high", "medium", "low"], sevs
+    finally:
+        server.shutdown()
+
+
+def test_api_samples_pagination_boundaries():
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, page1 = _get(f"{base}/api/samples?page=1&page_size=2")
+        _, page2 = _get(f"{base}/api/samples?page=2&page_size=2")
+        assert page1["total"] == 4
+        assert page1["total_pages"] == 2
+        assert len(page1["items"]) == 2
+        assert len(page2["items"]) == 2
+        # page 3 must be empty
+        _, page3 = _get(f"{base}/api/samples?page=3&page_size=2")
+        assert page3["items"] == []
+        # page_size capped at 200
+        _, big = _get(f"{base}/api/samples?page_size=999")
+        assert big["page_size"] == 200
+    finally:
+        server.shutdown()
+
+
+def test_api_samples_empty_report_state():
+    base, server = _start_server()
+    try:
+        _state.report_json = '{"suites": [], "samples": []}'
+        _, body = _get(f"{base}/api/samples")
+        assert body["total"] == 0
+        assert body["items"] == []
+        assert body["facets"] == {"suite": {}, "verdict": {}, "severity": {}, "difficulty": {}}
+    finally:
+        server.shutdown()
+
+
+# ===== /api/risk-matrix =====
+
+def test_api_risk_matrix_structure():
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, body = _get(f"{base}/api/risk-matrix")
+        assert body is not None
+        assert "suites" in body
+        assert "severities" in body
+        assert body["severities"] == ["critical", "high", "medium", "low"]
+        assert "matrix" in body and "totals" in body
+        assert body["matrix"]["injection"]["critical"] == 1
+        assert body["matrix"]["injection"]["high"] == 1
+        assert body["totals"]["injection"]["fail"] == 2
+        assert body["totals"]["injection"]["pass"] == 1
+        # ERROR samples don't count toward any severity failure cell
+        assert body["matrix"]["info_leak"]["low"] == 0
+    finally:
+        server.shutdown()
+
+
+def test_api_risk_matrix_suites_ordered_by_risk():
+    """Suites with more failures must be listed first."""
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, body = _get(f"{base}/api/risk-matrix")
+        suites = body["suites"]
+        # injection has 2 fail-severity hits, info_leak has 0 → injection first
+        assert suites[0] == "injection"
+    finally:
+        server.shutdown()
+
+
+# ===== /api/timeline =====
+
+def test_api_timeline_compact_points():
+    base, server = _start_server()
+    try:
+        _seed_report_into_state()
+        _, body = _get(f"{base}/api/timeline")
+        assert body["count"] == 4
+        assert len(body["points"]) == 4
+        assert body["points"][0]["index"] == 0
+        # compact: no full response body in timeline points
+        assert "response" not in body["points"][0]
+        assert "question" not in body["points"][0]
+        # but core identifying fields present
+        for key in ("suite", "sample_id", "verdict", "severity", "category"):
+            assert key in body["points"][0]
+    finally:
+        server.shutdown()
+

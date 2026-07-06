@@ -1,16 +1,24 @@
 /**
  * RadarChart — multi-axis security coverage visualization.
  * Pure SVG, zero dependencies. Each spoke is a suite; filled area shows exposure.
+ *
+ * Interactivity: hover a vertex to highlight it + see a tooltip with the
+ * suite's pass/fail/total; click a vertex to drill into that suite (caller
+ * supplies onSuiteClick).
  */
+import { useState } from 'react'
 import { theme } from '../theme'
 import type { SuiteResult } from '../types'
+import { Tooltip } from './ui'
 
 interface Props {
   suites: SuiteResult[]
   size?: number
+  onSuiteClick?: (suite: SuiteResult) => void
 }
 
-export function RadarChart({ suites, size = 260 }: Props) {
+export function RadarChart({ suites, size = 260, onSuiteClick }: Props) {
+  const [hovered, setHovered] = useState<number | null>(null)
   const cx = size / 2
   const cy = size / 2
   const radius = size * 0.38
@@ -71,27 +79,50 @@ export function RadarChart({ suites, size = 260 }: Props) {
       <polygon
         points={polygonPoints}
         fill={theme.primary}
-        fillOpacity={0.12}
+        fillOpacity={hovered === null ? 0.12 : 0.06}
         stroke={theme.primary}
         strokeWidth={2}
         style={{ transition: 'all 600ms ease' }}
       />
 
-      {/* Data points */}
-      {points.map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x} cy={p.y} r={4}
-          fill={theme.primary}
-          style={{ transition: 'all 600ms ease' }}
-        />
-      ))}
-
-      {/* Labels */}
+      {/* Data points — interactive */}
       {points.map((p, i) => {
+        const isHovered = hovered === i
         const color = (theme.suites as Record<string, string>)[p.suite.name] || theme.primary
         return (
-          <g key={i}>
+          <Tooltip
+            key={i}
+            content={
+              <>
+                <strong style={{ color }}>{p.suite.name.replace(/_/g, ' ')}</strong>
+                {'\n'}score {p.suite.score.toFixed(1)} · pass {p.suite.passed}/{p.suite.passed + p.suite.failed}
+                {onSuiteClick && '\n点击查看详情'}
+              </>
+            }
+          >
+            <circle
+              cx={p.x} cy={p.y} r={isHovered ? 6 : 4}
+              fill={isHovered ? color : theme.primary}
+              stroke={isHovered ? theme.bg : 'none'}
+              strokeWidth={isHovered ? 2 : 0}
+              style={{
+                transition: 'all 200ms ease',
+                cursor: onSuiteClick ? 'pointer' : 'default',
+              }}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => onSuiteClick?.(p.suite)}
+            />
+          </Tooltip>
+        )
+      })}
+
+      {/* Labels — dim non-hovered for focus */}
+      {points.map((p, i) => {
+        const color = (theme.suites as Record<string, string>)[p.suite.name] || theme.primary
+        const dim = hovered !== null && hovered !== i
+        return (
+          <g key={i} style={{ opacity: dim ? 0.35 : 1, transition: 'opacity 200ms' }}>
             <text
               x={p.labelX} y={p.labelY - 6}
               textAnchor="middle"

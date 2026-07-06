@@ -10,6 +10,11 @@ Serves the built SPA from dashboard/static/ and provides:
   GET  /api/compare          — compare two scans (?run_a=&run_b=)
   GET  /api/scan/config      — externally-safe scan config status (NO api_key)
   POST /api/scan/start       — launch a scan in the background
+  GET  /api/samples          — paginated/filtered/sorted sample drill-down
+                               (?page=&page_size=&suite=&verdict=&severity=&search=&sort_by=&sort_dir=)
+  GET  /api/risk-matrix      — failure density per suite × severity bucket
+  GET  /api/timeline         — per-sample result timeline in execution order
+  GET  /api/settings         — UI settings (GET/POST)
   WS   /ws                   — real-time telemetry during scan
 """
 from __future__ import annotations
@@ -17,6 +22,7 @@ import json, os, threading, webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from urllib.parse import urlparse, parse_qs
+from .settings_api import load_settings, merge_settings
 
 from ..core.result import ScanReport, SampleResult
 from ..core.config import has_api_key  # imported at module scope so it can be patched in tests
@@ -200,6 +206,15 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self._handle_compare(parsed)
         elif path == "/api/scan/config":
             self._handle_scan_config()
+        elif path == "/api/settings":
+            # GET only here — POST is routed in do_POST
+            self._json_response(json.dumps(load_settings(), ensure_ascii=False))
+        elif path == "/api/samples":
+            self._handle_samples(parsed)
+        elif path == "/api/risk-matrix":
+            self._handle_risk_matrix(parsed)
+        elif path == "/api/timeline":
+            self._handle_timeline(parsed)
         elif path.startswith("/api/export/"):
             fmt = path[len("/api/export/"):]
             self._handle_export(fmt)
@@ -216,10 +231,207 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/scan/start":
             self._handle_scan_start()
+        elif parsed.path == "/api/settings":
+            self._handle_settings_post()
         else:
             self.send_error(404)
 
     # --- API handlers ---
+
+    def _load_samples(self) -> tuple[list[dict], dict]:
+        """Load samples from current report_json.
+
+        Returns (samples, report_meta) where report_meta holds the top-level
+        report fields (target_model, timestamps, overall_score, totals).
+        If no report is loaded, returns ([], {}).
+        """
+        if not _state.report_json or _state.report_json == '{"suites": [], "samples": []}':
+            return [], {}
+        try:
+            data = json.loads(_state.report_json)
+        except json.JSONDecodeError:
+            return [], {}
+        samples = list(data.get("samples", []))
+        meta = {
+            "target_model": data.get("target_model", ""),
+            "started_at": data.get("started_at", ""),
+            "finished_at": data.get("finished_at", ""),
+            "overall_score": data.get("overall_score"),
+            "total_samples": data.get("total_samples", len(samples)),
+            "total_passed": data.get("total_passed"),
+            "total_failed": data.get("total_failed"),
+        }
+        return samples, meta
+
+    def _handle_samples(self, parsed):
+        """Paginated / filtered / sorted sample drill-down.
+
+        Query params:
+          page        — 1-based page number (default 1)
+          page_size   — items per page (default 25, capped at 200)
+          suite       — filter by suite name (exact)
+          verdict     — pass | fail | error
+          severity    — low | medium | high | critical
+          difficulty  — basic | intermediate | advanced
+          search      — case-insensitive substring over question/response/category
+          sort_by     — suite | sample_id | verdict | severity | category
+                        (default: execution order = input order)
+          sort_dir    — asc | desc (default asc)
+        """
+        qs = parse_qs(parsed.query)
+        page = max(1, int(qs.get("page", ["1"])[0]))
+        page_size = min(200, max(1, int(qs.get("page_size", ["25"])[0])))
+
+        suite_q = qs.get("suite", [None])[0]
+        verdict_q = qs.get("verdict", [None])[0]
+        severity_q = qs.get("severity", [None])[0]
+        difficulty_q = qs.get("difficulty", [None])[0]
+        search_q = (qs.get("search", [None])[0] or "").lower()
+        sort_by = qs.get("sort_by", [None])[0]
+        sort_dir = qs.get("sort_dir", ["asc"])[0].lower()
+
+        samples, meta = self._load_samples()
+
+        # --- Filter ---
+        def matches(s):
+            if suite_q and s.get("suite") != suite_q:
+                return False
+            if verdict_q and s.get("verdict") != verdict_q:
+                return False
+            if severity_q and s.get("severity") != severity_q:
+                return False
+            if difficulty_q and s.get("difficulty") != difficulty_q:
+                return False
+            if search_q:
+                hay = " ".join([
+                    str(s.get("question", "")),
+                    str(s.get("response", "")),
+                    str(s.get("category", "")),
+                    str(s.get("sample_id", "")),
+                ]).lower()
+                if search_q not in hay:
+                    return False
+            return True
+
+        filtered = [s for s in samples if matches(s)]
+
+        # --- Sort ---
+        # Ranks map "worst" → highest number so that sort_dir=desc surfaces the
+        # riskiest items first (critical before low, fail before pass).
+        severity_rank = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        verdict_rank = {"pass": 0, "error": 1, "fail": 2}
+        if sort_by in {"suite", "sample_id", "verdict", "severity", "category", "difficulty"}:
+            reverse = (sort_dir == "desc")
+
+            def sort_key(s):
+                v = s.get(sort_by, "")
+                if sort_by == "severity":
+                    return severity_rank.get(v, -1)
+                if sort_by == "verdict":
+                    return verdict_rank.get(v, -1)
+                return (v is None, v)
+            filtered.sort(key=sort_key, reverse=reverse)
+
+        # --- Paginate ---
+        total = len(filtered)
+        total_pages = (total + page_size - 1) // page_size if total else 0
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_items = filtered[start:end]
+
+        # --- Facet counts for the filter bar (over ALL samples, pre-filter) ---
+        facets = {
+            "suite": {}, "verdict": {}, "severity": {}, "difficulty": {},
+        }
+        for s in samples:
+            for k in facets:
+                val = s.get(k)
+                if val is not None:
+                    facets[k][val] = facets[k].get(val, 0) + 1
+
+        payload = {
+            "items": page_items,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": total_pages,
+            "facets": facets,
+            "report": meta,
+            "filters": {
+                "suite": suite_q, "verdict": verdict_q,
+                "severity": severity_q, "difficulty": difficulty_q,
+                "search": search_q or None, "sort_by": sort_by, "sort_dir": sort_dir,
+            },
+        }
+        self._json_response(json.dumps(payload, ensure_ascii=False))
+
+    def _handle_risk_matrix(self, parsed):
+        """Failure density per suite × severity bucket.
+
+        Returns:
+          {
+            "suites":   ["injection", "tool_abuse", ...],
+            "severities": ["critical","high","medium","low"],
+            "matrix":   { "<suite>": {"critical": N, ...}, ... },
+            "totals":   { "<suite>": {"fail": N, "pass": N, "error": N}, ... }
+          }
+        Useful for the RiskMatrix heatmap component.
+        """
+        samples, meta = self._load_samples()
+        sev_order = ["critical", "high", "medium", "low"]
+        suites_seen: list[str] = []
+        matrix: dict[str, dict[str, int]] = {}
+        totals: dict[str, dict[str, int]] = {}
+
+        for s in samples:
+            suite = s.get("suite", "?")
+            sev = s.get("severity", "medium")
+            verdict = s.get("verdict", "")
+            if suite not in matrix:
+                suites_seen.append(suite)
+                matrix[suite] = {k: 0 for k in sev_order}
+                totals[suite] = {"fail": 0, "pass": 0, "error": 0}
+            if sev in matrix[suite] and verdict == "fail":
+                matrix[suite][sev] += 1
+            if verdict in totals[suite]:
+                totals[suite][verdict] += 1
+
+        # Order suites by total fail count descending (riskiest first)
+        suites_seen.sort(key=lambda name: sum(matrix[name].values()), reverse=True)
+
+        payload = {
+            "suites": suites_seen,
+            "severities": sev_order,
+            "matrix": matrix,
+            "totals": totals,
+            "report": meta,
+        }
+        self._json_response(json.dumps(payload, ensure_ascii=False))
+
+    def _handle_timeline(self, parsed):
+        """Per-sample result in execution order (input order).
+
+        Returns a compact list of {suite, sample_id, verdict, severity, category}
+        so the SampleTimeline component can render a dense strip without pulling
+        full response bodies.
+        """
+        samples, meta = self._load_samples()
+        points = []
+        for i, s in enumerate(samples):
+            points.append({
+                "index": i,
+                "suite": s.get("suite", ""),
+                "sample_id": s.get("sample_id", ""),
+                "category": s.get("category", ""),
+                "verdict": s.get("verdict", ""),
+                "severity": s.get("severity", "medium"),
+            })
+        payload = {
+            "points": points,
+            "count": len(points),
+            "report": meta,
+        }
+        self._json_response(json.dumps(payload, ensure_ascii=False))
 
     def _handle_history(self, parsed):
         from ..core.storage import list_scans
@@ -314,6 +526,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         except Exception:
             status["suites"] = []
         self._json_response(json.dumps(status, ensure_ascii=False))
+
+    def _handle_settings_post(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length).decode("utf-8") if length else "{}"
+        try:
+            updates = json.loads(body)
+            merged = merge_settings(updates)
+            self._json_response(json.dumps(merged, ensure_ascii=False))
+        except json.JSONDecodeError:
+            self._json_response('{"error":"invalid json"}', status=400)
 
     def _handle_scan_start(self):
         if _state.scanning:

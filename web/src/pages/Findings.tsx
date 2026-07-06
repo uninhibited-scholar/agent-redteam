@@ -1,33 +1,186 @@
 /**
- * Findings — vulnerability card wall + heatmap.
+ * Findings — server-backed sample drill-down.
+ *
+ * Replaces the old client-side card wall with a paginated, filterable,
+ * sortable DataTable fed by /api/samples. The HeatMap stays as an at-a-glance
+ * summary. Row click opens a DetailDrawer with the full attack/response.
  */
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { theme } from '../theme'
-import type { SampleResult } from '../types'
-import { VulnerabilityCard } from '../components/VulnerabilityCard'
+import type { SampleResult, SamplesResponse } from '../types'
 import { HeatMap } from '../components/HeatMap'
-import { SeverityBadge } from '../components/SeverityBadge'
-import { EmptyState } from '../components/EmptyState'
+import { EmptyState, LoadingState } from '../components/EmptyState'
+import { DataTable, type Column } from '../components/DataTable'
+import { FilterBar, type FilterOption } from '../components/FilterBar'
+import { Pagination } from '../components/Pagination'
+import { DetailDrawer } from '../components/DetailDrawer'
+import { SeverityBadge as SharedSeverityBadge } from '../components/ui'
+import { useNotification } from '../components/NotificationToast'
 
-interface Props {
-  samples: SampleResult[]
+const PAGE_SIZE = 25
+const SEVERITIES = ['critical', 'high', 'medium', 'low'] as const
+const VERDICTS = ['fail', 'pass', 'error'] as const
+
+interface FindingsProps {
+  /** Initial suite filter applied on mount (e.g. when drilling from Overview). */
+  initialSuite?: string | null
+  /** Called once the initial filter has been consumed, so the parent can clear it. */
+  onConsumedFilter?: () => void
 }
 
-export function Findings({ samples }: Props) {
-  const [filter, setFilter] = useState<'all' | 'fail' | 'pass'>('fail')
-  const [suiteFilter, setSuiteFilter] = useState<string>('all')
+export function Findings({ initialSuite, onConsumedFilter }: FindingsProps = {}) {
+  const { notify } = useNotification()
+  // Load the current report's samples so HeatMap has something to draw even
+  // before the /api/samples round-trip completes.
+  const [reportSamples, setReportSamples] = useState<SampleResult[]>([])
+  const [data, setData] = useState<SamplesResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const suites = [...new Set(samples.map(s => s.suite))].sort()
-  const filtered = samples.filter(s => {
-    if (filter === 'fail' && s.verdict !== 'fail') return false
-    if (filter === 'pass' && s.verdict !== 'pass') return false
-    if (suiteFilter !== 'all' && s.suite !== suiteFilter) return false
-    return true
-  })
+  // Filters
+  const [search, setSearch] = useState('')
+  const [verdictSel, setVerdictSel] = useState<string[]>([])
+  const [severitySel, setSeveritySel] = useState<string[]>([])
+  const [suiteSel, setSuiteSel] = useState<string[]>(initialSuite ? [initialSuite] : [])
+  const [page, setPage] = useState(1)
+  const [sortBy, setSortBy] = useState<'severity' | 'suite' | 'verdict' | 'category' | null>('severity')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  const [selected, setSelected] = useState<SampleResult | null>(null)
+
+  // Debounce search input
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Initial report fetch for the HeatMap
+  useEffect(() => {
+    fetch('/api/report')
+      .then(r => r.json())
+      .then(d => { if (d.samples) setReportSamples(d.samples) })
+      .catch(() => {})
+  }, [])
+
+  // Notify parent once the initial suite filter has been applied so it can
+  // clear its pending state (otherwise re-visiting Overview→Findings re-applies it)
+  useEffect(() => {
+    if (initialSuite && onConsumedFilter) onConsumedFilter()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [search])
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams()
+      params.set('page', String(page))
+      params.set('page_size', String(PAGE_SIZE))
+      if (verdictSel.length === 1) params.set('verdict', verdictSel[0])
+      if (severitySel.length === 1) params.set('severity', severitySel[0])
+      if (suiteSel.length === 1) params.set('suite', suiteSel[0])
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      if (sortBy) { params.set('sort_by', sortBy); params.set('sort_dir', sortDir) }
+
+      const res = await fetch(`/api/samples?${params.toString()}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json: SamplesResponse = await res.json()
+      setData(json)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [page, verdictSel, severitySel, suiteSel, debouncedSearch, sortBy, sortDir])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1) }, [verdictSel, severitySel, suiteSel, debouncedSearch, sortBy, sortDir])
+
+  const facets = data?.facets
+
+  const verdictOptions: FilterOption[] = VERDICTS.map(v => ({
+    key: v, label: v, count: facets?.verdict[v],
+  }))
+  const severityOptions: FilterOption[] = SEVERITIES.map(s => ({
+    key: s, label: s, count: facets?.severity[s],
+  }))
+  const suiteOptions: FilterOption[] = Object.keys(facets?.suite || {})
+    .sort()
+    .map(name => ({ key: name, label: name.replace(/_/g, ' '), count: facets?.suite[name] }))
+
+  // DataTable columns
+  const columns: Column<SampleResult>[] = [
+    {
+      key: 'severity', label: 'Severity', sortable: true, align: 'left',
+      render: s => <SharedSeverityBadge severity={s.severity} />,
+    },
+    {
+      key: 'suite', label: 'Suite', sortable: true,
+      render: s => (
+        <span style={{ color: theme.primary, fontSize: 12, fontFamily: theme.monoFamily }}>
+          {s.suite.replace(/_/g, ' ')}
+        </span>
+      ),
+    },
+    {
+      key: 'category', label: 'Category', sortable: true,
+      render: s => <span style={{ color: theme.textDim, fontSize: 12 }}>{s.category.replace(/_/g, ' ')}</span>,
+    },
+    {
+      key: 'verdict', label: 'Verdict', sortable: true, align: 'center',
+      render: s => {
+        const color = s.verdict === 'fail' ? theme.danger : s.verdict === 'pass' ? theme.success : theme.warning
+        return (
+          <span style={{
+            fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color,
+            padding: '2px 8px', borderRadius: 10,
+            background: color + '18',
+          }}>
+            {s.verdict}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'attack', label: 'Attack', align: 'left',
+      render: s => (
+        <span style={{
+          fontSize: 12, color: theme.text, fontFamily: theme.monoFamily,
+          display: 'inline-block', maxWidth: 320,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {s.question}
+        </span>
+      ),
+    },
+    {
+      key: 'owasp', label: 'OWASP', align: 'center',
+      render: s => s.owasp ? (
+        <span style={{
+          fontSize: 10, fontWeight: 600, color: theme.primary, fontFamily: theme.monoFamily,
+          border: `1px solid ${theme.primary}40`, padding: '1px 5px', borderRadius: 3,
+        }}>
+          {s.owasp}
+        </span>
+      ) : <span style={{ color: theme.textFaint }}>—</span>,
+    },
+  ]
+
+  // Controlled sort callback — drives the server-side /api/samples query.
+  function handleSortChange(key: string, dir: 'asc' | 'desc') {
+    setSortBy(key as typeof sortBy)
+    setSortDir(dir)
+  }
 
   return (
     <div>
-      {/* Heatmap */}
+      {/* Heatmap overview */}
       <div style={{
         background: theme.surface,
         borderRadius: theme.radius,
@@ -41,76 +194,111 @@ export function Findings({ samples }: Props) {
         }}>
           Vulnerability Heat Map
         </h2>
-        <HeatMap samples={samples} />
+        {reportSamples.length > 0
+          ? <HeatMap samples={reportSamples} onCellClick={(suite, sev) => {
+              setSuiteSel([suite])
+              setSeveritySel([sev])
+              setPage(1)
+              notify(`已筛选：${suite.replace(/_/g,' ')} · ${sev}`, 'info')
+            }} />
+          : <div style={{ color: theme.textFaint, fontSize: 12, padding: 12 }}>No report loaded.</div>}
       </div>
 
-      {/* Filters */}
-      <div style={{
-        display: 'flex', gap: 8, marginBottom: 20,
-        alignItems: 'center',
-      }}>
-        <span style={{ fontSize: 12, color: theme.textDim, marginRight: 4 }}>Filter:</span>
-        {(['all', 'fail', 'pass'] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              padding: '6px 14px',
-              background: filter === f ? theme.primary + '20' : theme.surface,
-              border: `1px solid ${filter === f ? theme.primary : theme.border}`,
-              borderRadius: 20,
-              color: filter === f ? theme.primary : theme.textDim,
-              fontSize: 12, fontWeight: 500,
-              cursor: 'pointer',
-              transition: theme.transition,
-            }}
-          >
-            {f === 'fail' ? 'Vulnerabilities' : f === 'pass' ? 'Passed' : 'All'}
-          </button>
-        ))}
-        <div style={{ width: 1, height: 20, background: theme.border, margin: '0 8px' }} />
-        <select
-          value={suiteFilter}
-          onChange={e => setSuiteFilter(e.target.value)}
-          style={{
-            padding: '6px 12px',
-            background: theme.surface,
-            border: `1px solid ${theme.border}`,
-            borderRadius: 20,
-            color: theme.textDim,
-            fontSize: 12,
-            cursor: 'pointer',
-          }}
-        >
-          <option value="all">All Suites</option>
-          {suites.map(s => (
-            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-          ))}
-        </select>
-        <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: theme.textFaint }}>
-          {filtered.length} samples
-        </span>
+      {/* Filter row */}
+      <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <FilterBar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="搜索攻击文本 / 类别 / 样本 ID…"
+          filterOptions={verdictOptions}
+          selected={verdictSel}
+          onFilterChange={setVerdictSel}
+          filterLabel="Verdict"
+        />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <FilterBar
+            searchValue=""
+            onSearchChange={() => {}}
+            filterOptions={severityOptions}
+            selected={severitySel}
+            onFilterChange={setSeveritySel}
+            filterLabel="Severity"
+          />
+          <FilterBar
+            searchValue=""
+            onSearchChange={() => {}}
+            filterOptions={suiteOptions}
+            selected={suiteSel}
+            onFilterChange={setSuiteSel}
+            filterLabel="Suite"
+          />
+          {/* Multi-select guard: if more than one, reset to one (backend is single-value) */}
+          {verdictSel.length > 1 && <GuardBadge text="verdict" onClear={() => setVerdictSel(verdictSel.slice(-1))} />}
+          {severitySel.length > 1 && <GuardBadge text="severity" onClear={() => setSeveritySel(severitySel.slice(-1))} />}
+          {suiteSel.length > 1 && <GuardBadge text="suite" onClear={() => setSuiteSel(suiteSel.slice(-1))} />}
+        </div>
       </div>
 
-      {/* Card wall */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))',
-        gap: 12,
-      }}>
-        {filtered.map((s, i) => (
-          <VulnerabilityCard key={i} sample={s} />
-        ))}
-      </div>
+      {/* Result count line */}
+      {data && (
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: theme.textFaint }}>
+            {data.total} sample{data.total !== 1 ? 's' : ''} · page {data.page}/{data.total_pages || 1}
+            {sortBy && ` · sorted by ${sortBy} ${sortDir}`}
+          </span>
+        </div>
+      )}
 
-      {filtered.length === 0 && (
-        <EmptyState
-          icon="🔍"
-          title="No samples match the filter"
-          description="Try changing the filter settings above."
+      {/* Table (controlled sort via SortHeader clicks → server query) */}
+      {error ? (
+        <EmptyState icon="⚠️" title="Failed to load samples" description={error} />
+      ) : loading ? (
+        <LoadingState message="Loading samples…" />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={data?.items || []}
+          rowKey={s => `${s.suite}:${s.sample_id}`}
+          onRowClick={setSelected}
+          loading={loading}
+          emptyTitle="No samples match the current filters"
+          emptyDescription="Try clearing filters or broadening the search."
+          sortKey={sortBy}
+          sortDir={sortDir}
+          onSortChange={handleSortChange}
         />
       )}
+
+      {/* Pagination */}
+      {data && data.total > PAGE_SIZE && (
+        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={data.total}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
+
+      {/* Detail drawer */}
+      <DetailDrawer sample={selected} onClose={() => setSelected(null)} />
     </div>
+  )
+}
+
+function GuardBadge({ text, onClear }: { text: string; onClear: () => void }) {
+  return (
+    <button
+      onClick={onClear}
+      style={{
+        fontSize: 10, color: theme.warning, background: theme.warning + '18',
+        border: `1px solid ${theme.warning}40`, borderRadius: 10, padding: '2px 8px',
+        cursor: 'pointer',
+      }}
+      title="Backend supports single-value filter; keeping the last selection."
+    >
+      ⚠ {text}: 多选仅生效最后一个
+    </button>
   )
 }

@@ -1,7 +1,8 @@
 /**
- * App — main layout with navigation.
+ * App — main layout with navigation, global command palette, toast
+ * notifications, and keyboard shortcuts.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { theme, globalStyles } from './theme'
 import type { ScanReport } from './types'
 import { Overview } from './pages/Overview'
@@ -10,15 +11,33 @@ import { LiveScan } from './pages/LiveScan'
 import { ScanLauncher } from './pages/ScanLauncher'
 import { History } from './pages/History'
 import { Compare } from './pages/Compare'
+import { Settings } from './pages/Settings'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LoadingState } from './components/EmptyState'
+import { CommandPalette, type Command } from './components/CommandPalette'
+import { HelpOverlay } from './components/HelpOverlay'
+import { NotificationProvider, useNotification } from './components/NotificationToast'
 
-type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare'
+type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare' | 'settings'
 
-export function App() {
+const PAGE_ORDER: Page[] = ['overview', 'findings', 'launcher', 'live', 'history', 'compare', 'settings']
+
+function AppInner() {
   const [page, setPage] = useState<Page>('overview')
   const [report, setReport] = useState<ScanReport | null>(null)
   const [loading, setLoading] = useState(true)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  // Pending suite filter applied when drilling from Overview → Findings
+  const [pendingSuite, setPendingSuite] = useState<string | null>(null)
+  const { notify } = useNotification()
+
+  // Drill from a chart vertex/bar into Findings, pre-filtered to that suite
+  const drillToSuite = useCallback((suiteName: string) => {
+    setPendingSuite(suiteName)
+    setPage('findings')
+    notify(`已筛选套件：${suiteName.replace(/_/g, ' ')}`, 'info')
+  }, [notify])
 
   useEffect(() => {
     // Inject global styles
@@ -29,13 +48,13 @@ export function App() {
     loadLatestReport()
   }, [])
 
-  const loadLatestReport = () => {
+  const loadLatestReport = useCallback(() => {
     setLoading(true)
     fetch('/api/report')
       .then(r => r.json())
       .then(data => { setReport(data); setLoading(false) })
       .catch(() => setLoading(false))
-  }
+  }, [])
 
   const loadReport = (runId: string) => {
     setLoading(true)
@@ -45,6 +64,44 @@ export function App() {
       .catch(() => setLoading(false))
   }
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      // Cmd/Ctrl+K → command palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen(o => !o)
+        return
+      }
+      // Don't intercept shortcuts when typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
+      if (typing) return
+
+      // ? → help
+      if (e.key === '?') {
+        e.preventDefault()
+        setHelpOpen(o => !o)
+        return
+      }
+      // R → refresh report
+      if (e.key.toLowerCase() === 'r' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        loadLatestReport()
+        notify('已刷新报告数据', 'info')
+        return
+      }
+      // 1-7 → switch page
+      const num = parseInt(e.key, 10)
+      if (!isNaN(num) && num >= 1 && num <= PAGE_ORDER.length) {
+        e.preventDefault()
+        setPage(PAGE_ORDER[num - 1])
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [loadLatestReport, notify])
+
   const navItems: { id: Page; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '◈' },
     { id: 'findings', label: 'Findings', icon: '◉' },
@@ -52,6 +109,7 @@ export function App() {
     { id: 'live', label: 'Live Scan', icon: '◐' },
     { id: 'history', label: 'History', icon: '▤' },
     { id: 'compare', label: 'Compare', icon: '⇄' },
+    { id: 'settings', label: 'Settings', icon: '⚙' },
   ]
 
   const subtitles: Record<Page, string> = {
@@ -61,7 +119,78 @@ export function App() {
     live: 'Real-time scan telemetry',
     history: 'Past scan records',
     compare: 'Compare two scans side by side',
+    settings: 'Scan defaults and preferences',
   }
+
+  // Command palette commands
+  const commands: Command[] = useMemo(() => {
+    const navCmds: Command[] = navItems.map((item, i) => ({
+      id: `nav-${item.id}`,
+      label: `前往 ${item.label}`,
+      hint: `按 ${i + 1}`,
+      icon: item.icon,
+      group: 'Navigate' as const,
+      keywords: [item.id, 'go', 'navigate', 'page', '页面'],
+      run: () => setPage(item.id),
+    }))
+    const actionCmds: Command[] = [
+      {
+        id: 'action-refresh',
+        label: '刷新当前报告',
+        icon: '↻',
+        group: 'Action',
+        keywords: ['refresh', 'reload', '更新', '刷新'],
+        run: () => { loadLatestReport(); notify('已刷新报告数据', 'success') },
+      },
+      {
+        id: 'action-export-json',
+        label: '导出报告为 JSON',
+        icon: '⬇',
+        group: 'Action',
+        keywords: ['export', 'download', 'json', '导出', '下载'],
+        run: () => { window.open('/api/export/json', '_blank'); notify('正在导出 JSON…', 'info') },
+      },
+      {
+        id: 'action-export-md',
+        label: '导出报告为 Markdown',
+        icon: '⬇',
+        group: 'Action',
+        keywords: ['export', 'download', 'markdown', 'md', '导出'],
+        run: () => { window.open('/api/export/markdown', '_blank'); notify('正在导出 Markdown…', 'info') },
+      },
+      {
+        id: 'action-copy-link',
+        label: '复制分享链接',
+        icon: '⧉',
+        group: 'Action',
+        keywords: ['copy', 'share', 'link', 'url', '复制', '分享'],
+        run: () => {
+          navigator.clipboard?.writeText(window.location.href)
+            .then(() => notify('已复制链接到剪贴板', 'success'))
+            .catch(() => notify('复制失败', 'error'))
+        },
+      },
+      {
+        id: 'action-new-scan',
+        label: '发起新扫描',
+        icon: '⚡',
+        group: 'Action',
+        keywords: ['scan', 'new', 'start', 'launch', '扫描', '开始'],
+        run: () => setPage('launcher'),
+      },
+    ]
+    const helpCmds: Command[] = [
+      {
+        id: 'help-shortcuts',
+        label: '查看快捷键与帮助',
+        icon: '?',
+        group: 'Help',
+        keywords: ['help', 'shortcuts', 'faq', '帮助', '快捷键'],
+        run: () => setHelpOpen(true),
+      },
+    ]
+    return [...navCmds, ...actionCmds, ...helpCmds]
+  }, [loadLatestReport, notify])
 
   return (
     <ErrorBoundary>
@@ -118,6 +247,10 @@ export function App() {
             )}
           </button>
         ))}
+
+        {/* Spacer pushes help to bottom */}
+        <div style={{ flex: 1 }} />
+        <HelpTrigger onToggle={() => setHelpOpen(o => !o)} />
       </nav>
 
       {/* Main content */}
@@ -129,17 +262,45 @@ export function App() {
         animation: 'fadeIn 200ms ease',
       }}>
         {/* Page header */}
-        <div style={{ marginBottom: 32 }}>
-          <h1 style={{
-            fontSize: 24, fontWeight: 700,
-            color: theme.text,
-            marginBottom: 4,
-          }}>
-            Agent Redteam
-          </h1>
-          <p style={{ fontSize: 13, color: theme.textDim }}>
-            {subtitles[page]}
-          </p>
+        <div style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <h1 style={{
+              fontSize: 24, fontWeight: 700,
+              color: theme.text,
+              marginBottom: 4,
+            }}>
+              Agent Redteam
+            </h1>
+            <p style={{ fontSize: 13, color: theme.textDim }}>
+              {subtitles[page]}
+            </p>
+          </div>
+          {/* Command palette trigger button */}
+          <button
+            onClick={() => setPaletteOpen(true)}
+            title="命令面板 (⌘K)"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 10px 6px 12px',
+              background: theme.surface,
+              border: `1px solid ${theme.border}`,
+              borderRadius: theme.radius,
+              color: theme.textFaint,
+              fontSize: 12,
+              cursor: 'pointer',
+              transition: theme.transition,
+            }}
+          >
+            <span>⌕</span>
+            <span>搜索…</span>
+            <kbd style={{
+              fontSize: 10, fontFamily: theme.monoFamily,
+              border: `1px solid ${theme.border}`, borderRadius: theme.radiusSm,
+              padding: '1px 5px', color: theme.textDim,
+            }}>
+              ⌘K
+            </kbd>
+          </button>
         </div>
 
         {page === 'launcher' ? (
@@ -150,24 +311,64 @@ export function App() {
           <Compare />
         ) : page === 'live' ? (
           <LiveScan />
+        ) : page === 'settings' ? (
+          <Settings />
         ) : loading ? (
           <LoadingState message="Loading scan report..." />
         ) : report ? (
           page === 'overview' ? (
-            <Overview report={report} />
+            <Overview report={report} onSuiteClick={s => drillToSuite(s.name)} />
           ) : (
-            <Findings samples={report.samples || []} />
+            <Findings initialSuite={pendingSuite} onConsumedFilter={() => setPendingSuite(null)} />
           )
         ) : (
-          <EmptyState onLaunch={() => setPage('launcher')} />
+          <NoReportState onLaunch={() => setPage('launcher')} />
         )}
       </main>
+
+      {/* Global overlays */}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={commands}
+      />
+      {helpOpen && (
+        <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      )}
     </div>
     </ErrorBoundary>
   )
 }
 
-function EmptyState({ onLaunch }: { onLaunch: () => void }) {
+export function App() {
+  return (
+    <NotificationProvider>
+      <AppInner />
+    </NotificationProvider>
+  )
+}
+
+function HelpTrigger({ onToggle }: { onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-label="Help (?)"
+      title="帮助 (?)"
+      style={{
+        width: 32, height: 32, borderRadius: '50%',
+        background: theme.surface, border: `1px solid ${theme.border}`,
+        color: theme.textDim, fontSize: 14, fontWeight: 700,
+        cursor: 'pointer', transition: theme.transition,
+      }}
+    >
+      ?
+    </button>
+  )
+}
+
+/** Controlled wrapper that renders HelpOverlay's panel content. */
+
+function NoReportState({ onLaunch }: { onLaunch: () => void }) {
   return (
     <div style={{ textAlign: 'center', color: theme.textFaint, padding: 80 }}>
       <p style={{ fontSize: 16, marginBottom: 8, color: theme.textDim }}>
@@ -190,3 +391,5 @@ function EmptyState({ onLaunch }: { onLaunch: () => void }) {
     </div>
   )
 }
+
+

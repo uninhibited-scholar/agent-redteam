@@ -7,12 +7,14 @@
 import { useState, useEffect } from 'react'
 import { theme } from '../theme'
 import type { ScanConfigStatus, SuiteOption } from '../types'
+import { useNotification } from '../components/NotificationToast'
 
 interface Props {
   onScanStarted: () => void
 }
 
 export function ScanLauncher({ onScanStarted }: Props) {
+  const { notify } = useNotification()
   const [config, setConfig] = useState<ScanConfigStatus | null>(null)
   const [model, setModel] = useState('')
   const [target, setTarget] = useState<'openai' | 'claude' | 'local'>('openai')
@@ -69,12 +71,15 @@ export function ScanLauncher({ onScanStarted }: Props) {
       const data = await resp.json()
       if (!resp.ok) {
         setError(data.error || `Failed (${resp.status})`)
+        notify(`扫描启动失败：${data.error || resp.status}`, 'error')
         setSubmitting(false)
         return
       }
+      notify(`已发起扫描（${selected.size} 个套件），跳转实时遥测…`, 'success')
       onScanStarted()
     } catch (e) {
       setError(String(e))
+      notify(`请求失败：${String(e)}`, 'error')
       setSubmitting(false)
     }
   }

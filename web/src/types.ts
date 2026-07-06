@@ -103,3 +103,77 @@ export interface ScanStartRequest {
   max_tokens: number
   endpoint?: string
 }
+
+// ===== /api/samples — paginated drill-down =====
+
+export interface SampleFilters {
+  suite?: string | null
+  verdict?: 'pass' | 'fail' | 'error' | null
+  severity?: 'low' | 'medium' | 'high' | 'critical' | null
+  difficulty?: string | null
+  search?: string | null
+  sort_by?: 'suite' | 'sample_id' | 'verdict' | 'severity' | 'category' | 'difficulty' | null
+  sort_dir?: 'asc' | 'desc'
+}
+
+export interface SamplesResponse {
+  items: SampleResult[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+  facets: {
+    suite: Record<string, number>
+    verdict: Record<string, number>
+    severity: Record<string, number>
+    difficulty: Record<string, number>
+  }
+  report: {
+    target_model: string
+    started_at: string
+    finished_at: string
+    overall_score: number | null
+    total_samples: number
+    total_passed: number | null
+    total_failed: number | null
+  }
+  filters: SampleFilters
+}
+
+// ===== /api/risk-matrix =====
+
+export interface RiskMatrixResponse {
+  suites: string[]
+  severities: string[]
+  matrix: Record<string, Record<string, number>>
+  totals: Record<string, { fail: number; pass: number; error: number }>
+  report: { target_model: string; started_at: string; finished_at: string }
+}
+
+// ===== /api/timeline =====
+
+export interface TimelinePoint {
+  index: number
+  suite: string
+  sample_id: string
+  category: string
+  verdict: string
+  severity: string
+}
+
+export interface TimelineResponse {
+  points: TimelinePoint[]
+  count: number
+  report: { target_model: string; started_at: string; finished_at: string }
+}
+
+// ===== /api/settings =====
+
+export interface AppSettings {
+  default_model: string
+  default_base_url: string
+  workers: number
+  max_tokens: number
+  fail_below: number
+  theme: 'dark' | 'light'
+}
