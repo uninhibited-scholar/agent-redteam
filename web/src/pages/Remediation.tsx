@@ -12,6 +12,7 @@ import { theme } from '../theme'
 import type { ScanReport, SampleResult } from '../types'
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
 import { RemediationExport, type RemediationItem } from '../components/RemediationExport'
+import { RemediationChecklist } from '../components/RemediationChecklist'
 import { useNotification } from '../components/NotificationToast'
 
 interface Props {
@@ -183,6 +184,13 @@ export function Remediation({ report, onDrill }: Props) {
       {exportItems.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <RemediationExport items={exportItems} modelLabel={report.target_model} />
+        </div>
+      )}
+
+      {/* Progress tracking checklist */}
+      {exportItems.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <RemediationChecklist items={exportItems} modelLabel={report.target_model} />
         </div>
       )}
 

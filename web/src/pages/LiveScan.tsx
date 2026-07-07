@@ -10,6 +10,7 @@ import type { SampleResult } from '../types'
 import { TelemetryStream } from '../components/TelemetryStream'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { ConnectionStatus } from '../components/ConnectionStatus'
+import { LiveMetricOverlay } from '../components/LiveMetricOverlay'
 import { Panel } from '../components/ui'
 
 interface SuiteProgress {
@@ -140,6 +141,18 @@ export function LiveScan() {
           </span>
           <span style={{ fontSize: 12, color: theme.textDim }}>{processed} samples</span>
         </div>
+
+        {/* Live metric overlay during scan */}
+        {scanning && startedAt && totalExpected > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <LiveMetricOverlay
+              completedSamples={events}
+              totalPlanned={totalExpected}
+              startedAt={startedAt}
+              scanning={scanning}
+            />
+          </div>
+        )}
 
         {/* Progress bar */}
         {(scanning || scanDone) && totalExpected > 0 && (

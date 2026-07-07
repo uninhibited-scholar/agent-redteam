@@ -10,6 +10,7 @@ import type { ScanConfigStatus } from '../types'
 import { useNotification } from '../components/NotificationToast'
 import { SuiteSelector } from '../components/SuiteSelector'
 import { ScanPreset } from '../components/ScanPreset'
+import { ScanWizard, type WizardConfig } from '../components/ScanWizard'
 
 interface Props {
   onScanStarted: () => void
@@ -26,6 +27,7 @@ export function ScanLauncher({ onScanStarted }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showWizard, setShowWizard] = useState(true)
 
   useEffect(() => {
     fetch('/api/scan/config')
@@ -124,6 +126,35 @@ export function ScanLauncher({ onScanStarted }: Props) {
           fontSize: 13, color: theme.danger,
         }}>
           {error}
+        </div>
+      )}
+
+      {/* Guided wizard (toggleable) */}
+      {showWizard && config && (
+        <div style={{ marginBottom: 20 }}>
+          <ScanWizard
+            config={{
+              model, target, suites: selected, workers,
+              limit: maxTokens > 0 ? 30 : 30,  // limit maps to suite sample cap
+            }}
+            onConfigChange={(c: WizardConfig) => {
+              setModel(c.model); setTarget(c.target)
+              setSelected(c.suites); setWorkers(c.workers)
+            }}
+            onStart={handleSubmit}
+            availableSuites={config.suites}
+          />
+          <div style={{ textAlign: 'center', marginTop: 8 }}>
+            <button
+              onClick={() => setShowWizard(false)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: theme.textFaint, fontSize: 11,
+              }}
+            >
+              收起向导，使用下方完整表单 ↓
+            </button>
+          </div>
         </div>
       )}
 

@@ -23,6 +23,7 @@ import { ResponseLatencyChart } from '../components/ResponseLatencyChart'
 import { ConfidenceGauge } from '../components/ConfidenceGauge'
 import { AttackSurfaceMap } from '../components/AttackSurfaceMap'
 import { SeverityBubbleChart } from '../components/SeverityBubbleChart'
+import { SuiteDependencyGraph } from '../components/SuiteDependencyGraph'
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/DonutChart'
 import { BarChart, ColumnChart, type BarItem } from '../components/BarChart'
 import { useNotification } from '../components/NotificationToast'
@@ -359,6 +360,13 @@ export function Metrics({ report, onDrill }: Props) {
       {samples.length > 0 && (
         <div style={{ marginTop: 20 }}>
           <SeverityBubbleChart samples={samples} />
+        </div>
+      )}
+
+      {/* Suite dependency graph — which suites' failures co-occur? */}
+      {samples.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <SuiteDependencyGraph samples={samples} onSelectSuite={onDrill} />
         </div>
       )}
     </div>
