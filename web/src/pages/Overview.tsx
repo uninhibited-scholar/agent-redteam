@@ -5,6 +5,7 @@
 import { useMemo } from 'react'
 import { theme } from '../theme'
 import type { ScanReport, SuiteResult } from '../types'
+import { useApi } from '../hooks/useApi'
 import { RadarChart } from '../components/RadarChart'
 import { ScoreGauge } from '../components/ScoreGauge'
 import { SuiteBar } from '../components/SuiteBar'
@@ -14,6 +15,8 @@ import { AttackTimeline } from '../components/AttackTimeline'
 import { SeverityDistribution } from '../components/SeverityDistribution'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { ModelProfile } from '../components/ModelProfile'
+import { ModelLeaderboard } from '../components/ModelLeaderboard'
+import type { HistoryItem } from '../types'
 
 interface Props {
   report: ScanReport
@@ -24,6 +27,30 @@ interface Props {
 export function Overview({ report, onSuiteClick }: Props) {
   const samples = report.samples || []
   const score = report.overall_score ?? 0
+
+  // Fetch scan history for the model leaderboard (multi-model comparison)
+  const { data: history } = useApi<{ scans: HistoryItem[] }>('/api/history?limit=100')
+  const leaderboardModels = useMemo(() => {
+    const scans = history?.scans || []
+    // Filter out invalid runs (failed scans with score<0) and tiny test runs
+    const valid = scans.filter(s => s.overall_score >= 0 && s.total_samples >= 10)
+    const byModel = new Map<string, HistoryItem[]>()
+    for (const s of valid) {
+      const list = byModel.get(s.target_model) || []
+      list.push(s)
+      byModel.set(s.target_model, list)
+    }
+    return [...byModel.entries()].map(([model, runs]) => {
+      const scores = runs.map(r => r.overall_score)
+      return {
+        model,
+        avgScore: Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)),
+        bestScore: Math.max(...scores),
+        scanCount: runs.length,
+        scoreHistory: [...runs].reverse().map(r => r.overall_score),
+      }
+    }).filter(m => m.model !== 'storage-test') // exclude test fixture
+  }, [history])
 
   const verdictSegs: DonutSegment[] = useMemo(() => {
     const p = samples.filter(s => s.verdict === 'pass').length
@@ -116,6 +143,13 @@ export function Overview({ report, onSuiteClick }: Props) {
       {samples.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <SeverityDistribution samples={samples} />
+        </div>
+      )}
+
+      {/* Model leaderboard — multi-model ranking from scan history */}
+      {leaderboardModels.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <ModelLeaderboard models={leaderboardModels} />
         </div>
       )}
 
