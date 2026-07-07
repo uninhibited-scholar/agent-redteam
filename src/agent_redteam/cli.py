@@ -26,8 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--base-url", default=cfg.get("base_url", os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")),
                         help="API base URL (默认从 ~/.agent-redteam/config 读取)")
     p_scan.add_argument("--key", default=cfg.get("api_key", cfg.get("key", os.environ.get("OPENAI_API_KEY", ""))), help="API key")
-    p_scan.add_argument("--target", choices=["openai", "claude", "zai", "local"], default="openai",
-                        help="目标类型 (默认: openai 兼容; zai 用智谱 Z.ai Anthropic 端点)")
+    p_scan.add_argument("--target", choices=["openai", "claude", "zai", "local", "ollama", "deepseek", "azure", "qwen"], default="openai",
+                        help="目标类型 (openai兼容 / claude / zai智谱 / local本地 / ollama本地模型 / deepseek / azure / qwen通义)")
     p_scan.add_argument("--endpoint", default="", help="本地 agent endpoint (target=local 时使用)")
     p_scan.add_argument("--suites", default=cfg.get("suites", ""), help="只跑特定套件，逗号分隔 (如 injection,info_leak)")
     p_scan.add_argument("--max-tokens", type=int, default=cfg.get("max_tokens", 500))
@@ -117,6 +117,23 @@ def _cmd_scan(args) -> int:
             print("ERROR: --endpoint required for local target")
             return 2
         target = LocalTarget(endpoint=args.endpoint, model=args.model)
+    elif args.target == "ollama":
+        from .targets import OllamaTarget
+        base = args.base_url if args.base_url != "https://api.openai.com/v1" else "http://localhost:11434"
+        target = OllamaTarget(model=args.model or "llama3", base_url=base, max_tokens=args.max_tokens)
+    elif args.target == "deepseek":
+        from .targets import DeepSeekTarget
+        target = DeepSeekTarget(model=args.model or "deepseek-chat", api_key=args.key, max_tokens=args.max_tokens)
+    elif args.target == "azure":
+        from .targets import AzureTarget
+        endpoint = args.base_url if args.base_url != "https://api.openai.com/v1" else ""
+        if not args.model:
+            print("ERROR: --model (deployment name) required for azure target")
+            return 2
+        target = AzureTarget(deployment=args.model, endpoint=endpoint, api_key=args.key, max_tokens=args.max_tokens)
+    elif args.target == "qwen":
+        from .targets import QwenTarget
+        target = QwenTarget(model=args.model or "qwen-plus", api_key=args.key, max_tokens=args.max_tokens)
     else:
         target = OpenAITarget(
             model=args.model, api_key=args.key,

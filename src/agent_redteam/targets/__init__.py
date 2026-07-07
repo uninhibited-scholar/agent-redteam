@@ -2,6 +2,10 @@
 from .base import Target
 from .openai_compat import OpenAITarget
 from .local import LocalTarget
+from .ollama import OllamaTarget
+from .deepseek import DeepSeekTarget
+from .azure import AzureTarget
+from .qwen import QwenTarget
 
 # ClaudeTarget imported separately because it needs Anthropic API key
 try:
@@ -15,4 +19,14 @@ try:
 except ImportError:
     ZaiTarget = None  # type: ignore
 
-__all__ = ["Target", "OpenAITarget", "ClaudeTarget", "ZaiTarget", "LocalTarget"]
+__all__ = [
+    "Target",
+    "OpenAITarget",
+    "ClaudeTarget",
+    "ZaiTarget",
+    "LocalTarget",
+    "OllamaTarget",
+    "DeepSeekTarget",
+    "AzureTarget",
+    "QwenTarget",
+]

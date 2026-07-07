@@ -20,7 +20,7 @@ export function ScanLauncher({ onScanStarted }: Props) {
   const { notify } = useNotification()
   const [config, setConfig] = useState<ScanConfigStatus | null>(null)
   const [model, setModel] = useState('')
-  const [target, setTarget] = useState<'openai' | 'claude' | 'zai' | 'local'>('openai')
+  const [target, setTarget] = useState<'openai' | 'claude' | 'zai' | 'local' | 'ollama' | 'deepseek' | 'azure' | 'qwen'>('openai')
   const [baseUrl, setBaseUrl] = useState('')
   const [workers, setWorkers] = useState(4)
   const [maxTokens, setMaxTokens] = useState(500)
@@ -172,7 +172,7 @@ export function ScanLauncher({ onScanStarted }: Props) {
         </Field>
         <Field label="Target type">
           <div style={{ display: 'flex', gap: 8 }}>
-            {(['openai', 'claude', 'zai', 'local'] as const).map(t => (
+            {(['openai', 'claude', 'zai', 'ollama', 'deepseek', 'azure', 'qwen', 'local'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTarget(t)}

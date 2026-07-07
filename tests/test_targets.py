@@ -216,3 +216,140 @@ class TestTargetBase:
         from agent_redteam.targets.base import Target
         with pytest.raises(TypeError):
             Target()
+
+
+class TestOllamaTarget:
+    def test_constructor_defaults(self):
+        from agent_redteam.targets import OllamaTarget
+        t = OllamaTarget()
+        assert t.model == "llama3"
+        assert t.base_url == "http://localhost:11434"
+        assert t.api_key == "" if hasattr(t, 'api_key') else True  # no key needed
+
+    def test_custom_model(self):
+        from agent_redteam.targets import OllamaTarget
+        t = OllamaTarget(model="mistral")
+        assert t.model == "mistral"
+
+    def test_send_builds_chat_request(self):
+        from agent_redteam.targets import OllamaTarget
+        t = OllamaTarget(model="llama3")
+        captured = {}
+        def mock_urlopen(req, **kw):
+            captured['body'] = json.loads(req.data)
+            captured['url'] = req.full_url
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({
+                "message": {"content": "ollama response"}
+            }).encode()
+            mock_resp.__enter__ = lambda s: mock_resp
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            return mock_resp
+        with patch('urllib.request.urlopen', side_effect=mock_urlopen):
+            result = t.send([{"role": "user", "content": "hi"}])
+        assert result == "ollama response"
+        assert captured['body']['model'] == 'llama3'
+        assert captured['body']['stream'] is False
+        assert '/api/chat' in captured['url']
+
+    def test_connection_error_message(self):
+        import urllib.error
+        from agent_redteam.targets import OllamaTarget
+        t = OllamaTarget(model="llama3")
+        with patch('urllib.request.urlopen', side_effect=urllib.error.URLError("refused")):
+            with pytest.raises(ConnectionError, match="Ollama"):
+                t.send([{"role": "user", "content": "hi"}])
+
+
+class TestDeepSeekTarget:
+    def test_missing_api_key_raises(self):
+        from agent_redteam.targets import DeepSeekTarget
+        with pytest.raises(ValueError, match="API key"):
+            DeepSeekTarget(api_key="")
+
+    def test_defaults(self):
+        from agent_redteam.targets import DeepSeekTarget
+        t = DeepSeekTarget(api_key="sk-test")
+        assert t.model == "deepseek-chat"
+        assert "deepseek.com" in t.base_url
+
+    def test_env_api_key(self):
+        from agent_redteam.targets import DeepSeekTarget
+        with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "env-key"}):
+            t = DeepSeekTarget()
+            assert t.api_key == "env-key"
+
+    def test_inherits_openai_send(self):
+        """DeepSeek uses OpenAI-compatible API, so send() is inherited."""
+        from agent_redteam.targets import DeepSeekTarget, OpenAITarget
+        t = DeepSeekTarget(api_key="k")
+        assert isinstance(t, OpenAITarget)
+
+
+class TestAzureTarget:
+    def test_missing_endpoint_raises(self):
+        from agent_redteam.targets import AzureTarget
+        with pytest.raises(ValueError, match="endpoint"):
+            AzureTarget(deployment="gpt4", api_key="k")
+
+    def test_missing_api_key_raises(self):
+        from agent_redteam.targets import AzureTarget
+        with pytest.raises(ValueError, match="API key"):
+            AzureTarget(deployment="gpt4", endpoint="https://x.openai.azure.com")
+
+    def test_constructor(self):
+        from agent_redteam.targets import AzureTarget
+        t = AzureTarget(
+            deployment="my-deployment",
+            endpoint="https://my-resource.openai.azure.com",
+            api_key="k",
+        )
+        assert t.deployment == "my-deployment"
+        assert t.model == "my-deployment"  # model = deployment for reports
+
+    def test_send_uses_deployment_url(self):
+        from agent_redteam.targets import AzureTarget
+        t = AzureTarget(deployment="gpt4", endpoint="https://r.openai.azure.com", api_key="k")
+        captured = {}
+        def mock_urlopen(req, **kw):
+            captured['url'] = req.full_url
+            captured['headers'] = dict(req.header_items())
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({
+                "choices": [{"message": {"content": "azure response"}}]
+            }).encode()
+            mock_resp.__enter__ = lambda s: mock_resp
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            return mock_resp
+        with patch('urllib.request.urlopen', side_effect=mock_urlopen):
+            result = t.send([{"role": "user", "content": "hi"}])
+        assert result == "azure response"
+        assert "deployments/gpt4" in captured['url']
+        assert "api-version=" in captured['url']
+        # Azure uses api-key header, not Bearer
+        assert any('api-key' in k.lower() for k in captured['headers'])
+
+
+class TestQwenTarget:
+    def test_missing_api_key_raises(self):
+        from agent_redteam.targets import QwenTarget
+        with pytest.raises(ValueError, match="API key"):
+            QwenTarget(api_key="")
+
+    def test_defaults(self):
+        from agent_redteam.targets import QwenTarget
+        t = QwenTarget(api_key="sk-test")
+        assert t.model == "qwen-plus"
+        assert "dashscope" in t.base_url
+        assert "compatible-mode" in t.base_url
+
+    def test_env_api_key(self):
+        from agent_redteam.targets import QwenTarget
+        with patch.dict(os.environ, {"DASHSCOPE_API_KEY": "env-key"}):
+            t = QwenTarget()
+            assert t.api_key == "env-key"
+
+    def test_inherits_openai_send(self):
+        from agent_redteam.targets import QwenTarget, OpenAITarget
+        t = QwenTarget(api_key="k")
+        assert isinstance(t, OpenAITarget)

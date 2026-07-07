@@ -5,7 +5,7 @@ import { Panel } from './ui'
 
 export interface WizardConfig {
   model: string
-  target: 'openai' | 'claude' | 'zai' | 'local'
+  target: 'openai' | 'claude' | 'zai' | 'local' | 'ollama' | 'deepseek' | 'azure' | 'qwen'
   suites: Set<string>
   workers: number
   limit: number
@@ -21,7 +21,7 @@ interface ScanWizardProps {
 
 const CORE_SUITES = ['injection', 'tool_abuse', 'info_leak']
 const SECONDS_PER_SAMPLE = 0.3
-const TARGETS: WizardConfig['target'][] = ['openai', 'claude', 'zai', 'local']
+const TARGETS: WizardConfig['target'][] = ['openai', 'claude', 'zai', 'ollama', 'deepseek', 'azure', 'qwen', 'local']
 
 export function estimateScan(
   suites: Array<{ name: string; count: number }>,

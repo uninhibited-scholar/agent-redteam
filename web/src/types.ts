@@ -97,7 +97,7 @@ export interface ScanConfigStatus {
 export interface ScanStartRequest {
   model: string
   base_url?: string
-  target: 'openai' | 'claude' | 'zai' | 'local'
+  target: 'openai' | 'claude' | 'zai' | 'local' | 'ollama' | 'deepseek' | 'azure' | 'qwen'
   suites: string[]
   workers: number
   max_tokens: number
