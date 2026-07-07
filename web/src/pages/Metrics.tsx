@@ -19,6 +19,7 @@ import { AttackPatterns } from '../components/AttackPatterns'
 import { FailurePattern } from '../components/FailurePattern'
 import { AttackVectorFlow } from '../components/AttackVectorFlow'
 import { ComplianceMatrix } from '../components/ComplianceMatrix'
+import { ResponseLatencyChart } from '../components/ResponseLatencyChart'
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/DonutChart'
 import { BarChart, ColumnChart, type BarItem } from '../components/BarChart'
 import { useNotification } from '../components/NotificationToast'
@@ -327,6 +328,13 @@ export function Metrics({ report, onDrill }: Props) {
       {failures.length > 0 && (
         <div style={{ marginTop: 20 }}>
           <FailurePattern failures={failures} onSelectSample={() => {}} />
+        </div>
+      )}
+
+      {/* Response length vs safety scatter — does thinking deeper mean safer? */}
+      {samples.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <ResponseLatencyChart samples={samples} />
         </div>
       )}
     </div>

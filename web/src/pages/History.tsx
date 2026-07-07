@@ -10,6 +10,7 @@ import type { HistoryItem } from '../types'
 import { TrendChart, TrendLegend, type TrendSeries, type TrendPoint } from '../components/TrendChart'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { StatCard } from '../components/StatCard'
+import { SeverityHeatCalendar } from '../components/SeverityHeatCalendar'
 import { Panel } from '../components/ui'
 
 interface Props {
@@ -128,6 +129,24 @@ export function History({ onLoad }: Props) {
           <StatCard label="总扫描" value={scans.length} icon="▤" color={theme.textDim} />
           <StatCard label="总样本" value={scans.reduce((s, x) => s + x.total_samples, 0)} icon="◉" color={theme.textDim} />
           <StatCard label="模型数" value={new Set(scans.map(s => s.target_model)).size} icon="⬡" color={theme.info} />
+        </div>
+      )}
+
+      {/* Security trend heat calendar */}
+      {scans.length > 0 && (
+        <div style={{ margin: '20px 0' }}>
+          <SeverityHeatCalendar
+            entries={scans
+              .filter(s => s.target_model !== 'storage-test')
+              .map(s => ({
+                date: (s.created_at || '').slice(0, 10),
+                score: s.overall_score,
+                severeFails: s.total_failed,
+                scanCount: 1,
+                model: s.target_model,
+              }))}
+            weeks={16}
+          />
         </div>
       )}
 

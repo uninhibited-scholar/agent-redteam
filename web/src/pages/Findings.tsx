@@ -16,6 +16,7 @@ import { Pagination } from '../components/Pagination'
 import { DetailDrawer } from '../components/DetailDrawer'
 import { BatchActions } from '../components/BatchActions'
 import { IgnoreRules } from '../components/IgnoreRules'
+import { TagExplorer } from '../components/TagExplorer'
 import { SeverityBadge as SharedSeverityBadge } from '../components/ui'
 import { useNotification } from '../components/NotificationToast'
 
@@ -55,6 +56,9 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
   const [selected, setSelected] = useState<SampleResult | null>(null)
   // Multi-select for batch operations
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Tag explorer state
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [tagCombinator, setTagCombinator] = useState<'AND' | 'OR'>('OR')
 
   // Debounce search input
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -239,6 +243,25 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
       {reportSamples.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <IgnoreRules failures={reportSamples.filter(s => s.verdict === 'fail')} />
+        </div>
+      )}
+
+      {/* Tag explorer — explore samples by attack technique tags */}
+      {reportSamples.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <TagExplorer
+            samples={reportSamples}
+            selectedTags={selectedTags}
+            onToggleTag={(t) => {
+              setSelectedTags(prev => {
+                const next = new Set(prev)
+                if (next.has(t)) next.delete(t); else next.add(t)
+                return next
+              })
+            }}
+            combinator={tagCombinator}
+            onCombinatorChange={setTagCombinator}
+          />
         </div>
       )}
 
