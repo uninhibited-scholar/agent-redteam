@@ -48,9 +48,28 @@ export function LiveScan() {
     ws.onopen = () => setConnected(true)
     ws.onclose = () => setConnected(false)
     ws.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data)
-      if (msg.type === 'sample_result') {
-        const s = msg.data as SampleResult
+      let msg: { type?: string; data?: SampleResult & { suites?: string[] } }
+      try {
+        msg = JSON.parse(ev.data)
+      } catch {
+        return  // ignore non-JSON frames
+      }
+      if (msg.type === 'scan_started') {
+        setScanning(true); setScanDone(false)
+        setEvents([]); setSuites([] as unknown as Record<string, SuiteProgress>)
+        setSuiteOrder([])
+        setTotalExpected(0)
+        setStartedAt(Date.now())
+        const suiteCount = msg.data?.suites?.length || 0
+        if (suiteCount) setTotalExpected(suiteCount * 200)
+      } else if (msg.type === 'scan_done') {
+        setScanning(false); setScanDone(true)
+      } else if (msg.type === 'scan_failed') {
+        setScanning(false)
+      } else if (msg.type === 'sample_result' && msg.data) {
+        const s = msg.data
+        // Guard against malformed payloads missing required fields.
+        if (typeof s.suite !== 'string' || typeof s.verdict !== 'string') return
         const now = Date.now()
         setEvents(prev => [...prev.slice(-499), s])  // cap at 500
         setRecentTimestamps(prev => [...prev.slice(-59), now])
@@ -70,19 +89,6 @@ export function LiveScan() {
           return { ...prev, [s.suite]: existing }
         })
         setSuiteOrder(prev => prev.includes(s.suite) ? prev : [...prev, s.suite])
-      } else if (msg.type === 'scan_started') {
-        setScanning(true); setScanDone(false)
-        setEvents([]); setSuites([] as unknown as Record<string, SuiteProgress>)
-        setSuiteOrder([])
-        setTotalExpected(0)
-        setStartedAt(Date.now())
-        // Expected total = number of suites × 200 (default sample count)
-        const suiteCount = msg.data?.suites?.length || 0
-        if (suiteCount) setTotalExpected(suiteCount * 200)
-      } else if (msg.type === 'scan_done') {
-        setScanning(false); setScanDone(true)
-      } else if (msg.type === 'scan_failed') {
-        setScanning(false)
       }
     }
 

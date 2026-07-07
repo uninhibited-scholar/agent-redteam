@@ -318,7 +318,13 @@ function AppInner() {
           <div style={{ width: 280, flexShrink: 0 }}>
             <GlobalSearch
               placeholder="搜索样本/套件/历史…"
-              onSelectSample={(sid) => { setDrawerSample({ sample_id: sid } as SampleResult) }}
+              onSelectSample={(sid) => {
+                // Find the full sample from the loaded report; opening the
+                // drawer with a partial object crashes DetailDrawer (it reads
+                // sample.suite / sample.tags which would be undefined).
+                const found = report?.samples?.find(s => s.sample_id === sid)
+                if (found) setDrawerSample(found)
+              }}
               onSelectSuite={(suite) => drillToSuite(suite) }
               onSelectScan={(rid) => { if (rid) loadReport(rid) }}
             />

@@ -11,9 +11,10 @@ interface Props {
 }
 
 export function Pagination({ page, pageSize, total, onPageChange }: Props) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const start = total === 0 ? 0 : (page - 1) * pageSize + 1
-  const end = Math.min(page * pageSize, total)
+  const safePageSize = pageSize > 0 ? pageSize : 1
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize))
+  const start = total === 0 ? 0 : (page - 1) * safePageSize + 1
+  const end = Math.min(page * safePageSize, total)
 
   const pages = pageNumbers(page, totalPages)
 
