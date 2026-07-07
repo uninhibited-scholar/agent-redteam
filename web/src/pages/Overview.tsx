@@ -17,6 +17,7 @@ import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { ModelProfile } from '../components/ModelProfile'
 import { ModelLeaderboard } from '../components/ModelLeaderboard'
 import { RiskTrendAnalyzer } from '../components/RiskTrendAnalyzer'
+import { ThreatIntelFeed } from '../components/ThreatIntelFeed'
 import type { HistoryItem } from '../types'
 
 interface Props {
@@ -195,6 +196,11 @@ export function Overview({ report, onSuiteClick }: Props) {
           const owasp = samples.find(s => s.suite === suite.name)?.owasp || suite.owasp || ''
           return <SuiteBar key={suite.name} suite={{...suite, owasp}} />
         })}
+      </div>
+
+      {/* Threat intelligence feed */}
+      <div style={{ marginBottom: 24 }}>
+        <ThreatIntelFeed maxItems={6} />
       </div>
     </div>
   )

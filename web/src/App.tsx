@@ -15,20 +15,22 @@ import { Settings } from './pages/Settings'
 import { Metrics } from './pages/Metrics'
 import { SuiteDetail } from './pages/SuiteDetail'
 import { Remediation } from './pages/Remediation'
+import { DashboardPage } from './pages/DashboardPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LoadingState } from './components/EmptyState'
 import { CommandPalette, type Command } from './components/CommandPalette'
 import { HelpOverlay } from './components/HelpOverlay'
 import { DetailDrawer } from './components/DetailDrawer'
+import { GlobalSearch } from './components/GlobalSearch'
 import { NotificationProvider, useNotification } from './components/NotificationToast'
 import type { SampleResult } from './types'
 
-type Page = 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare' | 'settings' | 'metrics' | 'suite-detail' | 'remediation'
+type Page = 'dashboard' | 'overview' | 'findings' | 'live' | 'launcher' | 'history' | 'compare' | 'settings' | 'metrics' | 'suite-detail' | 'remediation'
 
-const PAGE_ORDER: Page[] = ['overview', 'metrics', 'findings', 'remediation', 'launcher', 'live', 'history', 'compare', 'settings']
+const PAGE_ORDER: Page[] = ['dashboard', 'overview', 'metrics', 'findings', 'remediation', 'launcher', 'live', 'history', 'compare', 'settings']
 
 function AppInner() {
-  const [page, setPage] = useState<Page>('overview')
+  const [page, setPage] = useState<Page>('dashboard')
   const [report, setReport] = useState<ScanReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -124,6 +126,7 @@ function AppInner() {
   }, [loadLatestReport, notify])
 
   const navItems: { id: Page; label: string; icon: string }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: '⬢' },
     { id: 'overview', label: 'Overview', icon: '◈' },
     { id: 'metrics', label: 'Metrics', icon: '⊞' },
     { id: 'findings', label: 'Findings', icon: '◉' },
@@ -136,6 +139,7 @@ function AppInner() {
   ]
 
   const subtitles: Record<Page, string> = {
+    dashboard: 'Global security posture dashboard',
     overview: 'Security posture overview',
     metrics: 'Deep analytics across all suites',
     findings: 'Detailed vulnerability findings',
@@ -310,6 +314,15 @@ function AppInner() {
               {subtitles[page]}
             </p>
           </div>
+          {/* Global search — inline in topbar */}
+          <div style={{ width: 280, flexShrink: 0 }}>
+            <GlobalSearch
+              placeholder="搜索样本/套件/历史…"
+              onSelectSample={(sid) => { setDrawerSample({ sample_id: sid } as SampleResult) }}
+              onSelectSuite={(suite) => drillToSuite(suite) }
+              onSelectScan={(rid) => { if (rid) loadReport(rid) }}
+            />
+          </div>
           {/* Command palette trigger button */}
           <button
             onClick={() => setPaletteOpen(true)}
@@ -338,7 +351,12 @@ function AppInner() {
           </button>
         </div>
 
-        {page === 'launcher' ? (
+        {page === 'dashboard' ? (
+          <DashboardPage
+            onStartScan={() => setPage('launcher')}
+            onViewScan={(runId) => { if (runId) { loadReport(runId) } else { setPage('history') } }}
+          />
+        ) : page === 'launcher' ? (
           <ScanLauncher onScanStarted={() => setPage('live')} />
         ) : page === 'history' ? (
           <History onLoad={loadReport} />

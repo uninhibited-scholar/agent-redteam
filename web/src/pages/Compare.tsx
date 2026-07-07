@@ -18,6 +18,7 @@ import { ScoreBadge } from '../components/ScoreBadge'
 import { ScanCompareSummary } from '../components/ScanCompareSummary'
 import { RegressionWatch } from '../components/RegressionWatch'
 import { ScanDiffExporter } from '../components/ScanDiffExporter'
+import { ModelComparisonMatrix } from '../components/ModelComparisonMatrix'
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
 
 /** A sample whose verdict differs between scan A and scan B. */
@@ -206,6 +207,26 @@ export function Compare() {
                 current={reportB.samples}
                 baselineLabel={`${result.model_a}-A`}
                 currentLabel={`${result.model_b}-B`}
+              />
+            </div>
+          )}
+
+          {/* Multi-model comparison matrix heatmap */}
+          {reportA?.suites && reportB?.suites && (
+            <div style={{ marginBottom: 24 }}>
+              <ModelComparisonMatrix
+                models={[
+                  {
+                    model: result.model_a,
+                    overall: result.score_a,
+                    suites: Object.fromEntries(reportA.suites.map(s => [s.name, s.score])),
+                  },
+                  {
+                    model: result.model_b,
+                    overall: result.score_b,
+                    suites: Object.fromEntries(reportB.suites.map(s => [s.name, s.score])),
+                  },
+                ]}
               />
             </div>
           )}
