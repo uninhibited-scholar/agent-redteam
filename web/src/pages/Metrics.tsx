@@ -17,6 +17,8 @@ import type { ScanReport } from '../types'
 import { Panel, MonoTag } from '../components/ui'
 import { AttackPatterns } from '../components/AttackPatterns'
 import { FailurePattern } from '../components/FailurePattern'
+import { AttackVectorFlow } from '../components/AttackVectorFlow'
+import { ComplianceMatrix } from '../components/ComplianceMatrix'
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/DonutChart'
 import { BarChart, ColumnChart, type BarItem } from '../components/BarChart'
 import { useNotification } from '../components/NotificationToast'
@@ -33,6 +35,11 @@ export function Metrics({ report, onDrill }: Props) {
   const { notify } = useNotification()
   const samples = report.samples || []
   const failures = useMemo(() => samples.filter(s => s.verdict === 'fail'), [samples])
+  // Enrich suites with the OWASP code carried on their samples (SuiteResult.owasp is often empty)
+  const enrichedSuites = useMemo(
+    () => report.suites.map(s => ({ ...s, owasp: samples.find(x => x.suite === s.name)?.owasp || s.owasp || '' })),
+    [report.suites, samples],
+  )
 
   // --- Derive analytics from samples ---
   const verdictSegments: DonutSegment[] = useMemo(() => {
@@ -265,6 +272,16 @@ export function Metrics({ report, onDrill }: Props) {
           <div style={{ color: theme.textFaint, fontSize: 12, padding: 20 }}>样本未标记 OWASP 编号</div>
         )}
       </Panel>
+
+      {/* OWASP LLM Top 10 compliance — audit/management framing of the same data */}
+      <div style={{ marginBottom: 20 }}>
+        <ComplianceMatrix suites={enrichedSuites} />
+      </div>
+
+      {/* Attack vector flow — Sankey of category → difficulty → result */}
+      <div style={{ marginBottom: 20 }}>
+        <AttackVectorFlow samples={samples} />
+      </div>
 
       {/* Attack patterns — weakness profile by category */}
       <div style={{ marginBottom: 20 }}>

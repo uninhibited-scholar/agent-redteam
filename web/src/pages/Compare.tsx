@@ -16,6 +16,7 @@ import { DiffViewer, type DiffSide } from '../components/DiffViewer'
 import { SampleCompare } from '../components/SampleCompare'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { ScanCompareSummary } from '../components/ScanCompareSummary'
+import { RegressionWatch } from '../components/RegressionWatch'
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
 
 /** A sample whose verdict differs between scan A and scan B. */
@@ -175,6 +176,22 @@ export function Compare() {
                   label: '对比 B', model: result.model_b,
                   overallScore: result.score_b,
                   suites: reportB.suites, totalSamples: reportB.total_samples,
+                }}
+              />
+            </div>
+          )}
+
+          {/* Release-gate regression watch — pass→fail samples between A and B */}
+          {reportA?.samples && reportB?.samples && (
+            <div style={{ marginBottom: 24 }}>
+              <RegressionWatch
+                baseline={reportA.samples}
+                current={reportB.samples}
+                baselineLabel={`${result.model_a} · A`}
+                currentLabel={`${result.model_b} · B`}
+                onSelectSample={sid => {
+                  const d = flippedSamples.find(f => f.sample_id === sid)
+                  if (d) setSelectedDiff(d)
                 }}
               />
             </div>
