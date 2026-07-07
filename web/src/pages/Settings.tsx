@@ -9,6 +9,10 @@ import { SettingsPanel } from '../components/SettingsPanel'
 import { ExportCenter } from '../components/ExportCenter'
 import { ScanScheduler } from '../components/ScanScheduler'
 import { ScanProfileManager } from '../components/ScanProfileManager'
+import { AlertRules } from '../components/AlertRules'
+import { ReportBuilder } from '../components/ReportBuilder'
+import { KeyboardShortcutManager } from '../components/KeyboardShortcutManager'
+import { ThemeCustomizer, PRESET_THEMES, type CustomTheme, loadCustomTheme, saveCustomTheme } from '../components/ThemeCustomizer'
 import {
   AccessibilityPanel,
   type A11ySettings,
@@ -26,8 +30,54 @@ export function Settings({ version = '0.1.0', report }: Props) {
   const [a11y, setA11y] = useState<A11ySettings>(() => {
     try { return loadA11y() } catch { return DEFAULT_A11Y }
   })
+  const [customTheme, setCustomTheme] = useState<CustomTheme>(() => {
+    try { return loadCustomTheme() ?? PRESET_THEMES[0].theme } catch { return PRESET_THEMES[0].theme }
+  })
   return (
     <div style={{ animation: 'fadeIn 300ms ease', maxWidth: 640 }}>
+      {/* Alert rules — CI/CD release gate */}
+      {report && (
+        <div style={{ marginBottom: 24 }}>
+          <AlertRules
+            report={{
+              overallScore: report.overall_score ?? 0,
+              suites: report.suites ?? [],
+              samples: report.samples ?? [],
+            }}
+          />
+        </div>
+      )}
+
+      {/* Custom report builder */}
+      {report && (
+        <div style={{ marginBottom: 24 }}>
+          <ReportBuilder report={report} />
+        </div>
+      )}
+
+      {/* Theme customizer */}
+      <div style={{ marginBottom: 24 }}>
+        <ThemeCustomizer
+          theme={customTheme}
+          onChange={(t) => { setCustomTheme(t); saveCustomTheme(t) }}
+        />
+      </div>
+
+      {/* Keyboard shortcut manager */}
+      <div style={{ marginBottom: 24 }}>
+        <KeyboardShortcutManager
+          defaults={[
+            { action: 'nav.dashboard', label: 'Dashboard', keys: '1', group: '导航' },
+            { action: 'nav.overview', label: 'Overview', keys: '2', group: '导航' },
+            { action: 'nav.metrics', label: 'Metrics', keys: '3', group: '导航' },
+            { action: 'nav.findings', label: 'Findings', keys: '4', group: '导航' },
+            { action: 'nav.scan', label: 'Scan', keys: '5', group: '导航' },
+            { action: 'palette', label: '命令面板', keys: 'meta+k', group: '操作', readonly: true },
+            { action: 'help', label: '帮助', keys: 'shift+/', group: '操作' },
+            { action: 'refresh', label: '刷新报告', keys: 'r', group: '操作' },
+          ]}
+        />
+      </div>
       <div style={{
         background: theme.surface,
         borderRadius: theme.radius,
