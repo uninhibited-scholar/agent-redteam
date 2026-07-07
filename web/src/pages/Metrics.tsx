@@ -331,7 +331,7 @@ export function Metrics({ report, onDrill }: Props) {
       {/* Failure pattern analysis — root-cause clustering of failures */}
       {failures.length > 0 && (
         <div style={{ marginTop: 20 }}>
-          <FailurePattern failures={failures} onSelectSample={() => {}} />
+          <FailurePattern failures={failures} onSelectSample={() => onDrill(undefined, undefined, 'fail')} />
         </div>
       )}
 

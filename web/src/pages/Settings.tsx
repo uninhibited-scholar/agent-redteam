@@ -107,7 +107,13 @@ export function Settings({ version = '0.1.0', report }: Props) {
       {report && (
         <div style={{ marginBottom: 24 }}>
           <ScanProfileManager
-            onApply={() => {}}
+            onApply={(profile) => {
+              const cmd = `agent-redteam scan --model ${profile.model} --target ${profile.target} --suites ${profile.suites.join(',')} --limit ${profile.limit} --workers ${profile.workers}`
+              navigator.clipboard?.writeText(cmd)
+              // notify via the toast if available, else alert
+              const evt = new CustomEvent('redteam:notify', { detail: { msg: `已复制命令到剪贴板，到 Scan 页粘贴执行`, kind: 'info' } })
+              window.dispatchEvent(evt)
+            }}
             availableSuites={(report.suites ?? []).map(s => s.name)}
           />
         </div>

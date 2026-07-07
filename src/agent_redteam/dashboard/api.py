@@ -156,6 +156,14 @@ def _run_scan_in_background(req: dict) -> None:
         def on_result(r):
             _state.emit_sample(r)
 
+        # Per-suite sample cap (lets the wizard control scan scale).
+        samples_per_suite = int(req.get("samples_per_suite", 0))
+        if samples_per_suite > 0:
+            for name in (suites or engine.list_suites()):
+                s = engine._suites.get(name)
+                if s:
+                    s._limit = samples_per_suite
+
         report = engine.scan(suites=suites, on_result=on_result)
         save_report(report)
         _state.emit_scan_done(report)

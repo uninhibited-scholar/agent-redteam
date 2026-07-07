@@ -10,7 +10,7 @@ import type { ScanConfigStatus } from '../types'
 import { useNotification } from '../components/NotificationToast'
 import { SuiteSelector } from '../components/SuiteSelector'
 import { ScanPreset } from '../components/ScanPreset'
-import { ScanWizard, type WizardConfig } from '../components/ScanWizard'
+import { ScanWizard } from '../components/ScanWizard'
 
 interface Props {
   onScanStarted: () => void
@@ -24,6 +24,7 @@ export function ScanLauncher({ onScanStarted }: Props) {
   const [baseUrl, setBaseUrl] = useState('')
   const [workers, setWorkers] = useState(4)
   const [maxTokens, setMaxTokens] = useState(500)
+  const [sampleLimit, setSampleLimit] = useState(30)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,14 +61,15 @@ export function ScanLauncher({ onScanStarted }: Props) {
       const resp = await fetch('/api/scan/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: model.trim(),
-          base_url: baseUrl.trim() || undefined,
-          target,
-          suites: [...selected],
-          workers,
-          max_tokens: maxTokens,
-        }),
+          body: JSON.stringify({
+            model: model.trim(),
+            base_url: baseUrl.trim() || undefined,
+            target,
+            suites: [...selected],
+            workers,
+            max_tokens: maxTokens,
+            samples_per_suite: sampleLimit,
+          }),
       })
       const data = await resp.json()
       if (!resp.ok) {
@@ -134,12 +136,12 @@ export function ScanLauncher({ onScanStarted }: Props) {
         <div style={{ marginBottom: 20 }}>
           <ScanWizard
             config={{
-              model, target, suites: selected, workers,
-              limit: maxTokens > 0 ? 30 : 30,  // limit maps to suite sample cap
+              model, target, suites: selected, workers, limit: sampleLimit,
             }}
-            onConfigChange={(c: WizardConfig) => {
+            onConfigChange={(c) => {
               setModel(c.model); setTarget(c.target)
               setSelected(c.suites); setWorkers(c.workers)
+              if (c.limit > 0) setSampleLimit(c.limit)
             }}
             onStart={handleSubmit}
             availableSuites={config.suites}

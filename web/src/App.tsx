@@ -87,6 +87,21 @@ function AppInner() {
       .catch(() => setLoading(false))
   }
 
+  // Apply accessibility settings (font scale + reduce motion) from localStorage on mount.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('agent-redteam:a11y')
+      if (!raw) return
+      const a11y = JSON.parse(raw) as { fontScale?: number; reduceMotion?: boolean }
+      if (a11y.fontScale && a11y.fontScale !== 1) {
+        document.documentElement.style.fontSize = `${16 * a11y.fontScale}px`
+      }
+      if (a11y.reduceMotion) {
+        document.documentElement.classList.add('reduce-motion')
+      }
+    } catch { /* localStorage unavailable — skip */ }
+  }, [])
+
   // Global keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

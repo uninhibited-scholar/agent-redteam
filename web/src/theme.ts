@@ -106,6 +106,12 @@ export const globalStyles = `
     to { opacity: 1; }
   }
 
+  /* Accessibility: reduce-motion class disables animations */
+  .reduce-motion * {
+    animation: none !important;
+    transition: none !important;
+  }
+
   /* Responsive */
   @media (max-width: 768px) {
     #root { font-size: 13px; }

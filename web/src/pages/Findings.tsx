@@ -131,7 +131,7 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
     {
       key: 'select', label: '', align: 'center',
       render: s => {
-        const id = `${s.suite}:${s.sample_id}`
+        const id = s.sample_id
         const checked = selectedIds.has(id)
         return (
           <input
@@ -351,7 +351,7 @@ export function Findings({ initialSuite, initialSeverity, initialVerdict, onCons
         visibleSamples={data?.items || []}
         totalMatched={data?.total || 0}
         onSelectAll={() => {
-          const ids = (data?.items || []).map(s => `${s.suite}:${s.sample_id}`)
+          const ids = (data?.items || []).map(s => s.sample_id)
           setSelectedIds(new Set(ids))
         }}
         onClear={() => setSelectedIds(new Set())}
