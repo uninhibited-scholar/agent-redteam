@@ -17,6 +17,9 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Security",
 ]
 dependencies = []
@@ -31,12 +34,12 @@ agent-redteam = "agent_redteam.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/uninhibited-scholar/agent-redteam"
+Documentation = "https://github.com/uninhibited-scholar/agent-redteam#readme"
+"Bug Tracker" = "https://github.com/uninhibited-scholar/agent-redteam/issues"
+Changelog = "https://github.com/uninhibited-scholar/agent-redteam/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_redteam"]
-
-[tool.hatch.build.targets.wheel.shared-data]
-"src/agent_redteam/suites" = "agent_redteam/suites"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

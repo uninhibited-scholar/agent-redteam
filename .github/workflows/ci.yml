@@ -21,4 +21,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pyflakes
-      - run: pyflakes src/agent_redteam/ || true
+      - run: pyflakes src/agent_redteam/
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: cd web && npm install
+      - run: cd web && npx tsc --noEmit --noUnusedLocals --noUnusedParameters
+      - run: cd web && npm run build

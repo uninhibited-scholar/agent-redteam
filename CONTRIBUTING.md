@@ -8,7 +8,17 @@
 
 最直接的贡献方式。每个套件的 `data.jsonl` 可以扩充：
 
-1. **选一个套件**（injection / tool_abuse / over_refusal / info_leak）
+1. **选一个套件**（10 个可选）：
+   - `injection` — Prompt 注入（OWASP LLM01）
+   - `tool_abuse` — 工具滥用（LLM01）
+   - `supply_chain` — 供应链攻击（LLM02）
+   - `model_dos` — 拒绝服务（LLM04）
+   - `excessive_agency` — 过度自主（LLM05）
+   - `info_leak` — 信息泄露（LLM06）
+   - `insecure_output` — 不安全输出（LLM07）
+   - `sensitive_data` — 敏感数据（LLM08）
+   - `over_refusal` — 过度拒绝（LLM09）
+   - `over_dependency` — 过度依赖（LLM10）
 2. **读该套件的 `data.jsonl`**，理解样本格式
 3. **编写新样本**——关键是：
    - 真实的攻击场景（不是凭空捏造的"假"攻击）
@@ -27,6 +37,15 @@
 
 如果你想改进某个 Check 的准确度（比如更智能的泄露检测），修改 `src/agent_redteam/checks/` 下的对应模块，确保 `pytest` 全绿。
 
+### 前端贡献
+
+前端是 React + TypeScript（19,000+ 行，70+ 组件），位于 `web/`：
+
+- 组件：`web/src/components/`
+- 页面：`web/src/pages/`
+- 主题/样式：`web/src/theme.ts`（CSS 变量驱动）
+- 严格 tsc：`cd web && npx tsc --noEmit --noUnusedLocals --noUnusedParameters`
+
 ### 报告 Bug 或建议
 
 用 GitHub Issues。请包含：
@@ -40,7 +59,7 @@
 git clone https://github.com/uninhibited-scholar/agent-redteam
 cd agent-redteam
 pip install -e ".[dev,tui]"
-pytest -v  # 应该 21 全绿
+pytest -v  # 75 个测试全绿
 
 # 前端开发
 cd web && npm install && npm run dev
@@ -49,5 +68,5 @@ cd web && npm install && npm run dev
 ## 代码风格
 
 - Python：PEP 8，行宽 100
-- TypeScript：2 空格缩进，strict mode
+- TypeScript：2 空格缩进，strict mode（`--noUnusedLocals --noUnusedParameters`）
 - 零核心依赖原则：Python 核心只用 stdlib

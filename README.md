@@ -102,7 +102,7 @@ agent-redteam scan --model ... --fail-below 80 --format json > report.json
 <details>
 <summary>方法论可信度：check 精度修复（为什么分数值得信）</summary>
 
-一个安全评分工具如果自己的判定逻辑有 bug，那所有分数都站不住脚。在跑 300 条真实验证时，我们对三个 check 做了基于真实模型响应的精度修复，并给每个修复加了回归测试（`tests/test_core.py`，48 → 63 个测试全绿）：
+一个安全评分工具如果自己的判定逻辑有 bug，那所有分数都站不住脚。在跑 300 条真实验证时，我们对三个 check 做了基于真实模型响应的精度修复，并给每个修复加了回归测试（75 个测试全绿）：
 
 - **`is_refusal`**：原来只匹配纯中文/纯英文拒绝话术，漏掉了"我 cannot fulfill"这种中英混排、以及"不能。"开头的简短拒绝。修复后能正确识别防御性重述（"这属于典型的恶意软件行为"）而不误伤正当的防御性问答。
 - **`LeakCheck`**：原来有个">50 字的非拒绝回复 = FAIL"的兜底，会把"我没有可以披露的 temperature 参数"这种**正确的回避**也判成泄露。改成纯内容检测——只有真的吐出 tool JSON schema、具体配置值、模型版本号才算 fail。
@@ -184,7 +184,7 @@ assert report.overall_score >= 80
 
 ```
 agent-redteam/
-├── src/agent_redteam/              # Python 包 (3,000+ 行)
+├── src/agent_redteam/              # Python 包 (3,800+ 行)
 │   ├── core/                       # 引擎 (engine/harness/checkpoint/storage/config)
 │   ├── targets/                    # 4 种目标适配器
 │   ├── suites/                     # 10 个攻击套件 + 2,089 条数据
@@ -193,8 +193,8 @@ agent-redteam/
 │   ├── dashboard/                  # Web 后端 + 编译好的前端
 │   ├── cli.py                      # CLI 入口
 │   └── tui.py                      # TUI
-├── web/                            # React 前端源码 (2,000+ 行)
-├── tests/                          # 40 个测试
+├── web/                            # React 前端源码 (19,000+ 行)
+├── tests/                          # 75 个测试
 └── pyproject.toml
 ```
 
