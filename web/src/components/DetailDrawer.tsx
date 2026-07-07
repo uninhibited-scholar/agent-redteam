@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { theme } from '../theme'
 import type { SampleResult } from '../types'
 import { SeverityBadge } from './ui'
+import { AnnotationLayer } from './AnnotationLayer'
 
 interface Props {
   sample: SampleResult | null
@@ -200,6 +201,11 @@ export function DetailDrawer({ sample, onClose, timestamp, onJumpToSuite }: Prop
               </span>
             </Field>
           )}
+        </div>
+
+        {/* Annotation layer — analyst notes on this sample */}
+        <div style={{ padding: '0 20px 12px' }}>
+          <AnnotationLayer sampleId={sample.sample_id} />
         </div>
 
         {/* Footer actions */}

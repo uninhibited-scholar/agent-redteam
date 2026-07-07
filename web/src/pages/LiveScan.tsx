@@ -11,6 +11,7 @@ import { TelemetryStream } from '../components/TelemetryStream'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { ConnectionStatus } from '../components/ConnectionStatus'
 import { LiveMetricOverlay } from '../components/LiveMetricOverlay'
+import { ScanLogViewer } from '../components/ScanLogViewer'
 import { Panel } from '../components/ui'
 
 interface SuiteProgress {
@@ -254,6 +255,22 @@ export function LiveScan() {
           )}
         </div>
       </Panel>
+
+      {/* Structured scan log — filterable, searchable */}
+      {events.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <ScanLogViewer
+            entries={events.map(e => ({
+              timestamp: Date.now(),
+              level: e.verdict === 'error' ? 'error' : e.verdict === 'fail' ? 'warn' : 'info',
+              source: e.suite,
+              message: `${e.sample_id}: ${e.verdict}${e.error ? ' — ' + e.error : ''}`,
+              sampleId: e.sample_id,
+            }))}
+            maxEntries={300}
+          />
+        </div>
+      )}
     </div>
   )
 }

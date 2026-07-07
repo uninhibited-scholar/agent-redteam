@@ -3,10 +3,19 @@
  * Wraps SettingsPanel (which talks to /api/settings) and ExportCenter.
  */
 import { theme } from '../theme'
+import { useState } from 'react'
 import type { ScanReport } from '../types'
 import { SettingsPanel } from '../components/SettingsPanel'
 import { ExportCenter } from '../components/ExportCenter'
 import { ScanScheduler } from '../components/ScanScheduler'
+import { ScanProfileManager } from '../components/ScanProfileManager'
+import {
+  AccessibilityPanel,
+  type A11ySettings,
+  loadA11y,
+  saveA11y,
+  DEFAULT_A11Y,
+} from '../components/AccessibilityPanel'
 
 interface Props {
   version?: string
@@ -14,6 +23,9 @@ interface Props {
 }
 
 export function Settings({ version = '0.1.0', report }: Props) {
+  const [a11y, setA11y] = useState<A11ySettings>(() => {
+    try { return loadA11y() } catch { return DEFAULT_A11Y }
+  })
   return (
     <div style={{ animation: 'fadeIn 300ms ease', maxWidth: 640 }}>
       <div style={{
@@ -26,10 +38,28 @@ export function Settings({ version = '0.1.0', report }: Props) {
         <SettingsPanel version={version} />
       </div>
 
+      {/* Accessibility settings */}
+      <div style={{ marginBottom: 24 }}>
+        <AccessibilityPanel
+          settings={a11y}
+          onChange={(s) => { setA11y(s); saveA11y(s) }}
+        />
+      </div>
+
       {/* Export center — only if a report is loaded */}
       {report && (
         <div style={{ marginBottom: 24 }}>
           <ExportCenter report={report} />
+        </div>
+      )}
+
+      {/* Scan profile manager — team-level config templates */}
+      {report && (
+        <div style={{ marginBottom: 24 }}>
+          <ScanProfileManager
+            onApply={() => {}}
+            availableSuites={(report.suites ?? []).map(s => s.name)}
+          />
         </div>
       )}
 
