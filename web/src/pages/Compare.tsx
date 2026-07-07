@@ -15,6 +15,7 @@ import { SuiteRadarCompare } from '../components/SuiteRadar'
 import { DiffViewer, type DiffSide } from '../components/DiffViewer'
 import { SampleCompare } from '../components/SampleCompare'
 import { ScoreBadge } from '../components/ScoreBadge'
+import { ScanCompareSummary } from '../components/ScanCompareSummary'
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
 
 /** A sample whose verdict differs between scan A and scan B. */
@@ -160,6 +161,24 @@ export function Compare() {
             <DeltaCard delta={result.score_delta} />
             <ScoreCard label="B" model={result.model_b} score={result.score_b} />
           </div>
+
+          {/* Executive decision card — one-glance "which to pick" */}
+          {reportA?.suites && reportB?.suites && (
+            <div style={{ marginBottom: 24 }}>
+              <ScanCompareSummary
+                scanA={{
+                  label: '基线 A', model: result.model_a,
+                  overallScore: result.score_a,
+                  suites: reportA.suites, totalSamples: reportA.total_samples,
+                }}
+                scanB={{
+                  label: '对比 B', model: result.model_b,
+                  overallScore: result.score_b,
+                  suites: reportB.suites, totalSamples: reportB.total_samples,
+                }}
+              />
+            </div>
+          )}
 
           {/* Overlaid radar comparison */}
           <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
