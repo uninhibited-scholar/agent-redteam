@@ -20,6 +20,9 @@ import { FailurePattern } from '../components/FailurePattern'
 import { AttackVectorFlow } from '../components/AttackVectorFlow'
 import { ComplianceMatrix } from '../components/ComplianceMatrix'
 import { ResponseLatencyChart } from '../components/ResponseLatencyChart'
+import { ConfidenceGauge } from '../components/ConfidenceGauge'
+import { AttackSurfaceMap } from '../components/AttackSurfaceMap'
+import { SeverityBubbleChart } from '../components/SeverityBubbleChart'
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/DonutChart'
 import { BarChart, ColumnChart, type BarItem } from '../components/BarChart'
 import { useNotification } from '../components/NotificationToast'
@@ -335,6 +338,27 @@ export function Metrics({ report, onDrill }: Props) {
       {samples.length > 0 && (
         <div style={{ marginTop: 20 }}>
           <ResponseLatencyChart samples={samples} />
+        </div>
+      )}
+
+      {/* Confidence analysis — how trustworthy is this score? */}
+      {report.suites.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <ConfidenceGauge suites={report.suites} samples={samples} />
+        </div>
+      )}
+
+      {/* Attack surface map — radar with weak-spot annotations */}
+      {report.suites.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <AttackSurfaceMap suites={report.suites} samples={samples} onSelectSuite={onDrill} />
+        </div>
+      )}
+
+      {/* Severity bubble matrix — suite × severity 2D distribution */}
+      {samples.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <SeverityBubbleChart samples={samples} />
         </div>
       )}
     </div>

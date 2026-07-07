@@ -16,6 +16,7 @@ import { SeverityDistribution } from '../components/SeverityDistribution'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { ModelProfile } from '../components/ModelProfile'
 import { ModelLeaderboard } from '../components/ModelLeaderboard'
+import { RiskTrendAnalyzer } from '../components/RiskTrendAnalyzer'
 import type { HistoryItem } from '../types'
 
 interface Props {
@@ -30,6 +31,23 @@ export function Overview({ report, onSuiteClick }: Props) {
 
   // Fetch scan history for the model leaderboard (multi-model comparison)
   const { data: history } = useApi<{ scans: HistoryItem[] }>('/api/history?limit=100')
+
+  // Per-model overall score trends for RiskTrendAnalyzer
+  const trendData = useMemo(() => {
+    const scans = history?.scans || []
+    const valid = scans.filter(s => s.overall_score >= 0 && s.total_samples >= 10 && s.target_model !== 'storage-test')
+    const byModel = new Map<string, HistoryItem[]>()
+    for (const s of valid) {
+      const list = byModel.get(s.target_model) || []
+      list.push(s)
+      byModel.set(s.target_model, list)
+    }
+    return [...byModel.entries()].map(([model, runs]) => ({
+      suite: model,  // reuse "suite" field as model name for trend lines
+      points: [...runs].reverse().map((r, i) => ({ x: i, score: r.overall_score })),
+    })).filter(t => t.points.length >= 2)
+  }, [history])
+
   const leaderboardModels = useMemo(() => {
     const scans = history?.scans || []
     // Filter out invalid runs (failed scans with score<0) and tiny test runs
@@ -150,6 +168,13 @@ export function Overview({ report, onSuiteClick }: Props) {
       {leaderboardModels.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <ModelLeaderboard models={leaderboardModels} />
+        </div>
+      )}
+
+      {/* Risk trend analysis — per-model score trajectory + forecast */}
+      {trendData.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <RiskTrendAnalyzer trends={trendData} forecastSteps={3} />
         </div>
       )}
 
