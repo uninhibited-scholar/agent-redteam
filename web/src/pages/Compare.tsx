@@ -17,6 +17,7 @@ import { SampleCompare } from '../components/SampleCompare'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { ScanCompareSummary } from '../components/ScanCompareSummary'
 import { RegressionWatch } from '../components/RegressionWatch'
+import { ScanDiffExporter } from '../components/ScanDiffExporter'
 import { Panel, SeverityBadge, MonoTag } from '../components/ui'
 
 /** A sample whose verdict differs between scan A and scan B. */
@@ -193,6 +194,18 @@ export function Compare() {
                   const d = flippedSamples.find(f => f.sample_id === sid)
                   if (d) setSelectedDiff(d)
                 }}
+              />
+            </div>
+          )}
+
+          {/* Diff export — shareable Markdown / JSON report of the delta */}
+          {reportA?.samples && reportB?.samples && (
+            <div style={{ marginBottom: 24 }}>
+              <ScanDiffExporter
+                baseline={reportA.samples}
+                current={reportB.samples}
+                baselineLabel={`${result.model_a}-A`}
+                currentLabel={`${result.model_b}-B`}
               />
             </div>
           )}
