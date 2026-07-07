@@ -3,7 +3,7 @@
  * notifications, and keyboard shortcuts.
  */
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { theme, globalStyles } from './theme'
+import { theme, globalStyles, applyThemeOverride } from './theme'
 import type { ScanReport } from './types'
 import { Overview } from './pages/Overview'
 import { Findings } from './pages/Findings'
@@ -63,10 +63,31 @@ function AppInner() {
   }, [])
 
   useEffect(() => {
-    // Inject global styles
+    // Inject global styles FIRST (defines :root CSS variables with defaults)
     const style = document.createElement('style')
     style.textContent = globalStyles
     document.head.appendChild(style)
+
+    // Then apply saved overrides (a11y + custom theme) so they take precedence
+    try {
+      const a11yRaw = localStorage.getItem('agent-redteam:a11y')
+      if (a11yRaw) {
+        const a11y = JSON.parse(a11yRaw) as { fontScale?: number; reduceMotion?: boolean }
+        if (a11y.fontScale && a11y.fontScale !== 1) {
+          document.documentElement.style.fontSize = `${16 * a11y.fontScale}px`
+        }
+        if (a11y.reduceMotion) {
+          document.documentElement.classList.add('reduce-motion')
+        }
+      }
+    } catch { /* localStorage unavailable */ }
+
+    try {
+      const themeRaw = localStorage.getItem('agent-redteam:theme-custom')
+      if (themeRaw) {
+        applyThemeOverride(JSON.parse(themeRaw))
+      }
+    } catch { /* invalid JSON */ }
 
     loadLatestReport()
   }, [])
@@ -86,21 +107,6 @@ function AppInner() {
       .then(data => { setReport(data); setLoading(false); setPage('overview') })
       .catch(() => setLoading(false))
   }
-
-  // Apply accessibility settings (font scale + reduce motion) from localStorage on mount.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('agent-redteam:a11y')
-      if (!raw) return
-      const a11y = JSON.parse(raw) as { fontScale?: number; reduceMotion?: boolean }
-      if (a11y.fontScale && a11y.fontScale !== 1) {
-        document.documentElement.style.fontSize = `${16 * a11y.fontScale}px`
-      }
-      if (a11y.reduceMotion) {
-        document.documentElement.classList.add('reduce-motion')
-      }
-    } catch { /* localStorage unavailable — skip */ }
-  }, [])
 
   // Global keyboard shortcuts
   useEffect(() => {

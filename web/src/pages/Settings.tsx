@@ -3,6 +3,7 @@
  * Wraps SettingsPanel (which talks to /api/settings) and ExportCenter.
  */
 import { theme } from '../theme'
+import { applyThemeOverride } from '../theme'
 import { useState } from 'react'
 import type { ScanReport } from '../types'
 import { SettingsPanel } from '../components/SettingsPanel'
@@ -59,7 +60,11 @@ export function Settings({ version = '0.1.0', report }: Props) {
       <div style={{ marginBottom: 24 }}>
         <ThemeCustomizer
           theme={customTheme}
-          onChange={(t) => { setCustomTheme(t); saveCustomTheme(t) }}
+          onChange={(t) => {
+            setCustomTheme(t); saveCustomTheme(t)
+            // Apply immediately via CSS variables — all components pick it up.
+            applyThemeOverride(t)
+          }}
         />
       </div>
 
