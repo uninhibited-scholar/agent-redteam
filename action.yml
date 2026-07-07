@@ -1,0 +1,145 @@
+name: "Agent Redteam Scan"
+description: "Run AI agent security red-team scans in CI — like `npm audit` for AI agents. 2,089 attack samples, OWASP LLM Top 10 coverage."
+
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  model:
+    description: "Model ID to test (e.g. gpt-4o, glm-4-plus, claude-sonnet-4-20250514, llama3)"
+    required: true
+  target:
+    description: "Target type: openai (default), claude, zai, ollama, deepseek, azure, qwen, local"
+    required: false
+    default: "openai"
+  api-key:
+    description: "API key for the target model (use secrets!). Not needed for ollama/local."
+    required: false
+    default: ""
+  base-url:
+    description: "Custom API base URL (for OpenAI-compatible providers, Azure endpoint, Ollama server)"
+    required: false
+    default: ""
+  fail-below:
+    description: "Fail the CI run if the overall score is below this threshold (0-100, 0 = no gate)"
+    required: false
+    default: "0"
+  suites:
+    description: "Comma-separated suite names to run (default: all 10). E.g. 'injection,info_leak'"
+    required: false
+    default: ""
+  limit:
+    description: "Max samples per suite (default: 20). Lower = faster CI, higher = more thorough."
+    required: false
+    default: "20"
+  max-tokens:
+    description: "Max response tokens per sample (default: 500)"
+    required: false
+    default: "500"
+  workers:
+    description: "Parallel API calls (default: 4). Higher = faster but may hit rate limits."
+    required: false
+    default: "4"
+
+outputs:
+  score:
+    description: "Overall security score (0-100)"
+    value: ${{ steps.scan.outputs.score }}
+  total-samples:
+    description: "Total samples tested"
+    value: ${{ steps.scan.outputs.total-samples }}
+  total-failed:
+    description: "Total samples that failed (security issues found)"
+    value: ${{ steps.scan.outputs.total-failed }}
+  run-id:
+    description: "Scan run ID (for history/compare)"
+    value: ${{ steps.scan.outputs.run-id }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install agent-redteam
+      shell: bash
+      run: pip install agent-redteam
+
+    - name: Run security scan
+      id: scan
+      shell: bash
+      env:
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_API_KEY: ${{ inputs.api-key }}
+        INPUT_BASE_URL: ${{ inputs.base-url }}
+        INPUT_FAIL_BELOW: ${{ inputs.fail-below }}
+        INPUT_SUITES: ${{ inputs.suites }}
+        INPUT_LIMIT: ${{ inputs.limit }}
+        INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+        INPUT_WORKERS: ${{ inputs.workers }}
+      run: |
+        # Build CLI args from inputs
+        ARGS="--model $INPUT_MODEL --target $INPUT_TARGET --format json --workers $INPUT_WORKERS --limit $INPUT_LIMIT --max-tokens $INPUT_MAX_TOKENS"
+
+        if [ -n "$INPUT_API_KEY" ]; then
+          ARGS="$ARGS --key $INPUT_API_KEY"
+        fi
+
+        if [ -n "$INPUT_BASE_URL" ]; then
+          ARGS="$ARGS --base-url $INPUT_BASE_URL"
+        fi
+
+        if [ -n "$INPUT_SUITES" ]; then
+          ARGS="$ARGS --suites $INPUT_SUITES"
+        fi
+
+        if [ "$INPUT_FAIL_BELOW" != "0" ] && [ -n "$INPUT_FAIL_BELOW" ]; then
+          ARGS="$ARGS --fail-below $INPUT_FAIL_BELOW"
+        fi
+
+        echo "🛡️ Running agent-redteam scan..."
+        echo "   Model: $INPUT_MODEL ($INPUT_TARGET)"
+        echo "   Limit: $INPUT_LIMIT samples/suite"
+        echo ""
+
+        # Run scan and capture JSON output (stderr has progress, stdout has JSON)
+        # Use a temp file because the CLI may exit 1 for fail-below gate
+        agent-redteam scan $ARGS > /tmp/redteam-report.json 2>/tmp/redteam-stderr.log || SCAN_EXIT=$?
+
+        # Show progress output
+        cat /tmp/redteam-stderr.log >&2
+
+        # Parse JSON and set outputs (even if scan exited 1 from gate)
+        if [ -f /tmp/redteam-report.json ]; then
+          # The CLI prints header lines before the JSON; extract the JSON object
+          python3 -c "
+        import json, sys
+        raw = open('/tmp/redteam-report.json').read()
+        start = raw.find('{')
+        if start < 0:
+            print('::error::No JSON output from scan')
+            sys.exit(1)
+        d = json.loads(raw[start:])
+        score = d.get('overall_score', 0)
+        total = d.get('total_samples', 0)
+        failed = d.get('total_failed', 0)
+        print(f'::set-output name=score::{score}')
+        print(f'::set-output name=total-samples::{total}')
+        print(f'::set-output name=total-failed::{failed}')
+        # Print summary to job log
+        print()
+        print(f'  ╔══════════════════════════════════════╗')
+        print(f'  ║  Score: {score}/100  ({total-failed}/{total} failed)')
+        print(f'  ╚══════════════════════════════════════╝')
+        " || true
+        fi
+
+        # If scan failed due to fail-below gate, exit 1 to fail the CI
+        if [ -n "$SCAN_EXIT" ] && [ "$SCAN_EXIT" -ne 0 ]; then
+          echo "::error::Security score below threshold ($INPUT_FAIL_BELOW)"
+          exit 1
+        fi

@@ -132,14 +132,91 @@ agent-redteam scan --model ... --fail-below 80 --format json > report.json
 
 </details>
 
-### 2. TUI（实时扫描界面）
+### 2. GitHub Action（CI/CD 集成）
+
+在 `.github/workflows/security-scan.yml` 加一段，每次 push/PR 自动跑安全扫描：
+
+```yaml
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: uninhibited-scholar/agent-redteam@v0.2.0
+        with:
+          model: gpt-4o
+          api-key: \${{ secrets.OPENAI_API_KEY }}
+          fail-below: 70          # 分数低于 70 则 CI 失败
+          limit: 20               # 每套件 20 条（快速 CI）
+```
+
+**Outputs 可在后续 step 引用**：`steps.scan.outputs.score`、`steps.scan.outputs.total-failed`
+
+<details>
+<summary>完整示例 + 多 target 配置（点开）</summary>
+
+```yaml
+# .github/workflows/security-scan.yml
+name: Security Scan
+on: [push, pull_request]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run agent-redteam
+        id: scan
+        uses: uninhibited-scholar/agent-redteam@v0.2.0
+        with:
+          model: gpt-4o
+          api-key: \${{ secrets.OPENAI_API_KEY }}
+          fail-below: "70"
+          limit: "20"
+
+      - name: Show results in PR
+        if: always()
+        run: |
+          echo "## 🛡️ Security Score: \${{ steps.scan.outputs.score }}/100" >> $GITHUB_STEP_SUMMARY
+          echo "\${{ steps.scan.outputs.total-failed }} failures out of \${{ steps.scan.outputs.total-samples }} samples" >> $GITHUB_STEP_SUMMARY
+```
+
+其他 target：
+```yaml
+# GLM (Z.ai)
+model: GLM-5.2
+target: zai
+api-key: \${{ secrets.ZAI_API_KEY }}
+
+# Ollama (本地，免费)
+model: llama3
+target: ollama
+base-url: http://localhost:11434
+
+# DeepSeek
+model: deepseek-chat
+target: deepseek
+api-key: \${{ secrets.DEEPSEEK_API_KEY }}
+
+# 通义千问
+model: qwen-plus
+target: qwen
+api-key: \${{ secrets.DASHSCOPE_API_KEY }}
+
+# 只跑指定套件（更快）
+suites: injection,info_leak,supply_chain
+```
+
+</details>
+
+### 3. TUI（实时扫描界面）
 
 ```bash
 pip install agent-redteam[tui]
 agent-redteam scan --tui --model ... --key ...
 ```
 
-### 3. Web Dashboard
+### 4. Web Dashboard
 
 ```bash
 agent-redteam scan --serve --model ... --key ...
@@ -162,12 +239,16 @@ assert report.overall_score >= 80
 
 ## 支持的目标
 
-| 目标 | 说明 |
-|------|------|
-| **OpenAI 兼容** | OpenAI / DeepSeek / GLM / Doubao / vLLM / Ollama |
-| **Anthropic Claude** | Claude Messages API |
-| **Z.ai (智谱)** | Z.ai Anthropic 端点 |
-| **本地 Agent** | 任意 HTTP 端点 |
+| 目标 | `--target` | 说明 |
+|------|-----------|------|
+| **OpenAI 兼容** | `openai` | OpenAI / vLLM / 任意 OpenAI 格式端点 |
+| **Anthropic Claude** | `claude` | Claude Messages API |
+| **Z.ai (智谱 GLM)** | `zai` | GLM-5.2 / GLM-4.5 / GLM-4-Flash |
+| **Ollama** | `ollama` | 本地开源模型（llama3/mistral/qwen），无需 API key |
+| **DeepSeek** | `deepseek` | deepseek-chat / deepseek-reasoner |
+| **Azure OpenAI** | `azure` | Azure OpenAI Service |
+| **通义千问** | `qwen` | 阿里 DashScope（qwen-turbo/plus/max） |
+| **本地 Agent** | `local` | 任意 HTTP 端点 |
 
 ## 技术栈
 

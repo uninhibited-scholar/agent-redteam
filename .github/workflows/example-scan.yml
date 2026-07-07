@@ -1,0 +1,91 @@
+# Example: Using agent-redteam as a GitHub Action
+#
+# Copy this file to your repo as .github/workflows/security-scan.yml
+# to run AI agent security scans on every push/PR.
+#
+# The scan runs 2,089 attack samples (or a subset via --suites/--limit)
+# and fails the CI if the score drops below your threshold.
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  redteam-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run agent-redteam scan
+        id: scan
+        uses: uninhibited-scholar/agent-redteam@v0.2.0
+        with:
+          # The model you're testing
+          model: gpt-4o
+          target: openai
+          # API key from GitHub secrets — NEVER hardcode!
+          api-key: ${{ secrets.OPENAI_API_KEY }}
+          # Fail CI if score < 70 (0 = no gate, just report)
+          fail-below: "70"
+          # Run all 10 suites, 20 samples each = 200 samples (~3 min)
+          limit: "20"
+          workers: "4"
+
+      - name: Display results
+        if: always()
+        run: |
+          echo "## 🛡️ Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Score** | ${{ steps.scan.outputs.score }}/100 |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Samples** | ${{ steps.scan.outputs.total-samples }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Failed** | ${{ steps.scan.outputs.total-failed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          SCORE=${{ steps.scan.outputs.score }}
+          if [ "$SCORE" -ge 80 ] 2>/dev/null; then
+            echo "✅ **PASS** — Security score meets threshold" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Below recommended threshold (80)**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+# ----------------------------------------------------------------------------
+# Other target examples (uncomment and adjust):
+#
+#   # Z.ai (GLM models) — works with ZAI_API_KEY
+#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
+#     with:
+#       model: GLM-5.2
+#       target: zai
+#       api-key: ${{ secrets.ZAI_API_KEY }}
+#       fail-below: "70"
+#
+#   # Ollama (local, free, no API key) — requires ollama running on the runner
+#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
+#     with:
+#       model: llama3
+#       target: ollama
+#       base-url: http://localhost:11434
+#       limit: "10"
+#
+#   # DeepSeek
+#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
+#     with:
+#       model: deepseek-chat
+#       target: deepseek
+#       api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+#
+#   # Only run specific suites (faster CI)
+#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
+#     with:
+#       model: gpt-4o
+#       api-key: ${{ secrets.OPENAI_API_KEY }}
+#       suites: injection,info_leak,supply_chain
+#       limit: "15"
+# ----------------------------------------------------------------------------
