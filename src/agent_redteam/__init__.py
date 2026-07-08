@@ -11,5 +11,5 @@
 from .core.engine import Engine
 from .core.result import ScanReport, SuiteResult, SampleResult, Verdict
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = ["Engine", "ScanReport", "SuiteResult", "SampleResult", "Verdict"]

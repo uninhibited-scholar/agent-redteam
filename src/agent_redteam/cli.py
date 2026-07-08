@@ -4,7 +4,7 @@ import argparse, os, sys
 
 from .core.engine import Engine
 from .targets import OpenAITarget, ClaudeTarget, LocalTarget
-from .report import render_report, render_json, render_markdown
+from .report import render_report, render_json, render_markdown, render_sarif
 from . import __version__
 
 
@@ -32,7 +32,8 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--suites", default=cfg.get("suites", ""), help="只跑特定套件，逗号分隔 (如 injection,info_leak)")
     p_scan.add_argument("--max-tokens", type=int, default=cfg.get("max_tokens", 500))
     p_scan.add_argument("--workers", type=int, default=cfg.get("workers", 4), help="并行 API 调用数")
-    p_scan.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal")
+    p_scan.add_argument("--format", choices=["terminal", "json", "markdown", "sarif"], default="terminal",
+                        help="输出格式（terminal=终端报告 / json=机器可读 / markdown=文档 / sarif=GitHub Security tab）")
     p_scan.add_argument("--fail-below", type=float, default=cfg.get("fail_below", 0), metavar="SCORE",
                         help="总分低于此值则返回 exit 1 (CI 集成用)")
     p_scan.add_argument("--limit", type=int, default=0, help="每套件最多跑 N 条样本 (调试用)")
@@ -217,6 +218,8 @@ def _cmd_scan(args) -> int:
             print(render_json(report))
         elif args.format == "markdown":
             print(render_markdown(report))
+        elif args.format == "sarif":
+            print(render_sarif(report))
         else:
             render_report(report)
 

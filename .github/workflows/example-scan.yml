@@ -1,10 +1,10 @@
 # Example: Using agent-redteam as a GitHub Action
 #
-# Copy this file to your repo as .github/workflows/security-scan.yml
-# to run AI agent security scans on every push/PR.
-#
-# The scan runs 2,089 attack samples (or a subset via --suites/--limit)
-# and fails the CI if the score drops below your threshold.
+# This workflow:
+# 1. Runs a security scan on every push/PR
+# 2. Uploads SARIF results to GitHub Security tab
+# 3. Comments the score on the PR (auto-updates on re-scan)
+# 4. Fails CI if score < threshold
 
 name: Security Scan
 
@@ -13,8 +13,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  # Allow manual trigger
   workflow_dispatch:
+
+# Required permissions for SARIF upload + PR comments
+permissions:
+  contents: read
+  security-events: write   # SARIF upload
+  pull-requests: write     # PR comments
+  actions: read
 
 jobs:
   redteam-scan:
@@ -24,65 +30,53 @@ jobs:
 
       - name: Run agent-redteam scan
         id: scan
-        uses: uninhibited-scholar/agent-redteam@v0.2.0
+        uses: uninhibited-scholar/agent-redteam@v0.3.0
         with:
-          # The model you're testing
           model: gpt-4o
           target: openai
-          # API key from GitHub secrets — NEVER hardcode!
           api-key: ${{ secrets.OPENAI_API_KEY }}
-          # Fail CI if score < 70 (0 = no gate, just report)
           fail-below: "70"
-          # Run all 10 suites, 20 samples each = 200 samples (~3 min)
           limit: "20"
-          workers: "4"
+          # SARIF upload + PR comment are on by default
+          # upload-sarif: "true"
+          # pr-comment: "true"
 
-      - name: Display results
+      - name: Show results in job summary
         if: always()
         run: |
           echo "## 🛡️ Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Score** | ${{ steps.scan.outputs.score }}/100 |" >> $GITHUB_STEP_SUMMARY
           echo "| **Samples** | ${{ steps.scan.outputs.total-samples }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Failed** | ${{ steps.scan.outputs.total-failed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          SCORE=${{ steps.scan.outputs.score }}
-          if [ "$SCORE" -ge 80 ] 2>/dev/null; then
-            echo "✅ **PASS** — Security score meets threshold" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **Below recommended threshold (80)**" >> $GITHUB_STEP_SUMMARY
-          fi
 
 # ----------------------------------------------------------------------------
-# Other target examples (uncomment and adjust):
+# What you get:
 #
-#   # Z.ai (GLM models) — works with ZAI_API_KEY
-#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
+# 1. CI gate: PR fails if score < fail-below
+# 2. PR comment: auto-posted score table + suite breakdown (updates on re-scan)
+# 3. Security tab: SARIF results appear in GitHub's Security → Code Scanning
+# 4. Job summary: score appears in the Actions run summary
+#
+# Other targets (uncomment and adjust):
+#
+#   # GLM (Z.ai)
+#   - uses: uninhibited-scholar/agent-redteam@v0.3.0
 #     with:
 #       model: GLM-5.2
 #       target: zai
 #       api-key: ${{ secrets.ZAI_API_KEY }}
-#       fail-below: "70"
 #
-#   # Ollama (local, free, no API key) — requires ollama running on the runner
-#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
+#   # Ollama (local, free)
+#   - uses: uninhibited-scholar/agent-redteam@v0.3.0
 #     with:
 #       model: llama3
 #       target: ollama
-#       base-url: http://localhost:11434
 #       limit: "10"
 #
-#   # DeepSeek
-#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
-#     with:
-#       model: deepseek-chat
-#       target: deepseek
-#       api-key: ${{ secrets.DEEPSEEK_API_KEY }}
-#
-#   # Only run specific suites (faster CI)
-#   - uses: uninhibited-scholar/agent-redteam@v0.2.0
+#   # Only specific suites (faster CI)
+#   - uses: uninhibited-scholar/agent-redteam@v0.3.0
 #     with:
 #       model: gpt-4o
 #       api-key: ${{ secrets.OPENAI_API_KEY }}
