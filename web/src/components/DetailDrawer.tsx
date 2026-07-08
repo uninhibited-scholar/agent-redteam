@@ -10,6 +10,7 @@ import { theme } from '../theme'
 import type { SampleResult } from '../types'
 import { SeverityBadge } from './ui'
 import { AnnotationLayer } from './AnnotationLayer'
+import { ConversationViewer } from './ConversationViewer'
 
 interface Props {
   sample: SampleResult | null
@@ -178,6 +179,16 @@ export function DetailDrawer({ sample, onClose, timestamp, onJumpToSuite }: Prop
               {sample.response || '(empty)'}
             </pre>
           </Field>
+
+          {/* Multi-turn conversation history (only for multi_turn suite) */}
+          {sample.metadata?.conversation && (
+            <Field label={`Conversation (${sample.metadata.turns || 0} turns)`}>
+              <ConversationViewer
+                conversation={sample.metadata.conversation}
+                turns={sample.metadata.turns || 0}
+              />
+            </Field>
+          )}
 
           {sample.tags.length > 0 && (
             <Field label="Tags">

@@ -13,6 +13,11 @@ export interface SampleResult {
   owasp: string
   tags: string[]
   error: string
+  metadata?: {
+    turns?: number
+    conversation?: Array<{ role: string; content: string }>
+    all_responses?: string[]
+  }
 }
 
 export interface SuiteResult {

@@ -15,7 +15,7 @@ import { AttackTimeline } from '../components/AttackTimeline'
 import { SeverityDistribution } from '../components/SeverityDistribution'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { ModelProfile } from '../components/ModelProfile'
-import { ModelLeaderboard } from '../components/ModelLeaderboard'
+import { BenchmarkLeaderboard } from '../components/BenchmarkLeaderboard'
 import { RiskTrendAnalyzer } from '../components/RiskTrendAnalyzer'
 import { ThreatIntelFeed } from '../components/ThreatIntelFeed'
 import type { HistoryItem } from '../types'
@@ -168,7 +168,13 @@ export function Overview({ report, onSuiteClick }: Props) {
       {/* Model leaderboard — multi-model ranking from scan history */}
       {leaderboardModels.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <ModelLeaderboard models={leaderboardModels} />
+          <BenchmarkLeaderboard
+            models={leaderboardModels.map(m => ({
+              model: m.model,
+              overall: m.avgScore,
+              suites: {},
+            }))}
+          />
         </div>
       )}
 

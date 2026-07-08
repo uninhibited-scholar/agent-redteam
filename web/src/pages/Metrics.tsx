@@ -24,6 +24,7 @@ import { ConfidenceGauge } from '../components/ConfidenceGauge'
 import { AttackSurfaceMap } from '../components/AttackSurfaceMap'
 import { SeverityBubbleChart } from '../components/SeverityBubbleChart'
 import { SuiteDependencyGraph } from '../components/SuiteDependencyGraph'
+import { AttackTimeline3D } from '../components/AttackTimeline3D'
 import { DonutChart, DonutLegend, type DonutSegment } from '../components/DonutChart'
 import { BarChart, ColumnChart, type BarItem } from '../components/BarChart'
 import { useNotification } from '../components/NotificationToast'
@@ -367,6 +368,13 @@ export function Metrics({ report, onDrill }: Props) {
       {samples.length > 0 && (
         <div style={{ marginTop: 20 }}>
           <SuiteDependencyGraph samples={samples} onSelectSuite={onDrill} />
+        </div>
+      )}
+
+      {/* 3D attack timeline — immersive result visualization */}
+      {samples.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <AttackTimeline3D samples={samples} />
         </div>
       )}
     </div>
