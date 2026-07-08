@@ -19,8 +19,24 @@
 
 | 排名 | 模型 | 参数量 | Overall | 注 |
 |------|------|--------|---------|-----|
-| 1 | qwen2.5 | 0.5B | **78.5** | 最小但最强——在 supply_chain 上仍然弱（30 分） |
+| 1 | qwen2.5 | 0.5B | **78.5** | injection 满分，但 tool_abuse 弱 |
+| 2 | llama3.2 | 1.0B | **72.2** | supply_chain 只有 10 分（全场最低） |
 | — | GLM-5.2（云，参考） | — | 84.6 | 云端旗舰作为上限参考 |
+
+### 本地模型逐套件对比
+
+| 套件 | qwen2.5:0.5b | llama3.2:1b | 差异 |
+|------|-------------|-------------|------|
+| injection | **100** | 80 | qwen 满分，llama 被攻破 2 次 |
+| tool_abuse | 50 | **80** | llama 反而更强 |
+| over_refusal | **100** | **100** | 持平 |
+| info_leak | 80 | 80 | 持平 |
+| sensitive_data | **90** | 80 | qwen 略强 |
+| insecure_output | **100** | 80 | qwen 满分 |
+| excessive_agency | **90** | 40 | ⚠️ llama 严重弱点 |
+| model_dos | **100** | **100** | 持平 |
+| supply_chain | **30** | **10** | ⚠️ 两个都不及格 |
+| over_dependency | 60 | **90** | llama 反而更强 |
 
 ### qwen2.5:0.5b 详细分数
 
@@ -74,11 +90,11 @@ agent-redteam scan --target ollama --model qwen2.5:0.5b --limit 10
 
 ## 计划纳入的模型
 
-- [x] qwen2.5:0.5b（通义千问 0.5B）
-- [ ] llama3.2:1b（Meta Llama 3.2 1B）— 扫描中
-- [ ] gemma2:2b（Google Gemma 2 2B）
-- [ ] phi3:3.8b（Microsoft Phi-3）
-- [ ] mistral:7b（Mistral 7B）
-- [ ] llama3.1:8b（Meta Llama 3.1 8B）
+- [x] qwen2.5:0.5b（通义千问 0.5B）— 78.5 分
+- [x] llama3.2:1b（Meta Llama 3.2 1B）— 72.2 分
+- [ ] gemma2:2b（Google Gemma 2 2B）— 待测
+- [ ] phi3:3.8b（Microsoft Phi-3）— 待测
+- [ ] mistral:7b（Mistral 7B）— 待测
+- [ ] llama3.1:8b（Meta Llama 3.1 8B）— 待测
 
 > 模型越大扫描越慢（本地推理）。0.5B 约 1 分钟，7B 约 30-60 分钟。

@@ -209,6 +209,23 @@ suites: injection,info_leak,supply_chain
 
 </details>
 
+<details>
+<summary>📊 本地开源模型安全基准（Ollama · 零 API 费用 · 可复现）</summary>
+
+通过 Ollama 在本地跑开源模型，完全免费、完全可复现——任何人下载同样的模型就能得到同样的分数。
+
+| 模型 | 参数量 | Overall | injection | supply_chain | 最弱维度 |
+|------|--------|---------|-----------|--------------|---------|
+| **qwen2.5** | 0.5B | **78.5** | 100 ✅ | 30 ❌ | tool_abuse (50) |
+| **llama3.2** | 1.0B | **72.2** | 80 | 10 ❌ | supply_chain (10) |
+| GLM-5.2（云参考） | — | 84.6 | 100 ✅ | 53 ❌ | supply_chain (53) |
+
+**复现**：`ollama pull qwen2.5:0.5b && agent-redteam scan --target ollama --model qwen2.5:0.5b --limit 10`
+
+完整报告：[validation/OLLAMA-BENCHMARK.md](validation/OLLAMA-BENCHMARK.md)
+
+</details>
+
 ### 3. TUI（实时扫描界面）
 
 ```bash
