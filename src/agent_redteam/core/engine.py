@@ -63,6 +63,23 @@ class Engine:
                 samples = samples[:limit]
             sr = SuiteResult(name=name)
 
+            # Multi-turn suites use MultiTurnHarness (sequential, conversational)
+            if getattr(suite, "is_multiturn", False):
+                from .multiturn import MultiTurnHarness
+                mt_harness = MultiTurnHarness(
+                    target=self.target,
+                    scenarios=samples,
+                    check=suite.check,
+                    on_result=on_result,
+                )
+                results = mt_harness.run()
+                for r in results:
+                    sr.add(r)
+                report.suites.append(sr)
+                continue
+
+            # Standard single-turn path (below)
+
             # Wrap on_result to also save to checkpoint
             def cp_callback(r: SampleResult, _orig=on_result):
                 cp.save(r)

@@ -10,6 +10,7 @@ from .excessive_agency import ExcessiveAgencySuite
 from .model_dos import ModelDosSuite
 from .supply_chain import SupplyChainSuite
 from .over_dependency import OverDependencySuite
+from .multi_turn import MultiTurnSuite
 
 ALL_SUITES = [
     InjectionSuite,
@@ -22,6 +23,7 @@ ALL_SUITES = [
     ModelDosSuite,
     SupplyChainSuite,
     OverDependencySuite,
+    MultiTurnSuite,
 ]
 
 __all__ = [
@@ -29,4 +31,5 @@ __all__ = [
     "InjectionSuite", "ToolAbuseSuite", "OverRefusalSuite", "InfoLeakSuite",
     "SensitiveDataSuite", "InsecureOutputSuite", "ExcessiveAgencySuite",
     "ModelDosSuite", "SupplyChainSuite", "OverDependencySuite",
+    "MultiTurnSuite",
 ]

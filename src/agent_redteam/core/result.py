@@ -37,6 +37,7 @@ class SampleResult:
     owasp: str = ""        # OWASP LLM Top 10 mapping (e.g. "LLM01")
     tags: list[str] = field(default_factory=list)
     error: str = ""        # Populated if verdict == ERROR
+    metadata: dict = field(default_factory=dict)  # Extra data (e.g. multi-turn conversation)
 
     @property
     def passed(self) -> bool:
