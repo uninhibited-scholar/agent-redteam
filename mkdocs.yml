@@ -1,0 +1,62 @@
+site_name: Agent Redteam
+site_description: AI Agent 红队安全测试平台 — CLI · TUI · Web Dashboard
+site_url: https://uninhibited-scholar.github.io/agent-redteam/
+repo_url: https://github.com/uninhibited-scholar/agent-redteam
+repo_name: uninhibited-scholar/agent-redteam
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: 切换到浅色模式
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: 切换到深色模式
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.details
+
+nav:
+  - 首页: index.md
+  - 快速上手: quickstart.md
+  - CLI 参考: cli.md
+  - Target 配置: targets.md
+  - 套件说明: suites.md
+  - GitHub Action: github-action.md
+  - Python API: api.md
+  - 安全基准: benchmark.md
+  - 贡献指南: contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/uninhibited-scholar/agent-redteam
