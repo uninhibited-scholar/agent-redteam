@@ -120,8 +120,12 @@ def _cmd_scan(args) -> int:
         target = LocalTarget(endpoint=args.endpoint, model=args.model)
     elif args.target == "ollama":
         from .targets import OllamaTarget
-        base = args.base_url if args.base_url != "https://api.openai.com/v1" else "http://localhost:11434"
-        target = OllamaTarget(model=args.model or "llama3", base_url=base, max_tokens=args.max_tokens)
+        # Ollama: completely ignore config/args base_url (it's for cloud APIs).
+        # Only respect a localhost/private URL if explicitly passed.
+        ollama_base = "http://localhost:11434"
+        if args.base_url and ("localhost" in args.base_url or "127.0.0.1" in args.base_url):
+            ollama_base = args.base_url
+        target = OllamaTarget(model=args.model or "llama3", base_url=ollama_base, max_tokens=args.max_tokens)
     elif args.target == "deepseek":
         from .targets import DeepSeekTarget
         target = DeepSeekTarget(model=args.model or "deepseek-chat", api_key=args.key, max_tokens=args.max_tokens)
