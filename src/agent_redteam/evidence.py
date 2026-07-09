@@ -38,7 +38,7 @@ def build_evidence_index(root: str | Path, options: EvidenceOptions | None = Non
             if aux:
                 auxiliary.append(aux)
             else:
-                skipped.append({"path": _safe_rel(path, base), "reason": _redact(str(exc))})
+                skipped.append({"path": _safe_rel(path, base), "reason": _skip_reason(path, exc)})
             continue
         if opts.max_reports and len(reports) >= opts.max_reports:
             skipped.append({"path": _safe_rel(path, base), "reason": "max_reports limit reached"})
@@ -222,6 +222,15 @@ def _auxiliary_entry(path: Path, base: Path) -> dict[str, Any] | None:
             }
 
     return None
+
+
+def _skip_reason(path: Path, exc: Exception) -> str:
+    try:
+        if not path.read_bytes().strip():
+            return "empty file"
+    except OSError:
+        pass
+    return _redact(str(exc))
 
 
 def _value_counts(rows: list[dict[str, Any]], key: str) -> dict[str, int]:

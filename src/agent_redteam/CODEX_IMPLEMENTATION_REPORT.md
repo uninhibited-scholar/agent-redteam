@@ -366,7 +366,7 @@ Observed against the current `validation/` directory:
 9 scan reports
 2 auxiliary JSON artifacts
 5 narrative documents
-1 skipped JSON file
+0 skipped JSON files
 1800 total samples
 380 total failed
 79.2/100 average score
@@ -409,7 +409,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-163 passed in 10.51s
+164 passed in 10.51s
 ```
 
 ## Current Git State Notes

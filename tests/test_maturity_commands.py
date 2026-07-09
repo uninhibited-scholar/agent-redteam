@@ -264,6 +264,19 @@ def test_evidence_index_summarizes_auxiliary_json_artifacts(tmp_path):
     assert "bypassed=1" in markdown
 
 
+def test_evidence_index_reports_empty_json_files_clearly(tmp_path):
+    validation = tmp_path / "validation"
+    validation.mkdir()
+    (validation / "empty.json").write_text("", encoding="utf-8")
+
+    index = build_evidence_index(validation)
+
+    assert index["summary"]["reports"] == 0
+    assert index["summary"]["auxiliary"] == 0
+    assert index["summary"]["skipped"] == 1
+    assert index["skipped"][0]["reason"] == "empty file"
+
+
 def test_cli_evidence_writes_markdown(tmp_path):
     validation = tmp_path / "validation"
     validation.mkdir()
