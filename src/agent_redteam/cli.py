@@ -132,6 +132,15 @@ def main(argv: list[str] | None = None) -> int:
     p_regress.add_argument("--max-items", type=int, default=20,
                            help="输出中最多列出的新增/修复样本数")
 
+    # sbom command
+    p_sbom = sub.add_parser("sbom", help="生成本地软件物料清单（SBOM），用于供应链审计")
+    p_sbom.add_argument("--root", default="", help="项目根目录（默认自动检测）")
+    p_sbom.add_argument("--format", choices=["json", "markdown"], default="json",
+                        help="输出格式")
+    p_sbom.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+    p_sbom.add_argument("--runtime-only", action="store_true",
+                        help="只包含运行时依赖，排除 dev/optional 依赖")
+
     # report command
     p_report = sub.add_parser("report", help="从扫描 JSON 生成独立 HTML/Markdown 报告")
     p_report.add_argument("scan_json", help="scan --format json 生成的报告文件")
@@ -175,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     p_release.add_argument("--skip-frontend", action="store_true", help="跳过全部前端检查")
     p_release.add_argument("--skip-build", action="store_true", help="跳过前端生产构建")
     p_release.add_argument("--skip-evidence", action="store_true", help="跳过 validation evidence 索引检查")
+    p_release.add_argument("--skip-sbom", action="store_true", help="跳过 SBOM 生成检查")
     p_release.add_argument("--skip-artifacts", action="store_true", help="跳过 dist wheel/sdist 存在性检查")
     p_release.add_argument("--strict-warnings", action="store_true", help="doctor warning 也视为失败")
     p_release.add_argument("--timeout", type=int, default=300, help="每个外部命令的超时时间（秒）")
@@ -193,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
     p_manifest.add_argument("--skip-frontend", action="store_true", help="嵌入 release-check 时跳过全部前端检查")
     p_manifest.add_argument("--skip-build", action="store_true", help="嵌入 release-check 时跳过前端生产构建")
     p_manifest.add_argument("--skip-evidence", action="store_true", help="嵌入 release-check 时跳过 evidence 检查")
+    p_manifest.add_argument("--skip-sbom", action="store_true", help="嵌入 release-check 时跳过 SBOM 检查")
     p_manifest.add_argument("--skip-artifacts", action="store_true", help="嵌入 release-check 时跳过包产物检查")
     p_manifest.add_argument("--strict-warnings", action="store_true", help="嵌入 release-check 时 doctor warning 也视为失败")
     p_manifest.add_argument("--timeout", type=int, default=300, help="嵌入 release-check 时每个外部命令的超时时间（秒）")
@@ -217,6 +228,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_ci(args)
     elif args.command == "regress":
         return _cmd_regress(args)
+    elif args.command == "sbom":
+        return _cmd_sbom(args)
     elif args.command == "report":
         return _cmd_report(args)
     elif args.command == "review":
@@ -640,6 +653,34 @@ def _cmd_regress(args) -> int:
     return 0 if result.passed else 1
 
 
+def _cmd_sbom(args) -> int:
+    from .project_audit import default_project_root
+    from .sbom import build_sbom, render_sbom_json, render_sbom_markdown, write_sbom
+
+    root = args.root or default_project_root()
+    try:
+        sbom = build_sbom(root, include_dev=not args.runtime_only)
+        content = render_sbom_json(sbom) if args.format == "json" else render_sbom_markdown(sbom)
+    except Exception as exc:
+        print(f"ERROR: failed to build SBOM: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output:
+        try:
+            write_sbom(sbom, args.output, args.format)
+        except OSError as exc:
+            print(f"ERROR: failed to write SBOM: {exc}", file=sys.stderr)
+            return 1
+        summary = sbom["summary"]
+        print(
+            f"Wrote {args.format} SBOM: {args.output} "
+            f"({summary['components']} components, {summary['release_artifacts']} artifacts)"
+        )
+    else:
+        print(content)
+    return 0
+
+
 def _cmd_report(args) -> int:
     from .html_report import build_report, render_report_html, render_report_markdown
 
@@ -758,6 +799,7 @@ def _cmd_release_check(args) -> int:
             skip_frontend=args.skip_frontend,
             skip_build=args.skip_build,
             skip_evidence=args.skip_evidence,
+            skip_sbom=args.skip_sbom,
             skip_artifacts=args.skip_artifacts,
             strict_warnings=args.strict_warnings,
             timeout_seconds=args.timeout,
@@ -795,6 +837,7 @@ def _cmd_manifest(args) -> int:
                 skip_frontend=args.skip_frontend,
                 skip_build=args.skip_build,
                 skip_evidence=args.skip_evidence,
+                skip_sbom=args.skip_sbom,
                 skip_artifacts=args.skip_artifacts,
                 strict_warnings=args.strict_warnings,
                 timeout_seconds=args.timeout,

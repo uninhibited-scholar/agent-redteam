@@ -390,7 +390,7 @@ Command:
 agent-redteam release-check
 agent-redteam release-check --format json
 agent-redteam release-check --strict-warnings
-agent-redteam release-check --skip-tests --skip-frontend --skip-evidence --skip-artifacts
+agent-redteam release-check --skip-tests --skip-frontend --skip-evidence --skip-sbom --skip-artifacts
 ```
 
 Features:
@@ -399,6 +399,7 @@ Features:
 - runs `pytest -q`
 - runs frontend `typecheck`, `typecheck:strict`, and `build`
 - runs `evidence --root validation --format json` and fails if artifacts are skipped
+- runs `sbom --format json` and fails if no components are present
 - checks that wheel and sdist for the package version are present
 - runs `twine check` on wheel and sdist when `twine` is installed
 - skips only the metadata check when `twine` is unavailable, while still requiring artifacts to exist
@@ -411,12 +412,13 @@ Observed local result:
 
 ```text
 Status: PASS
-doctor: pass, 0 fail / 2 warn, score 93.3/100
+doctor: pass, 0 fail / 2 warn, score 94.4/100
 tests: pass
 frontend.typecheck: pass
 frontend.strict: pass
 frontend.build: pass
 evidence: pass, 9 reports / 2 auxiliary / 5 docs / 0 skipped
+sbom: pass, 123 components / 5 python / 118 npm / 2 release artifacts
 artifacts: pass, wheel and sdist present for 0.3.0, twine check passed
 ```
 
@@ -515,6 +517,47 @@ Post-review fixes:
 - added a comparability finding for mismatched sample counts or suite sets
 - documented why aggregate score has a tolerance while high/critical risk movement is zero-tolerance by default
 
+### 14. Local SBOM
+
+Purpose: give security reviewers and release consumers a local software bill of materials without sending project code to an external service.
+
+Files:
+- `sbom.py`
+- `cli.py`
+- `project_audit.py`
+- `release_gate.py`
+- `docs/cli.md`
+- `RELEASE_CHECKLIST.md`
+- `tests/test_maturity_commands.py`
+
+Command:
+
+```bash
+agent-redteam sbom --format json
+agent-redteam sbom --format markdown --output SBOM.md
+agent-redteam sbom --runtime-only --format json
+```
+
+Features:
+- emits a CycloneDX-style JSON document plus Markdown rendering
+- reads Python package metadata and dependency groups from `pyproject.toml`
+- reads frontend dependency versions, licenses, and integrity hashes from `web/package-lock.json`
+- records release artifact byte sizes and SHA-256 values from `dist/`
+- supports `--runtime-only` to exclude dev/optional dependencies
+- adds a `doctor` check for the SBOM workflow
+- adds an SBOM step to `release-check`
+
+Observed local SBOM summary:
+
+```text
+components: 123
+python dependencies: 5
+npm dependencies: 118
+runtime dependencies: 4
+dev dependencies: 117
+release artifacts: 2
+```
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -543,9 +586,11 @@ python -m agent_redteam.cli review validation/full-300-final.json --format jsonl
 python -m agent_redteam.cli review validation/full-300-final.json --format markdown --max-records 1 --output /tmp/agent-redteam-review.md
 python -m agent_redteam.cli evidence --root validation --output /tmp/agent-redteam-evidence.md
 python -m agent_redteam.cli regress validation/full-300-v2.json validation/full-300-final.json --format json
+python -m agent_redteam.cli sbom --format json
+python -m agent_redteam.cli sbom --runtime-only --format markdown --output /tmp/agent-redteam-sbom.md
 python -m agent_redteam.cli release-check --format json
 python -m agent_redteam.cli manifest --format json
-python -m agent_redteam.cli manifest --include-release-check --skip-tests --skip-frontend --skip-evidence --skip-artifacts --format markdown
+python -m agent_redteam.cli manifest --include-release-check --skip-tests --skip-frontend --skip-evidence --skip-sbom --skip-artifacts --format markdown
 pytest tests/test_maturity_commands.py -q
 pytest
 npm --prefix web run typecheck
@@ -556,7 +601,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-182 passed in 10.85s
+186 passed in 10.98s
 ```
 
 ## Current Git State Notes
@@ -575,6 +620,7 @@ Codex-created or modified files:
 - `release_gate.py`
 - `release_manifest.py`
 - `regression.py`
+- `sbom.py`
 - `CODEX_IMPLEMENTATION_REPORT.md`
 - `tests/test_maturity_commands.py`
 

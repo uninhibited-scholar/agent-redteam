@@ -2,7 +2,7 @@
 
 ```
 agent-redteam [-h] [--version]
-              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,regress,report,review,evidence,release-check,manifest} ...
+              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,regress,sbom,report,review,evidence,release-check,manifest} ...
 ```
 
 ## `scan`
@@ -167,9 +167,25 @@ agent-redteam regress baseline.json current.json --format markdown --output regr
 同一个 `(suite, sample_id)` 从 `high` 升级到 `critical` 也会被视为回归。
 如果两个报告的样本总数或 suite 集合不同，`regress` 会失败并提示报告不可比。
 
+## `sbom`
+
+生成本地软件物料清单（SBOM），用于供应链审计和发布交付。
+
+```bash
+agent-redteam sbom --format json
+agent-redteam sbom --format markdown --output SBOM.md
+agent-redteam sbom --runtime-only --format json
+```
+
+SBOM 从本地文件生成，不联网、不查询漏洞库：
+
+- `pyproject.toml`：Python package、运行时依赖、可选/开发依赖
+- `web/package-lock.json`：前端 npm 依赖、版本、license、integrity
+- `dist/`：wheel/sdist 等 release artifact 的 SHA-256
+
 ## `release-check`
 
-本地发布前门禁，组合 doctor、pytest、前端检查、证据索引和包产物检查。
+本地发布前门禁，组合 doctor、pytest、前端检查、证据索引、SBOM 和包产物检查。
 
 ```bash
 agent-redteam release-check
@@ -179,6 +195,7 @@ agent-redteam release-check --format json
 
 `release-check` 会要求 wheel/sdist 存在；如果安装了 `twine`，还会运行 `twine check`。
 缺少 `twine` 时只跳过包元数据检查，不跳过包文件存在性检查。
+它也会生成 JSON SBOM 并确认至少包含项目组件。
 
 ## `manifest`
 

@@ -38,6 +38,7 @@ from agent_redteam.regression import (
     render_regression_markdown,
 )
 from agent_redteam.review import build_review_records, render_review_jsonl
+from agent_redteam.sbom import build_sbom, render_sbom_json, render_sbom_markdown
 
 
 def _write_report(
@@ -116,6 +117,17 @@ def _write_regression_report(path: Path, *, score: float, samples: list[dict]) -
     }
     path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
     return path
+
+
+def _fake_release_runner_response(command):
+    joined = " ".join(command)
+    if "doctor" in joined:
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
+    if "evidence" in joined:
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
+    if "sbom" in joined:
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"components": 3, "python_dependencies": 1, "npm_dependencies": 2, "release_artifacts": 1}}), stderr="")
+    return None
 
 
 def test_attest_extracts_json_after_log_prefix_and_redacts_snippets(tmp_path):
@@ -398,6 +410,95 @@ def test_cli_review_writes_markdown(tmp_path):
     assert "needs_review" in text
 
 
+def test_sbom_summarizes_python_npm_and_artifacts(tmp_path):
+    root = tmp_path
+    (root / "web").mkdir()
+    (root / "dist").mkdir()
+    (root / "pyproject.toml").write_text(
+        "\n".join([
+            "[project]",
+            'name = "agent-redteam"',
+            'version = "0.3.0"',
+            'license = {text = "MIT"}',
+            'dependencies = ["requests>=2.0"]',
+            "",
+            "[project.optional-dependencies]",
+            'dev = ["pytest>=7.0"]',
+        ]),
+        encoding="utf-8",
+    )
+    (root / "web" / "package-lock.json").write_text(
+        json.dumps(
+            {
+                "packages": {
+                    "": {"name": "agent-redteam-dashboard"},
+                    "node_modules/react": {"version": "19.0.0", "license": "MIT", "integrity": "sha512-demo"},
+                    "node_modules/vite": {"version": "6.0.0", "license": "MIT", "dev": True},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    artifact = root / "dist" / "agent_redteam-0.3.0.tar.gz"
+    artifact.write_text("sdist", encoding="utf-8")
+
+    sbom = build_sbom(root)
+    body = render_sbom_json(sbom)
+    markdown = render_sbom_markdown(sbom)
+
+    assert sbom["bomFormat"] == "CycloneDX"
+    assert sbom["summary"]["python_dependencies"] == 3
+    assert sbom["summary"]["npm_dependencies"] == 2
+    assert sbom["summary"]["release_artifacts"] == 1
+    assert any(item["name"] == "requests" for item in sbom["components"])
+    assert any(item["name"] == "react" for item in sbom["components"])
+    assert sbom["release_artifacts"][0]["sha256"]
+    assert "CycloneDX" in body
+    assert "Agent Redteam SBOM" in markdown
+
+
+def test_sbom_runtime_only_excludes_dev_dependencies(tmp_path):
+    root = tmp_path
+    (root / "web").mkdir()
+    (root / "pyproject.toml").write_text(
+        "\n".join([
+            "[project]",
+            'name = "agent-redteam"',
+            'version = "0.3.0"',
+            'dependencies = []',
+            "",
+            "[project.optional-dependencies]",
+            'dev = ["pytest>=7.0"]',
+        ]),
+        encoding="utf-8",
+    )
+    (root / "web" / "package-lock.json").write_text(
+        json.dumps({"packages": {"node_modules/vite": {"version": "6.0.0", "dev": True}}}),
+        encoding="utf-8",
+    )
+
+    sbom = build_sbom(root, include_dev=False)
+    names = {item["name"] for item in sbom["components"]}
+
+    assert "pytest" not in names
+    assert "vite" not in names
+    assert "agent-redteam" in names
+
+
+def test_cli_sbom_writes_markdown(tmp_path):
+    root = tmp_path
+    (root / "web").mkdir()
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "agent-redteam"\nversion = "0.3.0"\ndependencies = []\n',
+        encoding="utf-8",
+    )
+    (root / "web" / "package-lock.json").write_text(json.dumps({"packages": {}}), encoding="utf-8")
+    output = tmp_path / "sbom.md"
+
+    assert main(["sbom", "--root", str(root), "--format", "markdown", "--output", str(output)]) == 0
+    assert "Agent Redteam SBOM" in output.read_text(encoding="utf-8")
+
+
 def test_evidence_index_summarizes_reports_docs_and_skips_non_scan_json(tmp_path):
     validation = tmp_path / "validation"
     validation.mkdir()
@@ -595,15 +696,19 @@ def test_release_gate_passes_with_fake_runner_and_artifacts(tmp_path):
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 1, "score": 92.9}), stderr="")
         if "evidence" in joined:
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 9, "auxiliary": 2, "documents": 5, "skipped": 0}}), stderr="")
+        response = _fake_release_runner_response(command)
+        if response:
+            return response
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     result = run_release_gate(root, runner=fake_runner)
     markdown = render_release_gate_markdown(result)
 
     assert result.passed is True
-    assert {step.name for step in result.steps} >= {"doctor", "tests", "frontend.build", "evidence", "artifacts"}
+    assert {step.name for step in result.steps} >= {"doctor", "tests", "frontend.build", "evidence", "sbom", "artifacts"}
     assert "PASS" in markdown
     assert "9 reports, 2 auxiliary, 5 docs, 0 skipped" in markdown
+    assert "3 components, 1 python, 2 npm, 1 release artifacts" in markdown
 
 
 def test_release_gate_fails_on_doctor_warnings_when_strict(tmp_path):
@@ -619,6 +724,9 @@ def test_release_gate_fails_on_doctor_warnings_when_strict(tmp_path):
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 2, "score": 92.9}), stderr="")
         if "evidence" in joined:
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 9, "auxiliary": 2, "documents": 5, "skipped": 0}}), stderr="")
+        response = _fake_release_runner_response(command)
+        if response:
+            return response
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     result = run_release_gate(root, ReleaseCheckOptions(strict_warnings=True), runner=fake_runner)
@@ -638,6 +746,9 @@ def test_release_gate_fails_when_evidence_has_skips(tmp_path):
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
         if "evidence" in joined:
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 1}}), stderr="")
+        response = _fake_release_runner_response(command)
+        if response:
+            return response
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     result = run_release_gate(
@@ -664,10 +775,9 @@ def test_release_gate_skips_twine_when_not_installed(tmp_path, monkeypatch):
 
     def fake_runner(command, cwd, timeout):
         joined = " ".join(command)
-        if "doctor" in joined:
-            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
-        if "evidence" in joined:
-            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
+        response = _fake_release_runner_response(command)
+        if response:
+            return response
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     result = run_release_gate(root, ReleaseCheckOptions(skip_tests=True, skip_frontend=True), runner=fake_runner)
@@ -692,10 +802,9 @@ def test_release_gate_runs_twine_check_when_available(tmp_path, monkeypatch):
     def fake_runner(command, cwd, timeout):
         commands.append(command)
         joined = " ".join(command)
-        if "doctor" in joined:
-            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
-        if "evidence" in joined:
-            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
+        response = _fake_release_runner_response(command)
+        if response:
+            return response
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     result = run_release_gate(root, ReleaseCheckOptions(skip_tests=True, skip_frontend=True), runner=fake_runner)
@@ -719,12 +828,11 @@ def test_release_gate_fails_when_twine_check_fails(tmp_path, monkeypatch):
 
     def fake_runner(command, cwd, timeout):
         joined = " ".join(command)
-        if "doctor" in joined:
-            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
-        if "evidence" in joined:
-            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
         if command[:2] == ["/usr/bin/twine", "check"]:
             return subprocess.CompletedProcess(command, 1, stdout="", stderr="README rendering failed")
+        response = _fake_release_runner_response(command)
+        if response:
+            return response
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     result = run_release_gate(root, ReleaseCheckOptions(skip_tests=True, skip_frontend=True), runner=fake_runner)
@@ -741,6 +849,7 @@ def test_cli_release_check_supports_skip_mode_json():
         "--skip-tests",
         "--skip-frontend",
         "--skip-evidence",
+        "--skip-sbom",
         "--skip-artifacts",
         "--format",
         "json",
@@ -840,6 +949,22 @@ def test_doctor_detects_validation_evidence_workflow(tmp_path):
     report = audit_project(root)
     checks = {check.id: check for check in report.checks}
     assert checks["validation.evidence_workflow"].status == "pass"
+
+
+def test_doctor_detects_sbom_workflow(tmp_path):
+    root = tmp_path
+    src = root / "src" / "agent_redteam"
+    tests = root / "tests"
+    src.mkdir(parents=True)
+    tests.mkdir()
+    (src / "sbom.py").write_text("# sbom command\n", encoding="utf-8")
+    (src / "cli.py").write_text('sub.add_parser("sbom")\n', encoding="utf-8")
+    (tests / "test_maturity_commands.py").write_text("def test_sbom(): pass\n", encoding="utf-8")
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+
+    assert checks["supply_chain.sbom_workflow"].status == "pass"
 
 
 def test_doctor_detects_regression_gate_workflow(tmp_path):

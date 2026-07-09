@@ -29,6 +29,7 @@ class ReleaseCheckOptions:
     skip_frontend: bool = False
     skip_build: bool = False
     skip_evidence: bool = False
+    skip_sbom: bool = False
     skip_artifacts: bool = False
     strict_warnings: bool = False
     timeout_seconds: int = 300
@@ -93,6 +94,11 @@ def run_release_gate(
         steps.append(_skip("evidence", "Validation evidence index", "Skipped by --skip-evidence"))
     else:
         steps.append(_evidence_step(project_root, opts, run))
+
+    if opts.skip_sbom:
+        steps.append(_skip("sbom", "Software bill of materials", "Skipped by --skip-sbom"))
+    else:
+        steps.append(_sbom_step(project_root, opts, run))
 
     if opts.skip_artifacts:
         steps.append(_skip("artifacts", "Package artifacts", "Skipped by --skip-artifacts"))
@@ -180,6 +186,32 @@ def _evidence_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> Rel
     if skipped:
         return ReleaseStep("evidence", "Validation evidence index", "fail", f"{reports} reports, {auxiliary} auxiliary, {documents} docs, {skipped} skipped", command, duration)
     return ReleaseStep("evidence", "Validation evidence index", "pass", f"{reports} reports, {auxiliary} auxiliary, {documents} docs, 0 skipped", command, duration)
+
+
+def _sbom_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> ReleaseStep:
+    command = [sys.executable, "-m", "agent_redteam.cli", "sbom", "--root", str(root), "--format", "json"]
+    proc, duration = _timed(command, root, opts, runner)
+    if proc.returncode != 0:
+        return _from_process("sbom", "Software bill of materials", command, proc, duration)
+    try:
+        payload = json.loads(proc.stdout)
+        summary = payload.get("summary", {})
+        components = int(summary.get("components", 0))
+        artifacts = int(summary.get("release_artifacts", 0))
+        npm = int(summary.get("npm_dependencies", 0))
+        python = int(summary.get("python_dependencies", 0))
+    except (ValueError, TypeError) as exc:
+        return ReleaseStep("sbom", "Software bill of materials", "fail", f"Could not parse SBOM JSON: {exc}", command, duration)
+    if components <= 0:
+        return ReleaseStep("sbom", "Software bill of materials", "fail", "SBOM contains no components", command, duration)
+    return ReleaseStep(
+        "sbom",
+        "Software bill of materials",
+        "pass",
+        f"{components} components, {python} python, {npm} npm, {artifacts} release artifacts",
+        command,
+        duration,
+    )
 
 
 def _artifact_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> ReleaseStep:
