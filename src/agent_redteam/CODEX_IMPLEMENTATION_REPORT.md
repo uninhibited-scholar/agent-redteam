@@ -481,8 +481,11 @@ agent-redteam regress baseline.json current.json --format markdown --output regr
 
 Features:
 - compares baseline vs current scan JSON using stable `(suite, sample_id)` keys
-- reports score delta, failed-count delta, new failures, fixed failures, new critical failures, and new high failures
+- reports score delta, failed-count delta, new failures, severity escalations, fixed failures, new critical failures, and new high failures
 - defaults to allowing at most a 2.0 point score drop, 0 new critical failures, and 0 new high failures
+- treats same-sample severity escalation such as `high -> critical` as a gate failure
+- only counts a baseline failure as fixed when the current verdict is `pass`, not merely `error`
+- fails when total sample counts or suite sets differ, because the reports are not comparable
 - supports optional `--max-new-failures`
 - renders terminal, JSON, and Markdown
 - returns exit 1 when the regression gate fails, so it can be used in CI
@@ -497,6 +500,7 @@ current: validation/full-300-final.json
 score: 83.5 -> 84.6 (+1.10)
 failed: 56 -> 53 (-3)
 new failures: 7
+escalated failures: 0
 fixed failures: 10
 new critical: 2
 new high: 3
@@ -504,6 +508,12 @@ default gate: FAIL
 ```
 
 This is intentional: the total score improved, but critical/high sample regressions appeared.
+
+Post-review fixes:
+- closed the severity-upgrade gap where an already-failing sample could move from high to critical without tripping the gate
+- fixed fail-to-error transitions so they no longer appear as fixed failures
+- added a comparability finding for mismatched sample counts or suite sets
+- documented why aggregate score has a tolerance while high/critical risk movement is zero-tolerance by default
 
 ## Config Changes
 
@@ -546,7 +556,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-179 passed in 10.81s
+182 passed in 10.85s
 ```
 
 ## Current Git State Notes

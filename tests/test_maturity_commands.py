@@ -267,6 +267,81 @@ def test_regression_gate_fails_on_score_drop_and_new_high_critical(tmp_path):
     assert "sk-[REDACTED]" in body
 
 
+def test_regression_gate_fails_on_severity_escalation_for_existing_failure(tmp_path):
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json",
+        score=80.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "fail", "severity": "high", "owasp": "LLM01"},
+        ],
+    )
+    current = _write_regression_report(
+        tmp_path / "current.json",
+        score=81.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "fail", "severity": "critical", "owasp": "LLM01"},
+        ],
+    )
+
+    result = compare_reports(baseline, current)
+    body = render_regression_json(result)
+    markdown = render_regression_markdown(result)
+
+    assert result.passed is False
+    assert result.delta["new_failures"] == 0
+    assert result.delta["escalated_failures"] == 1
+    assert result.delta["escalated_to_critical"] == 1
+    assert "escalated critical" in body
+    assert "Escalated Failures" in markdown
+
+
+def test_regression_gate_does_not_count_fail_to_error_as_fixed(tmp_path):
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json",
+        score=80.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "fail", "severity": "high", "owasp": "LLM01"},
+        ],
+    )
+    current = _write_regression_report(
+        tmp_path / "current.json",
+        score=80.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "error", "severity": "high", "owasp": "LLM01"},
+        ],
+    )
+
+    result = compare_reports(baseline, current)
+
+    assert result.delta["fixed_failures"] == 0
+    assert result.fixed_failures == []
+
+
+def test_regression_gate_fails_when_reports_are_not_comparable(tmp_path):
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json",
+        score=90.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"},
+            {"suite": "info_leak", "sample_id": "leak-001", "verdict": "pass", "severity": "low", "owasp": "LLM02"},
+        ],
+    )
+    current = _write_regression_report(
+        tmp_path / "current.json",
+        score=90.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"},
+        ],
+    )
+
+    result = compare_reports(baseline, current)
+    comparable = next(finding for finding in result.findings if finding.rule == "comparable_reports")
+
+    assert result.passed is False
+    assert comparable.status == "fail"
+    assert "total_samples 2 vs 1" in comparable.detail
+
+
 def test_cli_regress_exit_codes_and_markdown_output(tmp_path):
     baseline = _write_regression_report(
         tmp_path / "baseline.json",

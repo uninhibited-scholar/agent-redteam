@@ -39,6 +39,7 @@ python -m agent_redteam.cli doctor
 - [ ] Generate a shareable HTML report with `agent-redteam report`.
 - [ ] Export failed samples for human review with `agent-redteam review`.
 - [ ] Compare against the previous accepted baseline with `agent-redteam regress`.
+- [ ] Treat score drops as noisy within policy, but keep new/escalated high and critical failures at zero tolerance unless there is an explicit risk acceptance note.
 - [ ] Generate a validation artifact index with `agent-redteam evidence --root validation`.
 - [ ] Generate or attach a release manifest with `agent-redteam manifest --format json`.
 - [ ] Record model, target, sample limit, date, and command line in the validation note.

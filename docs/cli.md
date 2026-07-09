@@ -162,6 +162,10 @@ agent-redteam regress baseline.json current.json --format markdown --output regr
 - 新增 `high` failure 不能超过 `--max-new-high`（默认 `0`）
 
 这能捕捉“总体分数提升，但关键安全样本退步”的情况。需要更宽松策略时，可显式调高阈值。
+默认策略故意不对称：总分允许 2 分波动，是为了吸收模型采样和供应商路由噪声；
+新增或升级到 `critical` / `high` 的失败默认零容忍，因为这代表具体安全风险变坏。
+同一个 `(suite, sample_id)` 从 `high` 升级到 `critical` 也会被视为回归。
+如果两个报告的样本总数或 suite 集合不同，`regress` 会失败并提示报告不可比。
 
 ## `release-check`
 
