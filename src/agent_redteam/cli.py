@@ -633,7 +633,8 @@ def _cmd_evidence(args) -> int:
         summary = index["summary"]
         print(
             f"Wrote {args.format} evidence index: {args.output} "
-            f"({summary['reports']} reports, {summary['documents']} docs, {summary['skipped']} skipped)"
+            f"({summary['reports']} reports, {summary.get('auxiliary', 0)} auxiliary, "
+            f"{summary['documents']} docs, {summary['skipped']} skipped)"
         )
     else:
         print(content)

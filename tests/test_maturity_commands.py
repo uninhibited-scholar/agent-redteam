@@ -11,7 +11,12 @@ from pathlib import Path
 from agent_redteam.attest import attest_report, load_report
 from agent_redteam.ci_policy import evaluate_report
 from agent_redteam.cli import main
-from agent_redteam.evidence import build_evidence_index, render_evidence_json, render_evidence_markdown
+from agent_redteam.evidence import (
+    EvidenceOptions,
+    build_evidence_index,
+    render_evidence_json,
+    render_evidence_markdown,
+)
 from agent_redteam.html_report import build_report, render_report_html
 from agent_redteam.onboarding import InitOptions, initialize_project, render_init_json
 from agent_redteam.project_audit import audit_project
@@ -202,6 +207,7 @@ def test_evidence_index_summarizes_reports_docs_and_skips_non_scan_json(tmp_path
 
     assert index["summary"]["reports"] == 1
     assert index["summary"]["documents"] == 1
+    assert index["summary"]["auxiliary"] == 0
     assert index["summary"]["skipped"] == 1
     assert index["root"] == "validation"
     assert index["reports"][0]["total_samples"] == 1
@@ -214,6 +220,48 @@ def test_evidence_index_summarizes_reports_docs_and_skips_non_scan_json(tmp_path
     assert "api_key=[REDACTED]" in body
     assert "mutation-results.json" in body
     assert "Agent Redteam Evidence Index" in markdown
+
+
+def test_evidence_index_summarizes_auxiliary_json_artifacts(tmp_path):
+    validation = tmp_path / "validation"
+    validation.mkdir()
+    _write_report(validation / "scan.json")
+    (validation / "multiturn-batch.json").write_text(
+        json.dumps(
+            {
+                "batch": 1,
+                "model": "GLM-5.2 sk-auxsecret1234567890",
+                "results": [
+                    {"sample_id": "mt-001", "verdict": "error"},
+                    {"sample_id": "mt-002", "verdict": "pass"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (validation / "mutation-results.json").write_text(
+        json.dumps(
+            [
+                {"strategy": "base64", "sample_id": "inj-001", "bypassed": True},
+                {"strategy": "split", "sample_id": "inj-001", "bypassed": False},
+                {"strategy": "case_spoof", "sample_id": "inj-001", "bypassed": None},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    index = build_evidence_index(validation, options=EvidenceOptions(max_reports=1))
+    body = render_evidence_json(index)
+    markdown = render_evidence_markdown(index)
+
+    assert index["summary"]["reports"] == 1
+    assert index["summary"]["auxiliary"] == 2
+    assert index["summary"]["skipped"] == 0
+    assert {item["artifact_type"] for item in index["auxiliary"]} == {"multi_turn_batch", "mutation_results"}
+    assert "sk-auxsecret1234567890" not in body
+    assert "sk-[REDACTED]" in body
+    assert "Auxiliary JSON Artifacts" in markdown
+    assert "bypassed=1" in markdown
 
 
 def test_cli_evidence_writes_markdown(tmp_path):

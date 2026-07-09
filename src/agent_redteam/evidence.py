@@ -26,17 +26,22 @@ def build_evidence_index(root: str | Path, options: EvidenceOptions | None = Non
     if not base.is_dir():
         raise NotADirectoryError(f"evidence root is not a directory: {base}")
     reports: list[dict[str, Any]] = []
+    auxiliary: list[dict[str, Any]] = []
     documents: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
 
     for path in sorted(base.glob("*.json")):
-        if opts.max_reports and len(reports) >= opts.max_reports:
-            skipped.append({"path": _safe_rel(path, base), "reason": "max_reports limit reached"})
-            continue
         try:
             attestation = attest_report(path, AttestationOptions(max_failures=0))
         except Exception as exc:
-            skipped.append({"path": _safe_rel(path, base), "reason": _redact(str(exc))})
+            aux = _auxiliary_entry(path, base)
+            if aux:
+                auxiliary.append(aux)
+            else:
+                skipped.append({"path": _safe_rel(path, base), "reason": _redact(str(exc))})
+            continue
+        if opts.max_reports and len(reports) >= opts.max_reports:
+            skipped.append({"path": _safe_rel(path, base), "reason": "max_reports limit reached"})
             continue
         reports.append(_report_entry(path, base, attestation))
 
@@ -61,6 +66,7 @@ def build_evidence_index(root: str | Path, options: EvidenceOptions | None = Non
         "root": _redact(base.name),
         "summary": {
             "reports": len(reports),
+            "auxiliary": len(auxiliary),
             "documents": len(documents),
             "skipped": len(skipped),
             "total_samples": total_samples,
@@ -68,6 +74,7 @@ def build_evidence_index(root: str | Path, options: EvidenceOptions | None = Non
             "average_score": average_score,
         },
         "reports": reports,
+        "auxiliary": auxiliary,
         "documents": documents,
         "skipped": skipped,
     }
@@ -83,6 +90,7 @@ def render_evidence_markdown(index: dict[str, Any]) -> str:
         "# Agent Redteam Evidence Index",
         "",
         f"- **Reports:** {summary['reports']}",
+        f"- **Auxiliary JSON artifacts:** {summary.get('auxiliary', 0)}",
         f"- **Documents:** {summary['documents']}",
         f"- **Skipped JSON files:** {summary['skipped']}",
         f"- **Total samples:** {summary['total_samples']}",
@@ -101,6 +109,20 @@ def render_evidence_markdown(index: dict[str, Any]) -> str:
             f"{report['total_samples']} | {report['failed']} | {_cell(report['weakest_suite'])} | "
             f"`{report['raw_sha256'][:12]}` |"
         )
+
+    if index.get("auxiliary"):
+        lines.extend([
+            "",
+            "## Auxiliary JSON Artifacts",
+            "",
+            "| Path | Type | Records | Key Counts | SHA-256 |",
+            "|------|------|--------:|------------|---------|",
+        ])
+        for item in index["auxiliary"]:
+            lines.append(
+                f"| `{item['path']}` | {_cell(item['artifact_type'])} | {item['records']} | "
+                f"{_cell(_format_counts(item.get('counts', {})))} | `{item['sha256'][:12]}` |"
+            )
 
     if index["documents"]:
         lines.extend(["", "## Narrative Documents", "", "| Path | Title | SHA-256 |", "|------|-------|---------|"])
@@ -161,6 +183,57 @@ def _document_entry(path: Path, base: Path) -> dict[str, Any]:
         "sha256": hashlib.sha256(raw).hexdigest(),
         "bytes": len(raw),
     }
+
+
+def _auxiliary_entry(path: Path, base: Path) -> dict[str, Any] | None:
+    raw = path.read_bytes()
+    if not raw.strip():
+        return None
+    try:
+        data = json.loads(raw.decode("utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        return None
+
+    if isinstance(data, dict) and isinstance(data.get("results"), list):
+        rows = data["results"]
+        return {
+            "path": _safe_rel(path, base),
+            "artifact_type": "multi_turn_batch",
+            "model": _redact(str(data.get("model", ""))),
+            "batch": data.get("batch", ""),
+            "records": len(rows),
+            "counts": _value_counts(rows, "verdict"),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }
+
+    if isinstance(data, list) and data and all(isinstance(item, dict) for item in data):
+        keys = set().union(*(item.keys() for item in data))
+        if {"strategy", "sample_id", "bypassed"}.issubset(keys):
+            return {
+                "path": _safe_rel(path, base),
+                "artifact_type": "mutation_results",
+                "records": len(data),
+                "counts": {
+                    "bypassed": sum(1 for item in data if item.get("bypassed") is True),
+                    "blocked": sum(1 for item in data if item.get("bypassed") is False),
+                    "errors": sum(1 for item in data if item.get("bypassed") is None),
+                },
+                "sha256": hashlib.sha256(raw).hexdigest(),
+            }
+
+    return None
+
+
+def _value_counts(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = _redact(str(row.get(key, "") or "unknown"))
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def _format_counts(counts: dict[str, Any]) -> str:
+    return ", ".join(f"{key}={value}" for key, value in counts.items()) or "none"
 
 
 def _first_title(text: str) -> str:

@@ -355,7 +355,8 @@ Features:
 - emits raw SHA-256 and canonical SHA-256 for each report
 - summarizes model, score, sample counts, failed counts, weakest suite, and extracted-log status
 - indexes Markdown narrative reports with title, byte size, and SHA-256
-- skips non-scan JSON files with an explicit reason instead of failing the whole command
+- indexes known auxiliary JSON artifacts such as multi-turn batches and mutation results
+- skips unknown or empty non-scan JSON files with an explicit reason instead of failing the whole command
 - redacts common secret patterns in paths, model names, titles, and rendered output
 - adds a `doctor` check for the validation evidence workflow
 
@@ -363,8 +364,9 @@ Observed against the current `validation/` directory:
 
 ```text
 9 scan reports
+2 auxiliary JSON artifacts
 5 narrative documents
-3 skipped JSON files
+1 skipped JSON file
 1800 total samples
 380 total failed
 79.2/100 average score
@@ -407,7 +409,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-162 passed in 10.46s
+163 passed in 10.51s
 ```
 
 ## Current Git State Notes
