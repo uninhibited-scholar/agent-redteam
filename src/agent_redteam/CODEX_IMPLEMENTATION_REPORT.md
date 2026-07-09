@@ -420,6 +420,45 @@ evidence: pass, 9 reports / 2 auxiliary / 5 docs / 0 skipped
 artifacts: pass, wheel and sdist present for 0.3.0, twine check passed
 ```
 
+### 12. Release manifest
+
+Purpose: create a compact, reproducible release provenance file that external reviewers can inspect without rerunning every command.
+
+Files:
+- `release_manifest.py`
+- `cli.py`
+- `project_audit.py`
+- `docs/cli.md`
+- `RELEASE_CHECKLIST.md`
+- `tests/test_maturity_commands.py`
+
+Command:
+
+```bash
+agent-redteam manifest --format json
+agent-redteam manifest --format markdown --output RELEASE_MANIFEST.md
+agent-redteam manifest --include-release-check --format json
+```
+
+Features:
+- records schema, generation time, project name, and package version
+- records git commit, branch, dirty status, and changed file count
+- records wheel and sdist existence, byte size, and SHA-256
+- summarizes validation evidence reports, auxiliary JSON artifacts, documents, skipped files, sample counts, failed counts, and average score
+- optionally embeds release-check step results
+- redacts common secret patterns in generated fields
+- adds a `doctor` check for the release manifest workflow
+
+Observed local manifest summary:
+
+```text
+version: 0.3.0
+git commit: d376f70a26ea4fa26f1c53a43f894772f71ffe27
+artifacts: wheel 356045 bytes, sdist 973804 bytes
+evidence: 9 reports / 2 auxiliary / 5 docs / 0 skipped
+samples: 1800 total / 380 failed / 79.2 average score
+```
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -448,6 +487,8 @@ python -m agent_redteam.cli review validation/full-300-final.json --format jsonl
 python -m agent_redteam.cli review validation/full-300-final.json --format markdown --max-records 1 --output /tmp/agent-redteam-review.md
 python -m agent_redteam.cli evidence --root validation --output /tmp/agent-redteam-evidence.md
 python -m agent_redteam.cli release-check --format json
+python -m agent_redteam.cli manifest --format json
+python -m agent_redteam.cli manifest --include-release-check --skip-tests --skip-frontend --skip-evidence --skip-artifacts --format markdown
 pytest tests/test_maturity_commands.py -q
 pytest
 npm --prefix web run typecheck
@@ -458,7 +499,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-171 passed in 10.51s
+175 passed in 10.78s
 ```
 
 ## Current Git State Notes
@@ -475,6 +516,7 @@ Codex-created or modified files:
 - `review.py`
 - `evidence.py`
 - `release_gate.py`
+- `release_manifest.py`
 - `CODEX_IMPLEMENTATION_REPORT.md`
 - `tests/test_maturity_commands.py`
 

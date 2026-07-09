@@ -26,6 +26,11 @@ from agent_redteam.release_gate import (
     render_release_gate_markdown,
     run_release_gate,
 )
+from agent_redteam.release_manifest import (
+    build_release_manifest,
+    render_manifest_json,
+    render_manifest_markdown,
+)
 from agent_redteam.review import build_review_records, render_review_jsonl
 
 
@@ -295,6 +300,92 @@ def test_cli_evidence_writes_markdown(tmp_path):
     assert "91.0" in text
 
 
+def test_release_manifest_summarizes_artifacts_evidence_and_git(tmp_path):
+    root = tmp_path
+    dist = root / "dist"
+    validation = root / "validation"
+    dist.mkdir()
+    validation.mkdir()
+    wheel = dist / "agent_redteam-0.3.0-py3-none-any.whl"
+    sdist = dist / "agent_redteam-0.3.0.tar.gz"
+    wheel.write_text("wheel bytes", encoding="utf-8")
+    sdist.write_text("sdist bytes", encoding="utf-8")
+    _write_report(validation / "scan.json", score=88.0, verdict="fail")
+    (validation / "REPORT.md").write_text("# Validation Report\n", encoding="utf-8")
+
+    def fake_git(command, cwd):
+        if command == ["git", "rev-parse", "HEAD"]:
+            return subprocess.CompletedProcess(command, 0, stdout="abc123\n", stderr="")
+        if command == ["git", "rev-parse", "--abbrev-ref", "HEAD"]:
+            return subprocess.CompletedProcess(command, 0, stdout="main\n", stderr="")
+        if command == ["git", "status", "--porcelain"]:
+            return subprocess.CompletedProcess(command, 0, stdout=" M README.md\n", stderr="")
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="bad git")
+
+    manifest = build_release_manifest(root, git_runner=fake_git)
+    body = render_manifest_json(manifest)
+    markdown = render_manifest_markdown(manifest)
+
+    assert manifest["schema"] == "agent-redteam-release-manifest/v1"
+    assert manifest["git"]["commit"] == "abc123"
+    assert manifest["git"]["dirty"] is True
+    assert manifest["git"]["changed_files"] == 1
+    assert manifest["artifacts"][0]["present"] is True
+    assert manifest["artifacts"][0]["bytes"] == len("wheel bytes")
+    assert manifest["artifacts"][0]["sha256"]
+    assert manifest["evidence"]["reports"] == 1
+    assert manifest["evidence"]["documents"] == 1
+    assert manifest["evidence"]["skipped"] == 0
+    assert "agent-redteam-release-manifest/v1" in body
+    assert "Agent Redteam Release Manifest" in markdown
+
+
+def test_release_manifest_redacts_unavailable_evidence_reason(tmp_path):
+    root = tmp_path
+    dist = root / "dist"
+    dist.mkdir()
+    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+
+    manifest = build_release_manifest(root, evidence_root="sk-secretmissing1234567890")
+    body = render_manifest_json(manifest)
+
+    assert manifest["evidence"]["status"] == "unavailable"
+    assert "sk-secretmissing1234567890" not in body
+    assert "sk-[REDACTED]" in body
+
+
+def test_cli_manifest_writes_markdown_and_embeds_release_check(tmp_path):
+    root = tmp_path
+    dist = root / "dist"
+    validation = root / "validation"
+    dist.mkdir()
+    validation.mkdir()
+    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    _write_report(validation / "scan.json", score=91.0, verdict="pass", severity="low")
+    output = tmp_path / "manifest.md"
+
+    assert main([
+        "manifest",
+        "--root",
+        str(root),
+        "--include-release-check",
+        "--skip-tests",
+        "--skip-frontend",
+        "--skip-evidence",
+        "--skip-artifacts",
+        "--format",
+        "markdown",
+        "--output",
+        str(output),
+    ]) == 0
+    text = output.read_text(encoding="utf-8")
+    assert "Agent Redteam Release Manifest" in text
+    assert "Release Check" in text
+    assert "91.0/100" in text
+
+
 def test_release_gate_passes_with_fake_runner_and_artifacts(tmp_path):
     root = tmp_path
     dist = root / "dist"
@@ -553,6 +644,22 @@ def test_doctor_detects_validation_evidence_workflow(tmp_path):
     report = audit_project(root)
     checks = {check.id: check for check in report.checks}
     assert checks["validation.evidence_workflow"].status == "pass"
+
+
+def test_doctor_detects_release_manifest_workflow(tmp_path):
+    root = tmp_path
+    src = root / "src" / "agent_redteam"
+    tests = root / "tests"
+    src.mkdir(parents=True)
+    tests.mkdir()
+    (src / "release_manifest.py").write_text("# release manifest command\n", encoding="utf-8")
+    (src / "cli.py").write_text('sub.add_parser("manifest")\n', encoding="utf-8")
+    (tests / "test_maturity_commands.py").write_text("def test_release_manifest(): pass\n", encoding="utf-8")
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+
+    assert checks["release.manifest_workflow"].status == "pass"
 
 
 def test_action_uses_env_key_not_argv():

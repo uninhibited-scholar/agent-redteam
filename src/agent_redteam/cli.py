@@ -161,6 +161,24 @@ def main(argv: list[str] | None = None) -> int:
     p_release.add_argument("--strict-warnings", action="store_true", help="doctor warning 也视为失败")
     p_release.add_argument("--timeout", type=int, default=300, help="每个外部命令的超时时间（秒）")
 
+    # manifest command
+    p_manifest = sub.add_parser("manifest", help="生成可复现发布清单：版本、git、包哈希、证据摘要")
+    p_manifest.add_argument("--root", default="", help="项目根目录（默认自动检测）")
+    p_manifest.add_argument("--evidence-root", default="validation", help="验证产物目录")
+    p_manifest.add_argument("--format", choices=["json", "markdown"], default="json",
+                            help="输出格式")
+    p_manifest.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+    p_manifest.add_argument("--no-documents", action="store_true", help="证据摘要不统计 Markdown 叙事报告")
+    p_manifest.add_argument("--include-release-check", action="store_true",
+                            help="在清单中嵌入 release-check 结果（会运行测试/前端/证据/产物检查）")
+    p_manifest.add_argument("--skip-tests", action="store_true", help="嵌入 release-check 时跳过 pytest")
+    p_manifest.add_argument("--skip-frontend", action="store_true", help="嵌入 release-check 时跳过全部前端检查")
+    p_manifest.add_argument("--skip-build", action="store_true", help="嵌入 release-check 时跳过前端生产构建")
+    p_manifest.add_argument("--skip-evidence", action="store_true", help="嵌入 release-check 时跳过 evidence 检查")
+    p_manifest.add_argument("--skip-artifacts", action="store_true", help="嵌入 release-check 时跳过包产物检查")
+    p_manifest.add_argument("--strict-warnings", action="store_true", help="嵌入 release-check 时 doctor warning 也视为失败")
+    p_manifest.add_argument("--timeout", type=int, default=300, help="嵌入 release-check 时每个外部命令的超时时间（秒）")
+
     args = parser.parse_args(argv)
 
     if args.command == "list":
@@ -187,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_evidence(args)
     elif args.command == "release-check":
         return _cmd_release_check(args)
+    elif args.command == "manifest":
+        return _cmd_manifest(args)
     elif args.command == "serve":
         from .dashboard import serve_dashboard
         serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
@@ -687,6 +707,54 @@ def _cmd_release_check(args) -> int:
     else:
         print(render_release_gate_terminal(result))
     return 0 if result.passed else 1
+
+
+def _cmd_manifest(args) -> int:
+    from .project_audit import default_project_root
+    from .release_gate import ReleaseCheckOptions
+    from .release_manifest import (
+        build_release_manifest,
+        render_manifest_json,
+        render_manifest_markdown,
+        write_manifest,
+    )
+
+    root = args.root or default_project_root()
+    try:
+        manifest = build_release_manifest(
+            root,
+            evidence_root=args.evidence_root,
+            include_documents=not args.no_documents,
+            include_release_check=args.include_release_check,
+            release_options=ReleaseCheckOptions(
+                skip_tests=args.skip_tests,
+                skip_frontend=args.skip_frontend,
+                skip_build=args.skip_build,
+                skip_evidence=args.skip_evidence,
+                skip_artifacts=args.skip_artifacts,
+                strict_warnings=args.strict_warnings,
+                timeout_seconds=args.timeout,
+            ),
+        )
+        content = render_manifest_json(manifest) if args.format == "json" else render_manifest_markdown(manifest)
+    except Exception as exc:
+        print(f"ERROR: failed to build release manifest: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output:
+        try:
+            write_manifest(manifest, args.output, args.format)
+        except OSError as exc:
+            print(f"ERROR: failed to write release manifest: {exc}", file=sys.stderr)
+            return 1
+        evidence = manifest["evidence"]
+        print(
+            f"Wrote {args.format} release manifest: {args.output} "
+            f"({evidence['reports']} reports, {len(manifest['artifacts'])} artifacts)"
+        )
+    else:
+        print(content)
+    return 0
 
 
 if __name__ == "__main__":

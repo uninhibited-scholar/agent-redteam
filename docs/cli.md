@@ -1,7 +1,8 @@
 # CLI 参考
 
 ```
-agent-redteam [-h] [--version] {scan,list,serve,history,compare,mutate} ...
+agent-redteam [-h] [--version]
+              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,report,review,evidence,release-check,manifest} ...
 ```
 
 ## `scan`
@@ -130,3 +131,47 @@ agent-redteam mutate --suite SUITE [--strategies STRATEGIES] [-n COUNT] [--seed 
 ```bash
 agent-redteam mutate --suite injection --strategies base64,role_inject -n 20 --seed 42
 ```
+
+## `evidence`
+
+为 `validation/` 目录生成可复现证据索引。
+
+```bash
+agent-redteam evidence --root validation
+agent-redteam evidence --root validation --format json
+agent-redteam evidence --root validation --output validation/EVIDENCE_INDEX.md
+```
+
+索引会汇总扫描 JSON、已知辅助 JSON 产物、Markdown 验证报告，并记录 SHA-256。
+未知 JSON 会显式列为 skipped，避免静默误读。
+
+## `release-check`
+
+本地发布前门禁，组合 doctor、pytest、前端检查、证据索引和包产物检查。
+
+```bash
+agent-redteam release-check
+agent-redteam release-check --strict-warnings
+agent-redteam release-check --format json
+```
+
+`release-check` 会要求 wheel/sdist 存在；如果安装了 `twine`，还会运行 `twine check`。
+缺少 `twine` 时只跳过包元数据检查，不跳过包文件存在性检查。
+
+## `manifest`
+
+生成可复现发布清单，适合随 release 附上或交给审阅者复核。
+
+```bash
+agent-redteam manifest --format json
+agent-redteam manifest --format markdown --output RELEASE_MANIFEST.md
+agent-redteam manifest --include-release-check --format json
+```
+
+清单包含：
+
+- 项目版本和生成时间
+- git commit、分支、dirty 状态和变更文件计数
+- wheel/sdist 的存在性、字节数和 SHA-256
+- validation evidence 摘要
+- 可选的 release-check 步骤结果
