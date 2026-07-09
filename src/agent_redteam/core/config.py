@@ -73,7 +73,10 @@ def load_default_profile() -> dict:
 # --- Scan config (~/.agent-redteam/config) — API key storage, never exposed ---
 
 _CONFIG_PATH = os.path.join(os.path.expanduser("~/.agent-redteam"), "config")
-_CONFIG_KEYS = ("api_key", "base_url", "model", "workers", "max_tokens")
+_CONFIG_KEYS = (
+    "api_key", "base_url", "model", "target", "suites",
+    "workers", "max_tokens", "fail_below",
+)
 
 
 def _config_path() -> str:
@@ -129,6 +132,7 @@ def scan_config_status() -> dict:
     return {
         "key_configured": bool(cfg.get("api_key")),
         "default_model": cfg.get("model", ""),
+        "default_target": cfg.get("target", ""),
         "default_base_url": cfg.get("base_url", ""),
         "config_path": _config_path(),
     }

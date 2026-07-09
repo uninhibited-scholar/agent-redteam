@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--base-url", default=cfg.get("base_url", os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")),
                         help="API base URL (默认从 ~/.agent-redteam/config 读取)")
     p_scan.add_argument("--key", default=cfg.get("api_key", cfg.get("key", os.environ.get("OPENAI_API_KEY", ""))), help="API key")
-    p_scan.add_argument("--target", choices=["openai", "claude", "zai", "local", "ollama", "deepseek", "azure", "qwen"], default="openai",
+    p_scan.add_argument("--target", choices=["openai", "claude", "zai", "local", "ollama", "deepseek", "azure", "qwen"], default=cfg.get("target", "openai"),
                         help="目标类型 (openai兼容 / claude / zai智谱 / local本地 / ollama本地模型 / deepseek / azure / qwen通义)")
     p_scan.add_argument("--endpoint", default="", help="本地 agent endpoint (target=local 时使用)")
     p_scan.add_argument("--suites", default=cfg.get("suites", ""), help="只跑特定套件，逗号分隔 (如 injection,info_leak)")
@@ -67,6 +67,77 @@ def main(argv: list[str] | None = None) -> int:
     p_mut.add_argument("-n", "--count", type=int, default=20, help="生成样本数")
     p_mut.add_argument("--seed", type=int, default=None, help="随机种子 (可复现)")
 
+    # doctor command
+    p_doc = sub.add_parser("doctor", help="项目发布前自检：版本、文档、Action、验证数据、产物")
+    p_doc.add_argument("--root", default="", help="项目根目录（默认自动检测）")
+    p_doc.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal",
+                       help="输出格式")
+    p_doc.add_argument("--fail-on-warn", action="store_true",
+                       help="存在 warning 时也返回非 0（发布流水线可用）")
+
+    # attest command
+    p_att = sub.add_parser("attest", help="从扫描 JSON 生成可复现、脱敏的 benchmark 证据卡")
+    p_att.add_argument("report", help="scan --format json 生成的报告文件（允许前面混有日志）")
+    p_att.add_argument("--format", choices=["json", "markdown"], default="markdown",
+                       help="输出格式")
+    p_att.add_argument("--max-failures", type=int, default=12,
+                       help="证据卡中最多列出的失败样本数")
+    p_att.add_argument("--include-pass-samples", action="store_true",
+                       help="同时包含少量通过样本证据（默认只列失败样本）")
+    p_att.add_argument("--snippet-chars", type=int, default=280,
+                       help="问题/响应片段最大长度")
+
+    # init command
+    p_init = sub.add_parser("init", help="生成本地配置和首跑命令，让新用户 5 分钟上手")
+    p_init.add_argument("--target", choices=["openai", "claude", "zai", "local", "ollama", "deepseek", "azure", "qwen"],
+                        default="openai", help="要初始化的模型/Agent 类型")
+    p_init.add_argument("--model", default="", help="模型 ID；留空则按 target 选择推荐默认值")
+    p_init.add_argument("--base-url", default="", help="自定义 API base URL")
+    p_init.add_argument("--api-key", default="", help="写入本地配置的 API key（输出时会自动脱敏）")
+    p_init.add_argument("--suites", default="injection,info_leak,supply_chain",
+                        help="首跑套件，默认选 3 个高信号套件")
+    p_init.add_argument("--workers", type=int, default=4)
+    p_init.add_argument("--max-tokens", type=int, default=500)
+    p_init.add_argument("--fail-below", type=float, default=70)
+    p_init.add_argument("--config-path", default="", help="配置文件路径，默认 ~/.agent-redteam/config")
+    p_init.add_argument("--force", action="store_true", help="覆盖已有配置")
+    p_init.add_argument("--dry-run", action="store_true", help="只预览，不写文件")
+    p_init.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal",
+                        help="输出格式")
+
+    # ci command
+    p_ci = sub.add_parser("ci", help="按策略评估扫描 JSON，输出 CI 门禁结果")
+    p_ci.add_argument("report", nargs="?", help="scan --format json 生成的报告文件")
+    p_ci.add_argument("--policy", default="", help="策略文件路径（默认内置策略）")
+    p_ci.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal",
+                      help="输出格式")
+    p_ci.add_argument("--summary-file", default="", help="额外写出 Markdown summary 文件（适合 $GITHUB_STEP_SUMMARY）")
+    p_ci.add_argument("--print-sample-policy", action="store_true", help="打印 .agent-redteam-policy.yml 模板")
+
+    # report command
+    p_report = sub.add_parser("report", help="从扫描 JSON 生成独立 HTML/Markdown 报告")
+    p_report.add_argument("scan_json", help="scan --format json 生成的报告文件")
+    p_report.add_argument("--format", choices=["html", "markdown"], default="html",
+                          help="输出格式")
+    p_report.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+    p_report.add_argument("--max-failures", type=int, default=25,
+                          help="报告中最多包含的失败证据数量")
+    p_report.add_argument("--snippet-chars", type=int, default=420,
+                          help="问题/响应片段最大长度")
+
+    # review command
+    p_review = sub.add_parser("review", help="从扫描 JSON 导出人工复核队列")
+    p_review.add_argument("scan_json", help="scan --format json 生成的报告文件")
+    p_review.add_argument("--format", choices=["jsonl", "markdown"], default="jsonl",
+                          help="输出格式")
+    p_review.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+    p_review.add_argument("--verdict", choices=["fail", "error", "all"], default="fail",
+                          help="导出哪些样本供人工复核")
+    p_review.add_argument("--max-records", type=int, default=0,
+                          help="最多导出多少条；0 表示不限")
+    p_review.add_argument("--snippet-chars", type=int, default=700,
+                          help="问题/响应片段最大长度")
+
     args = parser.parse_args(argv)
 
     if args.command == "list":
@@ -77,6 +148,18 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_compare(args)
     elif args.command == "mutate":
         return _cmd_mutate(args)
+    elif args.command == "doctor":
+        return _cmd_doctor(args)
+    elif args.command == "attest":
+        return _cmd_attest(args)
+    elif args.command == "init":
+        return _cmd_init(args)
+    elif args.command == "ci":
+        return _cmd_ci(args)
+    elif args.command == "report":
+        return _cmd_report(args)
+    elif args.command == "review":
+        return _cmd_review(args)
     elif args.command == "serve":
         from .dashboard import serve_dashboard
         serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
@@ -314,6 +397,196 @@ def _cmd_mutate(args) -> int:
     data_path = suite.data_path()
     added = append_mutations(data_path, strategies, args.count, seed=args.seed)
     print(f"  已向 {args.suite}/data.jsonl 追加 {added} 条变异样本 (策略: {', '.join(strategies)})")
+    return 0
+
+
+def _cmd_doctor(args) -> int:
+    from .project_audit import (
+        audit_project,
+        render_audit_json,
+        render_audit_markdown,
+        render_audit_terminal,
+    )
+
+    report = audit_project(args.root or None)
+    if args.format == "json":
+        print(render_audit_json(report))
+    elif args.format == "markdown":
+        print(render_audit_markdown(report))
+    else:
+        print(render_audit_terminal(report))
+
+    if report.failed:
+        return 1
+    if args.fail_on_warn and report.warned:
+        return 1
+    return 0
+
+
+def _cmd_attest(args) -> int:
+    from .attest import (
+        AttestationOptions,
+        attest_report,
+        render_attestation_json,
+        render_attestation_markdown,
+    )
+
+    try:
+        attestation = attest_report(
+            args.report,
+            AttestationOptions(
+                max_failures=args.max_failures,
+                include_pass_samples=args.include_pass_samples,
+                snippet_chars=args.snippet_chars,
+            ),
+        )
+    except Exception as exc:
+        print(f"ERROR: failed to generate attestation: {exc}", file=sys.stderr)
+        return 1
+
+    if args.format == "json":
+        print(render_attestation_json(attestation))
+    else:
+        print(render_attestation_markdown(attestation))
+    return 0
+
+
+def _cmd_init(args) -> int:
+    from .onboarding import (
+        InitOptions,
+        initialize_project,
+        render_init_json,
+        render_init_markdown,
+        render_init_terminal,
+    )
+
+    result = initialize_project(
+        InitOptions(
+            target=args.target,
+            model=args.model,
+            base_url=args.base_url,
+            api_key=args.api_key,
+            suites=args.suites,
+            workers=args.workers,
+            max_tokens=args.max_tokens,
+            fail_below=args.fail_below,
+            config_path=args.config_path,
+            force=args.force,
+            dry_run=args.dry_run,
+        )
+    )
+
+    if args.format == "json":
+        print(render_init_json(result))
+    elif args.format == "markdown":
+        print(render_init_markdown(result))
+    else:
+        print(render_init_terminal(result))
+
+    if result.warnings and not result.written and not result.dry_run:
+        return 1
+    return 0
+
+
+def _cmd_ci(args) -> int:
+    from .ci_policy import (
+        evaluate_report,
+        render_policy_json,
+        render_policy_markdown,
+        render_policy_terminal,
+        sample_policy,
+    )
+
+    if args.print_sample_policy:
+        print(sample_policy())
+        return 0
+    if not args.report:
+        print("ERROR: report file is required unless --print-sample-policy is used", file=sys.stderr)
+        return 2
+
+    try:
+        result = evaluate_report(args.report, args.policy or None)
+    except Exception as exc:
+        print(f"ERROR: failed to evaluate CI policy: {exc}", file=sys.stderr)
+        return 1
+
+    markdown = render_policy_markdown(result)
+    if args.summary_file:
+        try:
+            with open(args.summary_file, "w", encoding="utf-8") as f:
+                f.write(markdown)
+        except OSError as exc:
+            print(f"ERROR: failed to write summary file: {exc}", file=sys.stderr)
+            return 1
+
+    if args.format == "json":
+        print(render_policy_json(result))
+    elif args.format == "markdown":
+        print(markdown)
+    else:
+        print(render_policy_terminal(result))
+
+    return 0 if result.passed else 1
+
+
+def _cmd_report(args) -> int:
+    from .html_report import build_report, render_report_html, render_report_markdown
+
+    try:
+        report = build_report(
+            args.scan_json,
+            max_failures=args.max_failures,
+            snippet_chars=args.snippet_chars,
+        )
+        content = render_report_html(report) if args.format == "html" else render_report_markdown(report)
+    except Exception as exc:
+        print(f"ERROR: failed to generate report: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output:
+        try:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(content)
+        except OSError as exc:
+            print(f"ERROR: failed to write report: {exc}", file=sys.stderr)
+            return 1
+        print(f"Wrote {args.format} report: {args.output}")
+    else:
+        print(content)
+    return 0
+
+
+def _cmd_review(args) -> int:
+    from .review import (
+        build_review_records,
+        render_review_jsonl,
+        render_review_markdown,
+        summarize_review_records,
+    )
+
+    try:
+        records = build_review_records(
+            args.scan_json,
+            verdict=args.verdict,
+            max_records=args.max_records,
+            snippet_chars=args.snippet_chars,
+        )
+        content = render_review_jsonl(records) if args.format == "jsonl" else render_review_markdown(records)
+    except Exception as exc:
+        print(f"ERROR: failed to build review queue: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output:
+        try:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(content)
+        except OSError as exc:
+            print(f"ERROR: failed to write review queue: {exc}", file=sys.stderr)
+            return 1
+        summary = summarize_review_records(records)
+        print(f"Wrote {args.format} review queue: {args.output} ({summary['total']} records)")
+    else:
+        print(content, end="" if content.endswith("\n") else "\n")
     return 0
 
 

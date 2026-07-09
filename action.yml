@@ -90,21 +90,21 @@ runs:
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
         INPUT_WORKERS: ${{ inputs.workers }}
       run: |
-        ARGS="--model $INPUT_MODEL --target $INPUT_TARGET --workers $INPUT_WORKERS --limit $INPUT_LIMIT --max-tokens $INPUT_MAX_TOKENS"
-        [ -n "$INPUT_API_KEY" ] && ARGS="$ARGS --key $INPUT_API_KEY"
-        [ -n "$INPUT_BASE_URL" ] && ARGS="$ARGS --base-url $INPUT_BASE_URL"
-        [ -n "$INPUT_SUITES" ] && ARGS="$ARGS --suites $INPUT_SUITES"
-        { [ "$INPUT_FAIL_BELOW" != "0" ] && [ -n "$INPUT_FAIL_BELOW" ]; } && ARGS="$ARGS --fail-below $INPUT_FAIL_BELOW"
+        ARGS=(--model "$INPUT_MODEL" --target "$INPUT_TARGET" --workers "$INPUT_WORKERS" --limit "$INPUT_LIMIT" --max-tokens "$INPUT_MAX_TOKENS")
+        [ -n "$INPUT_API_KEY" ] && export OPENAI_API_KEY="$INPUT_API_KEY"
+        [ -n "$INPUT_BASE_URL" ] && ARGS+=(--base-url "$INPUT_BASE_URL")
+        [ -n "$INPUT_SUITES" ] && ARGS+=(--suites "$INPUT_SUITES")
+        { [ "$INPUT_FAIL_BELOW" != "0" ] && [ -n "$INPUT_FAIL_BELOW" ]; } && ARGS+=(--fail-below "$INPUT_FAIL_BELOW")
 
         echo "🛡️ agent-redteam scan: $INPUT_MODEL ($INPUT_TARGET), $INPUT_LIMIT samples/suite"
 
-        agent-redteam scan $ARGS --format json > /tmp/redteam-report.json 2>/tmp/redteam-stderr.log || SCAN_EXIT=$?
-        agent-redteam scan $ARGS --format sarif > /tmp/redteam.sarif 2>/dev/null || true
+        agent-redteam scan "${ARGS[@]}" --format json > /tmp/redteam-report.json 2>/tmp/redteam-stderr.log || SCAN_EXIT=$?
+        agent-redteam scan "${ARGS[@]}" --format sarif > /tmp/redteam.sarif 2>/dev/null || true
 
         cat /tmp/redteam-stderr.log >&2
 
         python3 << 'PYEOF'
-        import json
+        import json, os
         raw = open('/tmp/redteam-report.json').read()
         start = raw.find('{')
         if start < 0:
@@ -114,10 +114,13 @@ runs:
         total = d.get('total_samples', 0)
         failed = d.get('total_failed', 0)
         model = d.get('target_model', '?')
-        print(f'::set-output name=score::{score}')
-        print(f'::set-output name=total-samples::{total}')
-        print(f'::set-output name=total-failed::{failed}')
-        print(f'::set-output name=sarif-file::/tmp/redteam.sarif')
+        output_path = os.environ.get('GITHUB_OUTPUT')
+        if output_path:
+            with open(output_path, 'a', encoding='utf-8') as f:
+                f.write(f'score={score}\n')
+                f.write(f'total-samples={total}\n')
+                f.write(f'total-failed={failed}\n')
+                f.write('sarif-file=/tmp/redteam.sarif\n')
         suites = d.get('suites', [])
         lines = []
         for s in suites:
