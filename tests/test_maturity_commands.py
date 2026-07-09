@@ -365,6 +365,89 @@ def test_release_gate_fails_when_evidence_has_skips(tmp_path):
     assert "1 skipped" in evidence.detail
 
 
+def test_release_gate_skips_twine_when_not_installed(tmp_path, monkeypatch):
+    import agent_redteam.release_gate as release_gate
+
+    root = tmp_path
+    dist = root / "dist"
+    dist.mkdir()
+    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    monkeypatch.setattr(release_gate.shutil, "which", lambda name: None)
+
+    def fake_runner(command, cwd, timeout):
+        joined = " ".join(command)
+        if "doctor" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
+        if "evidence" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    result = run_release_gate(root, ReleaseCheckOptions(skip_tests=True, skip_frontend=True), runner=fake_runner)
+    artifacts = next(step for step in result.steps if step.name == "artifacts")
+
+    assert result.passed is True
+    assert artifacts.status == "skip"
+    assert "twine not installed" in artifacts.detail
+
+
+def test_release_gate_runs_twine_check_when_available(tmp_path, monkeypatch):
+    import agent_redteam.release_gate as release_gate
+
+    root = tmp_path
+    dist = root / "dist"
+    dist.mkdir()
+    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    monkeypatch.setattr(release_gate.shutil, "which", lambda name: "/usr/bin/twine")
+    commands = []
+
+    def fake_runner(command, cwd, timeout):
+        commands.append(command)
+        joined = " ".join(command)
+        if "doctor" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
+        if "evidence" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    result = run_release_gate(root, ReleaseCheckOptions(skip_tests=True, skip_frontend=True), runner=fake_runner)
+    artifacts = next(step for step in result.steps if step.name == "artifacts")
+
+    assert result.passed is True
+    assert artifacts.status == "pass"
+    assert "twine check passed" in artifacts.detail
+    assert any(command[:2] == ["/usr/bin/twine", "check"] for command in commands)
+
+
+def test_release_gate_fails_when_twine_check_fails(tmp_path, monkeypatch):
+    import agent_redteam.release_gate as release_gate
+
+    root = tmp_path
+    dist = root / "dist"
+    dist.mkdir()
+    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    monkeypatch.setattr(release_gate.shutil, "which", lambda name: "/usr/bin/twine")
+
+    def fake_runner(command, cwd, timeout):
+        joined = " ".join(command)
+        if "doctor" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
+        if "evidence" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
+        if command[:2] == ["/usr/bin/twine", "check"]:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="README rendering failed")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    result = run_release_gate(root, ReleaseCheckOptions(skip_tests=True, skip_frontend=True), runner=fake_runner)
+    artifacts = next(step for step in result.steps if step.name == "artifacts")
+
+    assert result.passed is False
+    assert artifacts.status == "fail"
+    assert "README rendering failed" in artifacts.detail
+
+
 def test_cli_release_check_supports_skip_mode_json():
     assert main([
         "release-check",

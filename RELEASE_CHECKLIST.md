@@ -49,6 +49,7 @@ python -m twine check dist/*
 ```
 
 - [ ] Wheel and sdist are present for the package version.
+- [ ] `agent-redteam release-check` reports `twine check passed`, or `python -m twine check dist/*` was run manually.
 - [ ] `pyproject.toml`, `agent_redteam.__version__`, README Action snippets, and release tag agree.
 - [ ] GitHub Action examples use the current tag.
 

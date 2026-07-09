@@ -400,6 +400,8 @@ Features:
 - runs frontend `typecheck`, `typecheck:strict`, and `build`
 - runs `evidence --root validation --format json` and fails if artifacts are skipped
 - checks that wheel and sdist for the package version are present
+- runs `twine check` on wheel and sdist when `twine` is installed
+- skips only the metadata check when `twine` is unavailable, while still requiring artifacts to exist
 - emits terminal, JSON, or Markdown
 - supports skip flags for targeted local checks and CI composition
 - adds a `doctor` check for the release gate workflow
@@ -415,7 +417,7 @@ frontend.typecheck: pass
 frontend.strict: pass
 frontend.build: pass
 evidence: pass, 9 reports / 2 auxiliary / 5 docs / 0 skipped
-artifacts: pass, wheel and sdist present for 0.3.0
+artifacts: pass, wheel and sdist present for 0.3.0, twine check passed
 ```
 
 ## Config Changes
@@ -456,7 +458,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-168 passed in 10.64s
+171 passed in 10.51s
 ```
 
 ## Current Git State Notes

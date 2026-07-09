@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
@@ -96,7 +97,7 @@ def run_release_gate(
     if opts.skip_artifacts:
         steps.append(_skip("artifacts", "Package artifacts", "Skipped by --skip-artifacts"))
     else:
-        steps.append(_artifact_step(project_root))
+        steps.append(_artifact_step(project_root, opts, run))
 
     passed = all(step.status != "fail" for step in steps)
     return ReleaseGateResult(root=str(project_root), passed=passed, steps=steps)
@@ -181,7 +182,7 @@ def _evidence_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> Rel
     return ReleaseStep("evidence", "Validation evidence index", "pass", f"{reports} reports, {auxiliary} auxiliary, {documents} docs, 0 skipped", command, duration)
 
 
-def _artifact_step(root: Path) -> ReleaseStep:
+def _artifact_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> ReleaseStep:
     dist = root / "dist"
     wheel = dist / f"agent_redteam-{__version__}-py3-none-any.whl"
     sdist = dist / f"agent_redteam-{__version__}.tar.gz"
@@ -194,7 +195,28 @@ def _artifact_step(root: Path) -> ReleaseStep:
             f"Missing: {', '.join(missing)}",
             [],
         )
-    return ReleaseStep("artifacts", "Package artifacts", "pass", f"Wheel and sdist present for {__version__}", [])
+    twine = shutil.which("twine")
+    if not twine:
+        return ReleaseStep(
+            "artifacts",
+            "Package artifacts",
+            "skip",
+            f"Wheel and sdist present for {__version__}; twine not installed, metadata check skipped",
+            [],
+        )
+    command = [twine, "check", str(wheel), str(sdist)]
+    proc, duration = _timed(command, root, opts, runner)
+    if proc.returncode != 0:
+        detail = _tail(proc.stderr) or _tail(proc.stdout) or f"twine check failed with exit code {proc.returncode}"
+        return ReleaseStep("artifacts", "Package artifacts", "fail", detail, command, duration)
+    return ReleaseStep(
+        "artifacts",
+        "Package artifacts",
+        "pass",
+        f"Wheel and sdist present for {__version__}; twine check passed",
+        command,
+        duration,
+    )
 
 
 def _command_step(
