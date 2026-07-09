@@ -126,7 +126,23 @@ def _fake_release_runner_response(command):
     if "evidence" in joined:
         return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 0}}), stderr="")
     if "sbom" in joined:
-        return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"components": 3, "python_dependencies": 1, "npm_dependencies": 2, "release_artifacts": 1}}), stderr="")
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "summary": {
+                        "components": 3,
+                        "python_dependencies": 1,
+                        "npm_dependencies": 2,
+                        "python_runtime_dependencies": 0,
+                        "npm_runtime_dependencies": 2,
+                        "release_artifacts": 1,
+                    }
+                }
+            ),
+            stderr="",
+        )
     return None
 
 
@@ -447,9 +463,13 @@ def test_sbom_summarizes_python_npm_and_artifacts(tmp_path):
     markdown = render_sbom_markdown(sbom)
 
     assert sbom["bomFormat"] == "CycloneDX"
-    assert sbom["summary"]["python_dependencies"] == 3
+    assert sbom["metadata"]["component"]["name"] == "agent-redteam"
+    assert sbom["summary"]["python_dependencies"] == 2
     assert sbom["summary"]["npm_dependencies"] == 2
+    assert sbom["summary"]["python_runtime_dependencies"] == 1
+    assert sbom["summary"]["npm_runtime_dependencies"] == 1
     assert sbom["summary"]["release_artifacts"] == 1
+    assert not any(item["name"] == "agent-redteam" for item in sbom["components"])
     assert any(item["name"] == "requests" for item in sbom["components"])
     assert any(item["name"] == "react" for item in sbom["components"])
     assert sbom["release_artifacts"][0]["sha256"]
@@ -482,7 +502,8 @@ def test_sbom_runtime_only_excludes_dev_dependencies(tmp_path):
 
     assert "pytest" not in names
     assert "vite" not in names
-    assert "agent-redteam" in names
+    assert "agent-redteam" not in names
+    assert sbom["metadata"]["component"]["name"] == "agent-redteam"
 
 
 def test_cli_sbom_writes_markdown(tmp_path):
@@ -708,7 +729,7 @@ def test_release_gate_passes_with_fake_runner_and_artifacts(tmp_path):
     assert {step.name for step in result.steps} >= {"doctor", "tests", "frontend.build", "evidence", "sbom", "artifacts"}
     assert "PASS" in markdown
     assert "9 reports, 2 auxiliary, 5 docs, 0 skipped" in markdown
-    assert "3 components, 1 python, 2 npm, 1 release artifacts" in markdown
+    assert "3 components, 1 python, 2 npm, 0 python runtime, 2 npm runtime, 1 release artifacts" in markdown
 
 
 def test_release_gate_fails_on_doctor_warnings_when_strict(tmp_path):

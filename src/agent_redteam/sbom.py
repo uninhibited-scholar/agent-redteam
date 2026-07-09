@@ -17,9 +17,15 @@ def build_sbom(root: str | Path | None = None, *, include_dev: bool = True) -> d
     project_root = Path(root).resolve() if root else default_project_root()
     pyproject = _read(project_root / "pyproject.toml")
     package = _package_metadata(pyproject)
-    components = [_root_component(package)]
+    subject = _root_component(package)
+    release_artifacts = _release_artifacts(project_root)
+    components: list[dict[str, Any]] = []
     components.extend(_python_dependencies(pyproject, include_dev=include_dev))
     components.extend(_npm_components(project_root / "web" / "package-lock.json", include_dev=include_dev))
+    python_runtime = sum(1 for item in components if item.get("ecosystem") == "python" and item.get("scope") == "runtime")
+    npm_runtime = sum(1 for item in components if item.get("ecosystem") == "npm" and item.get("scope") == "runtime")
+    python_dev = sum(1 for item in components if item.get("ecosystem") == "python" and item.get("scope") == "dev")
+    npm_dev = sum(1 for item in components if item.get("ecosystem") == "npm" and item.get("scope") == "dev")
 
     return {
         "bomFormat": "CycloneDX",
@@ -29,18 +35,22 @@ def build_sbom(root: str | Path | None = None, *, include_dev: bool = True) -> d
         "metadata": {
             "timestamp": _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "tool": {"name": "agent-redteam", "version": __version__},
-            "component": _root_component(package),
+            "component": subject,
         },
         "summary": {
             "components": len(components),
             "python_dependencies": sum(1 for item in components if item.get("ecosystem") == "python"),
             "npm_dependencies": sum(1 for item in components if item.get("ecosystem") == "npm"),
-            "runtime_dependencies": sum(1 for item in components if item.get("scope") == "runtime"),
-            "dev_dependencies": sum(1 for item in components if item.get("scope") == "dev"),
-            "release_artifacts": len(_release_artifacts(project_root)),
+            "python_runtime_dependencies": python_runtime,
+            "npm_runtime_dependencies": npm_runtime,
+            "runtime_dependencies": python_runtime + npm_runtime,
+            "python_dev_dependencies": python_dev,
+            "npm_dev_dependencies": npm_dev,
+            "dev_dependencies": python_dev + npm_dev,
+            "release_artifacts": len(release_artifacts),
         },
         "components": components,
-        "release_artifacts": _release_artifacts(project_root),
+        "release_artifacts": release_artifacts,
     }
 
 
@@ -58,8 +68,10 @@ def render_sbom_markdown(sbom: dict[str, Any]) -> str:
         f"- **Components:** {summary['components']}",
         f"- **Python dependencies:** {summary['python_dependencies']}",
         f"- **NPM dependencies:** {summary['npm_dependencies']}",
-        f"- **Runtime dependencies:** {summary['runtime_dependencies']}",
-        f"- **Dev dependencies:** {summary['dev_dependencies']}",
+        f"- **Python runtime dependencies:** {summary['python_runtime_dependencies']}",
+        f"- **NPM runtime dependencies:** {summary['npm_runtime_dependencies']}",
+        f"- **Python dev dependencies:** {summary['python_dev_dependencies']}",
+        f"- **NPM dev dependencies:** {summary['npm_dev_dependencies']}",
         f"- **Release artifacts:** {summary['release_artifacts']}",
         "",
         "## Components",

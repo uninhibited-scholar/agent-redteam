@@ -200,6 +200,8 @@ def _sbom_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> Release
         artifacts = int(summary.get("release_artifacts", 0))
         npm = int(summary.get("npm_dependencies", 0))
         python = int(summary.get("python_dependencies", 0))
+        python_runtime = int(summary.get("python_runtime_dependencies", 0))
+        npm_runtime = int(summary.get("npm_runtime_dependencies", 0))
     except (ValueError, TypeError) as exc:
         return ReleaseStep("sbom", "Software bill of materials", "fail", f"Could not parse SBOM JSON: {exc}", command, duration)
     if components <= 0:
@@ -208,7 +210,7 @@ def _sbom_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> Release
         "sbom",
         "Software bill of materials",
         "pass",
-        f"{components} components, {python} python, {npm} npm, {artifacts} release artifacts",
+        f"{components} components, {python} python, {npm} npm, {python_runtime} python runtime, {npm_runtime} npm runtime, {artifacts} release artifacts",
         command,
         duration,
     )

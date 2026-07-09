@@ -418,7 +418,7 @@ frontend.typecheck: pass
 frontend.strict: pass
 frontend.build: pass
 evidence: pass, 9 reports / 2 auxiliary / 5 docs / 0 skipped
-sbom: pass, 123 components / 5 python / 118 npm / 2 release artifacts
+sbom: pass, 122 components / 4 python / 118 npm / 0 python runtime / 3 npm runtime / 2 release artifacts
 artifacts: pass, wheel and sdist present for 0.3.0, twine check passed
 ```
 
@@ -550,10 +550,11 @@ Features:
 Observed local SBOM summary:
 
 ```text
-components: 123
-python dependencies: 5
+components: 122
+python dependencies: 4
 npm dependencies: 118
-runtime dependencies: 4
+python runtime dependencies: 0
+npm runtime dependencies: 3
 dev dependencies: 117
 release artifacts: 2
 ```
