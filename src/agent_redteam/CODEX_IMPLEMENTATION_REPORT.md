@@ -277,6 +277,32 @@ Follow-up cleanup:
 - redacted publication-facing metadata fields in `attest`/`report` evidence rows
 - redacted risk summary count keys so no publication-facing aggregate labels bypass redaction
 
+### 8. Release readiness cleanup
+
+Purpose: close the remaining low-effort `doctor` warnings that directly affect user onboarding and release reproducibility.
+
+Files:
+- `README.md`
+- `docs/article-zhihu-juejin.md`
+- `web/package.json`
+- `tests/test_maturity_commands.py`
+
+Changes:
+- updated GitHub Action snippets from `v0.2.0` to the current `v0.3.0`
+- added explicit `npm run typecheck` and `npm run typecheck:strict` scripts for dashboard validation
+- added a doctor regression test covering current Action docs and web quality scripts
+
+Expected `doctor` impact:
+- `docs.action_version` moves from warn to pass
+- `web.quality_scripts` moves from warn to pass
+- remaining warnings are intentionally policy/history related: Alpha classifier and pre-existing untracked validation artifacts
+
+Observed result:
+
+```text
+Score: 91.7/100  (10 pass, 2 warn, 0 fail)
+```
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -305,12 +331,15 @@ python -m agent_redteam.cli review validation/full-300-final.json --format jsonl
 python -m agent_redteam.cli review validation/full-300-final.json --format markdown --max-records 1 --output /tmp/agent-redteam-review.md
 pytest tests/test_maturity_commands.py -q
 pytest
+npm --prefix web run typecheck
+npm --prefix web run typecheck:strict
+npm --prefix web run build
 ```
 
 Final test result:
 
 ```text
-157 passed in 10.46s
+158 passed in 10.42s
 ```
 
 ## Current Git State Notes

@@ -198,6 +198,45 @@ def test_doctor_detects_action_key_argv_pattern(tmp_path):
     assert checks["action.no_key_argv"].status == "fail"
 
 
+def test_doctor_accepts_current_action_docs_and_web_quality_scripts(tmp_path):
+    root = tmp_path
+    (root / "pyproject.toml").write_text('version = "0.3.0"\ndependencies = []\n', encoding="utf-8")
+    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.3.0\n", encoding="utf-8")
+    (root / "action.yml").write_text(
+        "\n".join(
+            [
+                'runs:',
+                '  using: "composite"',
+                '  steps:',
+                '    - run: |',
+                '        echo "score=100" >> "$GITHUB_OUTPUT"',
+                '        export OPENAI_API_KEY="$INPUT_API_KEY"',
+                '        ARGS=("--target" "$INPUT_TARGET")',
+                '        agent-redteam scan "${ARGS[@]}" --format json',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    web = root / "web"
+    web.mkdir()
+    (web / "package.json").write_text(
+        json.dumps(
+            {
+                "scripts": {
+                    "typecheck": "tsc --noEmit",
+                    "typecheck:strict": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+    assert checks["docs.action_version"].status == "pass"
+    assert checks["web.quality_scripts"].status == "pass"
+
+
 def test_action_uses_env_key_not_argv():
     action = Path(__file__).resolve().parents[1] / "action.yml"
     text = action.read_text(encoding="utf-8")

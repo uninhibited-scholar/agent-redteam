@@ -142,7 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: uninhibited-scholar/agent-redteam@v0.2.0
+      - uses: uninhibited-scholar/agent-redteam@v0.3.0
         with:
           model: gpt-4o
           api-key: \${{ secrets.OPENAI_API_KEY }}
@@ -167,7 +167,7 @@ jobs:
 
       - name: Run agent-redteam
         id: scan
-        uses: uninhibited-scholar/agent-redteam@v0.2.0
+        uses: uninhibited-scholar/agent-redteam@v0.3.0
         with:
           model: gpt-4o
           api-key: \${{ secrets.OPENAI_API_KEY }}

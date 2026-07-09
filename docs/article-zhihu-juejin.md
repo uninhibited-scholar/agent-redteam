@@ -141,7 +141,7 @@ agent-redteam scan --model gpt-4o --fail-below 70 --format json > report.json
 在 `.github/workflows/security-scan.yml` 加一段，每次 push 自动跑安全扫描：
 
 ```yaml
-- uses: uninhibited-scholar/agent-redteam@v0.2.0
+- uses: uninhibited-scholar/agent-redteam@v0.3.0
   with:
     model: gpt-4o
     api-key: ${{ secrets.OPENAI_API_KEY }}
