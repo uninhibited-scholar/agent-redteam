@@ -270,6 +270,7 @@ Coverage added:
 - CLI `report` file output path
 - `review` JSONL/Markdown export and default `needs_review` status
 - `doctor` detection for unsafe Action API key argv usage
+- `doctor` community health pass/warn behavior
 
 Follow-up cleanup:
 - replaced deprecated `datetime.utcnow()` with timezone-aware `datetime.now(datetime.UTC)`
@@ -301,6 +302,33 @@ Observed result:
 
 ```text
 Score: 91.7/100  (10 pass, 2 warn, 0 fail)
+```
+
+### 9. Community and release governance
+
+Purpose: make the project easier to trust, contribute to, and release as an open security tool.
+
+Files:
+- `SECURITY.md`
+- `RELEASE_CHECKLIST.md`
+- `CONTRIBUTING.md`
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/ISSUE_TEMPLATE/*.yml`
+- `project_audit.py`
+- `tests/test_maturity_commands.py`
+
+Changes:
+- added a private security reporting policy with explicit scope for secret leaks, report rendering bugs, Action secret handling, and dashboard exposure
+- added a release checklist covering scope, safety, validation, benchmark evidence, packaging, and publishing
+- added structured GitHub issue templates for bugs, sample/check improvements, and feature requests
+- updated the PR template with security-impact and modern validation checks
+- updated contributor docs to use the new web typecheck scripts and release checklist
+- added `doctor` coverage for community health files
+
+Observed result:
+
+```text
+Score: 92.3/100  (11 pass, 2 warn, 0 fail)
 ```
 
 ## Config Changes
@@ -339,7 +367,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-158 passed in 10.42s
+159 passed in 10.49s
 ```
 
 ## Current Git State Notes

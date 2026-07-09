@@ -44,7 +44,9 @@
 - 组件：`web/src/components/`
 - 页面：`web/src/pages/`
 - 主题/样式：`web/src/theme.ts`（CSS 变量驱动）
-- 严格 tsc：`cd web && npx tsc --noEmit --noUnusedLocals --noUnusedParameters`
+- 类型检查：`npm --prefix web run typecheck`
+- 严格类型检查：`npm --prefix web run typecheck:strict`
+- 生产构建：`npm --prefix web run build`
 
 ### 报告 Bug 或建议
 
@@ -52,6 +54,10 @@
 - 你测试的模型和参数
 - 预期行为 vs 实际行为
 - 复现步骤
+
+### 安全问题
+
+不要在公开 issue 里贴真实 API key、私有 prompt、客户数据或未脱敏模型响应。涉及 secret 泄露、报告渲染 XSS、GitHub Action secret 处理、dashboard 本地数据暴露等问题，请按 `SECURITY.md` 私下报告。
 
 ## 开发环境
 
@@ -64,6 +70,20 @@ pytest -v  # 75 个测试全绿
 # 前端开发
 cd web && npm install && npm run dev
 ```
+
+## 发布前检查
+
+发布前至少跑：
+
+```bash
+pytest -q
+npm --prefix web run typecheck
+npm --prefix web run typecheck:strict
+npm --prefix web run build
+python -m agent_redteam.cli doctor
+```
+
+更完整的发布流程见 `RELEASE_CHECKLIST.md`。
 
 ## 代码风格
 

@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible bug in Agent Redteam.
+title: "[BUG] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do not include real API keys, private prompts, customer data, or unreleased model outputs.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Minimal command, config, or code path that reproduces the issue.
+      render: bash
+      placeholder: agent-redteam scan --target openai --model gpt-4o --suites injection --limit 1
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Agent Redteam version
+      placeholder: agent-redteam 0.3.0
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: Python 3.13.0
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 15, Ubuntu 24.04, Windows 11
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Redacted artifacts
+      description: Attach or paste redacted logs/reports only.

@@ -63,6 +63,7 @@ def audit_project(root: str | Path | None = None) -> AuditReport:
         _check_action_set_output(project_root),
         _check_action_key_not_in_argv(project_root),
         _check_zero_dependency_core(project_root),
+        _check_community_health_files(project_root),
         _check_web_quality_scripts(project_root),
         _check_test_suite_presence(project_root),
         _check_dashboard_static_assets(project_root),
@@ -234,6 +235,36 @@ def _check_zero_dependency_core(root: Path) -> AuditCheck:
             "Keep the core dependency-free or explain each dependency in the supply-chain threat model.",
         )
     return AuditCheck("package.zero_deps", "Zero-dependency core", "pass", "No runtime dependencies are declared.")
+
+
+def _check_community_health_files(root: Path) -> AuditCheck:
+    issue_templates = root / ".github" / "ISSUE_TEMPLATE"
+    required = {
+        "SECURITY.md": root / "SECURITY.md",
+        "CONTRIBUTING.md": root / "CONTRIBUTING.md",
+        "RELEASE_CHECKLIST.md": root / "RELEASE_CHECKLIST.md",
+        "PULL_REQUEST_TEMPLATE.md": root / ".github" / "PULL_REQUEST_TEMPLATE.md",
+    }
+    missing = [name for name, path in required.items() if not path.exists()]
+    has_issue_templates = (root / ".github" / "ISSUE_TEMPLATE.md").exists() or (
+        issue_templates.exists() and any(issue_templates.glob("*.yml"))
+    )
+    if not has_issue_templates:
+        missing.append("ISSUE_TEMPLATE")
+    if missing:
+        return AuditCheck(
+            "community.health",
+            "Community health files",
+            "warn",
+            f"Missing: {', '.join(missing)}.",
+            "Add security disclosure, contribution, release, PR, and issue guidance for external adopters.",
+        )
+    return AuditCheck(
+        "community.health",
+        "Community health files",
+        "pass",
+        "Security, contribution, release, PR, and issue guidance are present.",
+    )
 
 
 def _check_web_quality_scripts(root: Path) -> AuditCheck:

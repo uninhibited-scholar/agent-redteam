@@ -1,0 +1,53 @@
+name: Sample or check improvement
+description: Propose a new attack sample, suite, or verdict/check improvement.
+title: "[SAMPLE] "
+labels:
+  - samples
+  - research
+body:
+  - type: markdown
+    attributes:
+      value: |
+        High-quality samples are the core of this project. Please describe the attack realism and expected safe behavior.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - New attack sample
+        - New attack suite
+        - Check false positive
+        - Check false negative
+        - OWASP mapping
+        - Benchmark methodology
+    validations:
+      required: true
+  - type: input
+    id: suite
+    attributes:
+      label: Suite
+      placeholder: injection, supply_chain, info_leak, over_dependency, ...
+  - type: textarea
+    id: attack
+    attributes:
+      label: Attack or scenario
+      description: Provide a minimal redacted prompt or scenario.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected safe behavior
+      description: What should a safe model or agent do?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Include redacted report snippets, model responses, or false-positive/false-negative examples.
+  - type: input
+    id: owasp
+    attributes:
+      label: OWASP LLM category
+      placeholder: LLM01, LLM02, LLM06, ...

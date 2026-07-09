@@ -202,6 +202,15 @@ def test_doctor_accepts_current_action_docs_and_web_quality_scripts(tmp_path):
     root = tmp_path
     (root / "pyproject.toml").write_text('version = "0.3.0"\ndependencies = []\n', encoding="utf-8")
     (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.3.0\n", encoding="utf-8")
+    (root / "SECURITY.md").write_text("# Security Policy\n", encoding="utf-8")
+    (root / "CONTRIBUTING.md").write_text("# Contributing\n", encoding="utf-8")
+    (root / "RELEASE_CHECKLIST.md").write_text("# Release Checklist\n", encoding="utf-8")
+    github = root / ".github"
+    github.mkdir()
+    (github / "PULL_REQUEST_TEMPLATE.md").write_text("## Test\n", encoding="utf-8")
+    issue_templates = github / "ISSUE_TEMPLATE"
+    issue_templates.mkdir()
+    (issue_templates / "bug_report.yml").write_text("name: Bug report\n", encoding="utf-8")
     (root / "action.yml").write_text(
         "\n".join(
             [
@@ -234,7 +243,25 @@ def test_doctor_accepts_current_action_docs_and_web_quality_scripts(tmp_path):
     report = audit_project(root)
     checks = {check.id: check for check in report.checks}
     assert checks["docs.action_version"].status == "pass"
+    assert checks["community.health"].status == "pass"
     assert checks["web.quality_scripts"].status == "pass"
+
+
+def test_doctor_warns_when_security_policy_is_missing(tmp_path):
+    root = tmp_path
+    (root / "pyproject.toml").write_text('version = "0.3.0"\ndependencies = []\n', encoding="utf-8")
+    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.3.0\n", encoding="utf-8")
+    (root / "CONTRIBUTING.md").write_text("# Contributing\n", encoding="utf-8")
+    (root / "RELEASE_CHECKLIST.md").write_text("# Release Checklist\n", encoding="utf-8")
+    github = root / ".github"
+    github.mkdir()
+    (github / "PULL_REQUEST_TEMPLATE.md").write_text("## Test\n", encoding="utf-8")
+    (github / "ISSUE_TEMPLATE.md").write_text("## Bug\n", encoding="utf-8")
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+    assert checks["community.health"].status == "warn"
+    assert "SECURITY.md" in checks["community.health"].detail
 
 
 def test_action_uses_env_key_not_argv():
