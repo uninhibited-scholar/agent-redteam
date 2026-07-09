@@ -372,6 +372,52 @@ Observed against the current `validation/` directory:
 79.2/100 average score
 ```
 
+### 11. Local release gate
+
+Purpose: turn the release checklist into a reusable local preflight command that maintainers can run before tagging or publishing.
+
+Files:
+- `release_gate.py`
+- `cli.py`
+- `project_audit.py`
+- `.github/workflows/ci.yml`
+- `RELEASE_CHECKLIST.md`
+- `tests/test_maturity_commands.py`
+
+Command:
+
+```bash
+agent-redteam release-check
+agent-redteam release-check --format json
+agent-redteam release-check --strict-warnings
+agent-redteam release-check --skip-tests --skip-frontend --skip-evidence --skip-artifacts
+```
+
+Features:
+- runs `doctor` and fails on doctor failures
+- optionally treats doctor warnings as failures with `--strict-warnings`
+- runs `pytest -q`
+- runs frontend `typecheck`, `typecheck:strict`, and `build`
+- runs `evidence --root validation --format json` and fails if artifacts are skipped
+- checks that wheel and sdist for the package version are present
+- emits terminal, JSON, or Markdown
+- supports skip flags for targeted local checks and CI composition
+- adds a `doctor` check for the release gate workflow
+- updates CI frontend steps to use the committed npm scripts instead of ad-hoc `npx`
+
+Observed local result:
+
+```text
+Status: PASS
+doctor: pass, 0 fail / 2 warn, score 93.3/100
+tests: pass
+frontend.typecheck: pass
+frontend.strict: pass
+frontend.build: pass
+evidence: pass, 9 reports / 2 auxiliary / 5 docs / 0 skipped
+artifacts: pass, wheel and sdist present for 0.3.0
+```
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -399,6 +445,7 @@ python -m agent_redteam.cli report validation/full-300-final.json --format markd
 python -m agent_redteam.cli review validation/full-300-final.json --format jsonl --max-records 2
 python -m agent_redteam.cli review validation/full-300-final.json --format markdown --max-records 1 --output /tmp/agent-redteam-review.md
 python -m agent_redteam.cli evidence --root validation --output /tmp/agent-redteam-evidence.md
+python -m agent_redteam.cli release-check --format json
 pytest tests/test_maturity_commands.py -q
 pytest
 npm --prefix web run typecheck
@@ -409,7 +456,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-164 passed in 10.51s
+168 passed in 10.64s
 ```
 
 ## Current Git State Notes
@@ -424,13 +471,14 @@ Codex-created or modified files:
 - `onboarding.py`
 - `project_audit.py`
 - `review.py`
+- `evidence.py`
+- `release_gate.py`
 - `CODEX_IMPLEMENTATION_REPORT.md`
 - `tests/test_maturity_commands.py`
 
 Pre-existing untracked validation files are still present and were not modified by this work:
 - `validation/MULTITURN-REPORT.md`
 - `validation/multiturn-glm-5.2-batch1.json`
-- `validation/multiturn-glm-5.2.json`
 - `validation/multiturn-llama3.2-1b.json`
 - `validation/multiturn-qwen2.5-0.5b.json`
 

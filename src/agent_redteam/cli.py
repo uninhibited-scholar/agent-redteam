@@ -148,6 +148,19 @@ def main(argv: list[str] | None = None) -> int:
     p_evidence.add_argument("--max-reports", type=int, default=0,
                             help="最多索引多少个 scan JSON；0 表示不限")
 
+    # release-check command
+    p_release = sub.add_parser("release-check", help="本地发布前门禁：doctor、测试、前端、evidence、产物")
+    p_release.add_argument("--root", default="", help="项目根目录（默认自动检测）")
+    p_release.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal",
+                           help="输出格式")
+    p_release.add_argument("--skip-tests", action="store_true", help="跳过 pytest")
+    p_release.add_argument("--skip-frontend", action="store_true", help="跳过全部前端检查")
+    p_release.add_argument("--skip-build", action="store_true", help="跳过前端生产构建")
+    p_release.add_argument("--skip-evidence", action="store_true", help="跳过 validation evidence 索引检查")
+    p_release.add_argument("--skip-artifacts", action="store_true", help="跳过 dist wheel/sdist 存在性检查")
+    p_release.add_argument("--strict-warnings", action="store_true", help="doctor warning 也视为失败")
+    p_release.add_argument("--timeout", type=int, default=300, help="每个外部命令的超时时间（秒）")
+
     args = parser.parse_args(argv)
 
     if args.command == "list":
@@ -172,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_review(args)
     elif args.command == "evidence":
         return _cmd_evidence(args)
+    elif args.command == "release-check":
+        return _cmd_release_check(args)
     elif args.command == "serve":
         from .dashboard import serve_dashboard
         serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
@@ -639,6 +654,39 @@ def _cmd_evidence(args) -> int:
     else:
         print(content)
     return 0
+
+
+def _cmd_release_check(args) -> int:
+    from .project_audit import default_project_root
+    from .release_gate import (
+        ReleaseCheckOptions,
+        render_release_gate_json,
+        render_release_gate_markdown,
+        render_release_gate_terminal,
+        run_release_gate,
+    )
+
+    root = args.root or default_project_root()
+    result = run_release_gate(
+        root,
+        ReleaseCheckOptions(
+            skip_tests=args.skip_tests,
+            skip_frontend=args.skip_frontend,
+            skip_build=args.skip_build,
+            skip_evidence=args.skip_evidence,
+            skip_artifacts=args.skip_artifacts,
+            strict_warnings=args.strict_warnings,
+            timeout_seconds=args.timeout,
+        ),
+    )
+
+    if args.format == "json":
+        print(render_release_gate_json(result))
+    elif args.format == "markdown":
+        print(render_release_gate_markdown(result))
+    else:
+        print(render_release_gate_terminal(result))
+    return 0 if result.passed else 1
 
 
 if __name__ == "__main__":

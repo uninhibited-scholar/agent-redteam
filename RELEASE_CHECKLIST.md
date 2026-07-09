@@ -19,6 +19,7 @@ Use this checklist before tagging a release, publishing to PyPI, or updating the
 ## 3. Validation
 
 ```bash
+agent-redteam release-check
 pytest -q
 npm --prefix web run typecheck
 npm --prefix web run typecheck:strict
@@ -29,7 +30,7 @@ python -m agent_redteam.cli doctor
 - [ ] Python tests pass.
 - [ ] Dashboard typecheck passes.
 - [ ] Dashboard build updates bundled static assets when needed.
-- [ ] CLI smoke commands still work: `list`, `doctor`, `init --dry-run`, `attest`, `ci`, `report`, and `review`.
+- [ ] CLI smoke commands still work: `list`, `doctor`, `init --dry-run`, `attest`, `ci`, `report`, `review`, `evidence`, and `release-check`.
 
 ## 4. Benchmark Evidence
 

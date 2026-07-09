@@ -69,6 +69,7 @@ def audit_project(root: str | Path | None = None) -> AuditReport:
         _check_dashboard_static_assets(project_root),
         _check_validation_artifacts(project_root),
         _check_validation_evidence_workflow(project_root),
+        _check_release_gate_workflow(project_root),
         _check_release_artifacts(project_root),
         _check_git_worktree(project_root),
     ]
@@ -358,6 +359,33 @@ def _check_validation_evidence_workflow(root: Path) -> AuditCheck:
         "Validation evidence workflow",
         "pass",
         "Evidence indexing command and tests are present.",
+    )
+
+
+def _check_release_gate_workflow(root: Path) -> AuditCheck:
+    gate = root / "src" / "agent_redteam" / "release_gate.py"
+    cli = _read(root / "src" / "agent_redteam" / "cli.py")
+    tests = _read(root / "tests" / "test_maturity_commands.py")
+    missing = []
+    if not gate.exists():
+        missing.append("release_gate.py")
+    if "release-check" not in cli:
+        missing.append("CLI command")
+    if "test_release_gate" not in tests:
+        missing.append("tests")
+    if missing:
+        return AuditCheck(
+            "release.gate_workflow",
+            "Release gate workflow",
+            "warn",
+            f"Missing: {', '.join(missing)}.",
+            "Keep a tested local release gate for doctor, tests, frontend, evidence, and artifacts.",
+        )
+    return AuditCheck(
+        "release.gate_workflow",
+        "Release gate workflow",
+        "pass",
+        "Release gate command and tests are present.",
     )
 
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 
 from agent_redteam.attest import attest_report, load_report
 from agent_redteam.ci_policy import evaluate_report
@@ -20,6 +21,11 @@ from agent_redteam.evidence import (
 from agent_redteam.html_report import build_report, render_report_html
 from agent_redteam.onboarding import InitOptions, initialize_project, render_init_json
 from agent_redteam.project_audit import audit_project
+from agent_redteam.release_gate import (
+    ReleaseCheckOptions,
+    render_release_gate_markdown,
+    run_release_gate,
+)
 from agent_redteam.review import build_review_records, render_review_jsonl
 
 
@@ -287,6 +293,88 @@ def test_cli_evidence_writes_markdown(tmp_path):
     text = output.read_text(encoding="utf-8")
     assert "Agent Redteam Evidence Index" in text
     assert "91.0" in text
+
+
+def test_release_gate_passes_with_fake_runner_and_artifacts(tmp_path):
+    root = tmp_path
+    dist = root / "dist"
+    dist.mkdir()
+    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+
+    def fake_runner(command, cwd, timeout):
+        joined = " ".join(command)
+        if "doctor" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 1, "score": 92.9}), stderr="")
+        if "evidence" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 9, "auxiliary": 2, "documents": 5, "skipped": 0}}), stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    result = run_release_gate(root, runner=fake_runner)
+    markdown = render_release_gate_markdown(result)
+
+    assert result.passed is True
+    assert {step.name for step in result.steps} >= {"doctor", "tests", "frontend.build", "evidence", "artifacts"}
+    assert "PASS" in markdown
+    assert "9 reports, 2 auxiliary, 5 docs, 0 skipped" in markdown
+
+
+def test_release_gate_fails_on_doctor_warnings_when_strict(tmp_path):
+    root = tmp_path
+    dist = root / "dist"
+    dist.mkdir()
+    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+
+    def fake_runner(command, cwd, timeout):
+        joined = " ".join(command)
+        if "doctor" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 2, "score": 92.9}), stderr="")
+        if "evidence" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 9, "auxiliary": 2, "documents": 5, "skipped": 0}}), stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    result = run_release_gate(root, ReleaseCheckOptions(strict_warnings=True), runner=fake_runner)
+
+    assert result.passed is False
+    doctor = next(step for step in result.steps if step.name == "doctor")
+    assert doctor.status == "fail"
+    assert "--strict-warnings" in doctor.detail
+
+
+def test_release_gate_fails_when_evidence_has_skips(tmp_path):
+    root = tmp_path
+
+    def fake_runner(command, cwd, timeout):
+        joined = " ".join(command)
+        if "doctor" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"failed": 0, "warned": 0, "score": 100}), stderr="")
+        if "evidence" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"summary": {"reports": 1, "auxiliary": 0, "documents": 0, "skipped": 1}}), stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    result = run_release_gate(
+        root,
+        ReleaseCheckOptions(skip_frontend=True, skip_tests=True, skip_artifacts=True),
+        runner=fake_runner,
+    )
+
+    assert result.passed is False
+    evidence = next(step for step in result.steps if step.name == "evidence")
+    assert evidence.status == "fail"
+    assert "1 skipped" in evidence.detail
+
+
+def test_cli_release_check_supports_skip_mode_json():
+    assert main([
+        "release-check",
+        "--skip-tests",
+        "--skip-frontend",
+        "--skip-evidence",
+        "--skip-artifacts",
+        "--format",
+        "json",
+    ]) == 0
 
 
 def test_doctor_detects_action_key_argv_pattern(tmp_path):

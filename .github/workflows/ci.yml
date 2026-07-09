@@ -30,5 +30,6 @@ jobs:
         with:
           node-version: "20"
       - run: cd web && npm install
-      - run: cd web && npx tsc --noEmit --noUnusedLocals --noUnusedParameters
-      - run: cd web && npm run build
+      - run: npm --prefix web run typecheck
+      - run: npm --prefix web run typecheck:strict
+      - run: npm --prefix web run build
