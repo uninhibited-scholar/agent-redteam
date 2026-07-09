@@ -11,6 +11,7 @@ from pathlib import Path
 from agent_redteam.attest import attest_report, load_report
 from agent_redteam.ci_policy import evaluate_report
 from agent_redteam.cli import main
+from agent_redteam.evidence import build_evidence_index, render_evidence_json, render_evidence_markdown
 from agent_redteam.html_report import build_report, render_report_html
 from agent_redteam.onboarding import InitOptions, initialize_project, render_init_json
 from agent_redteam.project_audit import audit_project
@@ -24,12 +25,13 @@ def _write_report(
     verdict: str = "fail",
     severity: str = "critical",
     secret_metadata: bool = False,
+    target_model: str = "unit-test-model",
 ) -> Path:
     sample_suite = "Bearer suite.secret.token" if secret_metadata else "injection"
     sample_severity = "api_key=severitysecret" if secret_metadata and severity == "critical" else severity
     sample_owasp = "sk-owaspsecret1234567890" if secret_metadata else "LLM01"
     report = {
-        "target_model": "unit-test-model",
+        "target_model": target_model,
         "started_at": "2026-07-09T00:00:00",
         "finished_at": "2026-07-09T00:01:00",
         "overall_score": score,
@@ -184,6 +186,48 @@ def test_cli_review_writes_markdown(tmp_path):
     assert "needs_review" in text
 
 
+def test_evidence_index_summarizes_reports_docs_and_skips_non_scan_json(tmp_path):
+    validation = tmp_path / "validation"
+    validation.mkdir()
+    report_path = _write_report(
+        validation / "sk-reportsecret1234567890.json",
+        target_model="unit-test-model sk-modelsecret1234567890",
+    )
+    (validation / "mutation-results.json").write_text("[]", encoding="utf-8")
+    (validation / "NOTES.md").write_text("# Benchmark api_key=docsecret\n\nDetails", encoding="utf-8")
+
+    index = build_evidence_index(validation)
+    body = render_evidence_json(index)
+    markdown = render_evidence_markdown(index)
+
+    assert index["summary"]["reports"] == 1
+    assert index["summary"]["documents"] == 1
+    assert index["summary"]["skipped"] == 1
+    assert index["root"] == "validation"
+    assert index["reports"][0]["total_samples"] == 1
+    assert index["reports"][0]["failed"] == 1
+    assert index["reports"][0]["json_was_extracted"] is True
+    assert report_path.name not in body
+    assert "sk-modelsecret1234567890" not in body
+    assert "api_key=docsecret" not in body
+    assert "sk-[REDACTED]" in body
+    assert "api_key=[REDACTED]" in body
+    assert "mutation-results.json" in body
+    assert "Agent Redteam Evidence Index" in markdown
+
+
+def test_cli_evidence_writes_markdown(tmp_path):
+    validation = tmp_path / "validation"
+    validation.mkdir()
+    _write_report(validation / "scan.json", score=91.0, verdict="pass", severity="low")
+    output = tmp_path / "evidence.md"
+
+    assert main(["evidence", "--root", str(validation), "--output", str(output)]) == 0
+    text = output.read_text(encoding="utf-8")
+    assert "Agent Redteam Evidence Index" in text
+    assert "91.0" in text
+
+
 def test_doctor_detects_action_key_argv_pattern(tmp_path):
     root = tmp_path
     (root / "pyproject.toml").write_text('version = "0.3.0"\ndependencies = []\n', encoding="utf-8")
@@ -262,6 +306,21 @@ def test_doctor_warns_when_security_policy_is_missing(tmp_path):
     checks = {check.id: check for check in report.checks}
     assert checks["community.health"].status == "warn"
     assert "SECURITY.md" in checks["community.health"].detail
+
+
+def test_doctor_detects_validation_evidence_workflow(tmp_path):
+    root = tmp_path
+    src = root / "src" / "agent_redteam"
+    tests = root / "tests"
+    src.mkdir(parents=True)
+    tests.mkdir()
+    (src / "evidence.py").write_text("# evidence command\n", encoding="utf-8")
+    (src / "cli.py").write_text('sub.add_parser("evidence")\n', encoding="utf-8")
+    (tests / "test_maturity_commands.py").write_text("def test_evidence_index(): pass\n", encoding="utf-8")
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+    assert checks["validation.evidence_workflow"].status == "pass"
 
 
 def test_action_uses_env_key_not_argv():

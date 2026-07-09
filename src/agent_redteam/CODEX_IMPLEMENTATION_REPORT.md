@@ -331,6 +331,45 @@ Observed result:
 Score: 92.3/100  (11 pass, 2 warn, 0 fail)
 ```
 
+### 10. Validation evidence index
+
+Purpose: make benchmark and validation artifacts easier to review, hash, and cite without re-running scans.
+
+Files:
+- `evidence.py`
+- `cli.py`
+- `project_audit.py`
+- `tests/test_maturity_commands.py`
+
+Command:
+
+```bash
+agent-redteam evidence --root validation
+agent-redteam evidence --root validation --format json
+agent-redteam evidence --root validation --output validation/EVIDENCE_INDEX.md
+```
+
+Features:
+- scans a validation artifact directory for scan JSON reports
+- tolerates log prefixes by reusing the attestation JSON extraction path
+- emits raw SHA-256 and canonical SHA-256 for each report
+- summarizes model, score, sample counts, failed counts, weakest suite, and extracted-log status
+- indexes Markdown narrative reports with title, byte size, and SHA-256
+- skips non-scan JSON files with an explicit reason instead of failing the whole command
+- redacts common secret patterns in paths, model names, titles, and rendered output
+- adds a `doctor` check for the validation evidence workflow
+
+Observed against the current `validation/` directory:
+
+```text
+9 scan reports
+5 narrative documents
+3 skipped JSON files
+1800 total samples
+380 total failed
+79.2/100 average score
+```
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -357,6 +396,7 @@ python -m agent_redteam.cli report validation/full-300-final.json --output /tmp/
 python -m agent_redteam.cli report validation/full-300-final.json --format markdown --max-failures 2
 python -m agent_redteam.cli review validation/full-300-final.json --format jsonl --max-records 2
 python -m agent_redteam.cli review validation/full-300-final.json --format markdown --max-records 1 --output /tmp/agent-redteam-review.md
+python -m agent_redteam.cli evidence --root validation --output /tmp/agent-redteam-evidence.md
 pytest tests/test_maturity_commands.py -q
 pytest
 npm --prefix web run typecheck
@@ -367,7 +407,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-159 passed in 10.49s
+162 passed in 10.46s
 ```
 
 ## Current Git State Notes

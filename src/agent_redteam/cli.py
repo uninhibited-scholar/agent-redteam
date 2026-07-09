@@ -138,6 +138,16 @@ def main(argv: list[str] | None = None) -> int:
     p_review.add_argument("--snippet-chars", type=int, default=700,
                           help="问题/响应片段最大长度")
 
+    # evidence command
+    p_evidence = sub.add_parser("evidence", help="为 validation 目录生成可复现证据索引")
+    p_evidence.add_argument("--root", default="validation", help="验证产物目录")
+    p_evidence.add_argument("--format", choices=["markdown", "json"], default="markdown",
+                            help="输出格式")
+    p_evidence.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+    p_evidence.add_argument("--no-documents", action="store_true", help="不索引 Markdown 叙事报告")
+    p_evidence.add_argument("--max-reports", type=int, default=0,
+                            help="最多索引多少个 scan JSON；0 表示不限")
+
     args = parser.parse_args(argv)
 
     if args.command == "list":
@@ -160,6 +170,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_report(args)
     elif args.command == "review":
         return _cmd_review(args)
+    elif args.command == "evidence":
+        return _cmd_evidence(args)
     elif args.command == "serve":
         from .dashboard import serve_dashboard
         serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
@@ -587,6 +599,44 @@ def _cmd_review(args) -> int:
         print(f"Wrote {args.format} review queue: {args.output} ({summary['total']} records)")
     else:
         print(content, end="" if content.endswith("\n") else "\n")
+    return 0
+
+
+def _cmd_evidence(args) -> int:
+    from .evidence import (
+        EvidenceOptions,
+        build_evidence_index,
+        render_evidence_json,
+        render_evidence_markdown,
+        write_evidence_index,
+    )
+
+    try:
+        index = build_evidence_index(
+            args.root,
+            EvidenceOptions(
+                include_documents=not args.no_documents,
+                max_reports=args.max_reports,
+            ),
+        )
+        content = render_evidence_json(index) if args.format == "json" else render_evidence_markdown(index)
+    except Exception as exc:
+        print(f"ERROR: failed to build evidence index: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output:
+        try:
+            write_evidence_index(index, args.output, args.format)
+        except OSError as exc:
+            print(f"ERROR: failed to write evidence index: {exc}", file=sys.stderr)
+            return 1
+        summary = index["summary"]
+        print(
+            f"Wrote {args.format} evidence index: {args.output} "
+            f"({summary['reports']} reports, {summary['documents']} docs, {summary['skipped']} skipped)"
+        )
+    else:
+        print(content)
     return 0
 
 

@@ -68,6 +68,7 @@ def audit_project(root: str | Path | None = None) -> AuditReport:
         _check_test_suite_presence(project_root),
         _check_dashboard_static_assets(project_root),
         _check_validation_artifacts(project_root),
+        _check_validation_evidence_workflow(project_root),
         _check_release_artifacts(project_root),
         _check_git_worktree(project_root),
     ]
@@ -330,6 +331,33 @@ def _check_validation_artifacts(root: Path) -> AuditCheck:
         "warn",
         f"Found {len(reports)} report(s) and {len(json_runs)} JSON run artifact(s).",
         "Publish enough raw runs and narrative reports for benchmark claims to be reproducible.",
+    )
+
+
+def _check_validation_evidence_workflow(root: Path) -> AuditCheck:
+    evidence = root / "src" / "agent_redteam" / "evidence.py"
+    cli = _read(root / "src" / "agent_redteam" / "cli.py")
+    tests = _read(root / "tests" / "test_maturity_commands.py")
+    missing = []
+    if not evidence.exists():
+        missing.append("evidence.py")
+    if "evidence" not in cli:
+        missing.append("CLI command")
+    if "test_evidence_index" not in tests:
+        missing.append("tests")
+    if missing:
+        return AuditCheck(
+            "validation.evidence_workflow",
+            "Validation evidence workflow",
+            "warn",
+            f"Missing: {', '.join(missing)}.",
+            "Keep a tested command for indexing benchmark artifacts and reproducibility hashes.",
+        )
+    return AuditCheck(
+        "validation.evidence_workflow",
+        "Validation evidence workflow",
+        "pass",
+        "Evidence indexing command and tests are present.",
     )
 
 

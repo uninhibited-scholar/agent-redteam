@@ -37,6 +37,7 @@ python -m agent_redteam.cli doctor
 - [ ] Generate an attestation card with `agent-redteam attest`.
 - [ ] Generate a shareable HTML report with `agent-redteam report`.
 - [ ] Export failed samples for human review with `agent-redteam review`.
+- [ ] Generate a validation artifact index with `agent-redteam evidence --root validation`.
 - [ ] Record model, target, sample limit, date, and command line in the validation note.
 
 ## 5. Packaging
