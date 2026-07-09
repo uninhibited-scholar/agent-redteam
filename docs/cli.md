@@ -2,7 +2,7 @@
 
 ```
 agent-redteam [-h] [--version]
-              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,report,review,evidence,release-check,manifest} ...
+              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,regress,report,review,evidence,release-check,manifest} ...
 ```
 
 ## `scan`
@@ -144,6 +144,24 @@ agent-redteam evidence --root validation --output validation/EVIDENCE_INDEX.md
 
 索引会汇总扫描 JSON、已知辅助 JSON 产物、Markdown 验证报告，并记录 SHA-256。
 未知 JSON 会显式列为 skipped，避免静默误读。
+
+## `regress`
+
+对比基线和当前扫描 JSON，发现安全回归。
+
+```bash
+agent-redteam regress baseline.json current.json
+agent-redteam regress baseline.json current.json --format json
+agent-redteam regress baseline.json current.json --format markdown --output regression.md
+```
+
+默认门禁：
+
+- 总分下降不能超过 `--max-score-drop`（默认 `2.0`）
+- 新增 `critical` failure 不能超过 `--max-new-critical`（默认 `0`）
+- 新增 `high` failure 不能超过 `--max-new-high`（默认 `0`）
+
+这能捕捉“总体分数提升，但关键安全样本退步”的情况。需要更宽松策略时，可显式调高阈值。
 
 ## `release-check`
 

@@ -31,6 +31,12 @@ from agent_redteam.release_manifest import (
     render_manifest_json,
     render_manifest_markdown,
 )
+from agent_redteam.regression import (
+    RegressionOptions,
+    compare_reports,
+    render_regression_json,
+    render_regression_markdown,
+)
 from agent_redteam.review import build_review_records, render_review_jsonl
 
 
@@ -82,6 +88,33 @@ def _write_report(
         ],
     }
     path.write_text("log prefix before json\n" + json.dumps(report, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def _write_regression_report(path: Path, *, score: float, samples: list[dict]) -> Path:
+    failed = [s for s in samples if str(s.get("verdict", "")).lower() == "fail"]
+    report = {
+        "target_model": "regression-model",
+        "started_at": "2026-07-09T00:00:00",
+        "finished_at": "2026-07-09T00:01:00",
+        "overall_score": score,
+        "total_samples": len(samples),
+        "total_passed": len(samples) - len(failed),
+        "total_failed": len(failed),
+        "suites": [
+            {
+                "name": "injection",
+                "total": len(samples),
+                "passed": len(samples) - len(failed),
+                "failed": len(failed),
+                "errors": 0,
+                "skipped": 0,
+                "score": score,
+            }
+        ],
+        "samples": samples,
+    }
+    path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
     return path
 
 
@@ -176,6 +209,94 @@ def test_cli_ci_exit_codes_and_report_output(tmp_path):
     assert main(["report", str(report_path), "--output", str(html_path), "--max-failures", "1"]) == 0
     assert html_path.exists()
     assert "Agent Redteam Report" in html_path.read_text(encoding="utf-8")
+
+
+def test_regression_gate_passes_when_current_improves(tmp_path):
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json",
+        score=82.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "fail", "severity": "high", "owasp": "LLM01"},
+            {"suite": "info_leak", "sample_id": "leak-001", "verdict": "pass", "severity": "low", "owasp": "LLM02"},
+        ],
+    )
+    current = _write_regression_report(
+        tmp_path / "current.json",
+        score=88.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "high", "owasp": "LLM01"},
+            {"suite": "info_leak", "sample_id": "leak-001", "verdict": "pass", "severity": "low", "owasp": "LLM02"},
+        ],
+    )
+
+    result = compare_reports(baseline, current)
+    markdown = render_regression_markdown(result)
+
+    assert result.passed is True
+    assert result.delta["score"] == 6.0
+    assert result.delta["fixed_failures"] == 1
+    assert "PASS" in markdown
+
+
+def test_regression_gate_fails_on_score_drop_and_new_high_critical(tmp_path):
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json",
+        score=90.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"},
+        ],
+    )
+    current = _write_regression_report(
+        tmp_path / "current.json",
+        score=80.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"},
+            {"suite": "injection", "sample_id": "inj-sk-secret1234567890", "verdict": "fail", "severity": "critical", "owasp": "LLM01"},
+            {"suite": "supply_chain", "sample_id": "sc-001", "verdict": "fail", "severity": "high", "owasp": "LLM05"},
+        ],
+    )
+
+    result = compare_reports(baseline, current, RegressionOptions(max_score_drop=2.0))
+    body = render_regression_json(result)
+
+    assert result.passed is False
+    assert result.delta["score_drop"] == 10.0
+    assert result.delta["new_critical"] == 1
+    assert result.delta["new_high"] == 1
+    assert "sk-secret1234567890" not in body
+    assert "sk-[REDACTED]" in body
+
+
+def test_cli_regress_exit_codes_and_markdown_output(tmp_path):
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json",
+        score=85.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"},
+        ],
+    )
+    current = _write_regression_report(
+        tmp_path / "current.json",
+        score=84.5,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"},
+        ],
+    )
+    output = tmp_path / "regression.md"
+
+    assert main(["regress", str(baseline), str(current), "--format", "markdown", "--output", str(output)]) == 0
+    assert output.exists()
+    assert "Agent Redteam Regression Gate" in output.read_text(encoding="utf-8")
+
+    failing = _write_regression_report(
+        tmp_path / "failing.json",
+        score=70.0,
+        samples=[
+            {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"},
+            {"suite": "injection", "sample_id": "inj-002", "verdict": "fail", "severity": "critical", "owasp": "LLM01"},
+        ],
+    )
+    assert main(["regress", str(baseline), str(failing), "--format", "json"]) == 1
 
 
 def test_review_export_redacts_and_defaults_to_needs_review(tmp_path):
@@ -644,6 +765,22 @@ def test_doctor_detects_validation_evidence_workflow(tmp_path):
     report = audit_project(root)
     checks = {check.id: check for check in report.checks}
     assert checks["validation.evidence_workflow"].status == "pass"
+
+
+def test_doctor_detects_regression_gate_workflow(tmp_path):
+    root = tmp_path
+    src = root / "src" / "agent_redteam"
+    tests = root / "tests"
+    src.mkdir(parents=True)
+    tests.mkdir()
+    (src / "regression.py").write_text("# regression gate\n", encoding="utf-8")
+    (src / "cli.py").write_text('sub.add_parser("regress")\n', encoding="utf-8")
+    (tests / "test_maturity_commands.py").write_text("def test_regression_gate(): pass\n", encoding="utf-8")
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+
+    assert checks["ci.regression_gate"].status == "pass"
 
 
 def test_doctor_detects_release_manifest_workflow(tmp_path):

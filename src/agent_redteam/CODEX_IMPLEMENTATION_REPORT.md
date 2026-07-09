@@ -459,6 +459,52 @@ evidence: 9 reports / 2 auxiliary / 5 docs / 0 skipped
 samples: 1800 total / 380 failed / 79.2 average score
 ```
 
+### 13. Regression gate
+
+Purpose: catch security regressions between a previously accepted baseline scan and a current scan, even when the overall score improves.
+
+Files:
+- `regression.py`
+- `cli.py`
+- `project_audit.py`
+- `docs/cli.md`
+- `RELEASE_CHECKLIST.md`
+- `tests/test_maturity_commands.py`
+
+Command:
+
+```bash
+agent-redteam regress baseline.json current.json
+agent-redteam regress baseline.json current.json --format json
+agent-redteam regress baseline.json current.json --format markdown --output regression.md
+```
+
+Features:
+- compares baseline vs current scan JSON using stable `(suite, sample_id)` keys
+- reports score delta, failed-count delta, new failures, fixed failures, new critical failures, and new high failures
+- defaults to allowing at most a 2.0 point score drop, 0 new critical failures, and 0 new high failures
+- supports optional `--max-new-failures`
+- renders terminal, JSON, and Markdown
+- returns exit 1 when the regression gate fails, so it can be used in CI
+- redacts common secret patterns in sample metadata before rendering
+- adds a `doctor` check for the regression gate workflow
+
+Observed local behavior on validation reports:
+
+```text
+baseline: validation/full-300-v2.json
+current: validation/full-300-final.json
+score: 83.5 -> 84.6 (+1.10)
+failed: 56 -> 53 (-3)
+new failures: 7
+fixed failures: 10
+new critical: 2
+new high: 3
+default gate: FAIL
+```
+
+This is intentional: the total score improved, but critical/high sample regressions appeared.
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -486,6 +532,7 @@ python -m agent_redteam.cli report validation/full-300-final.json --format markd
 python -m agent_redteam.cli review validation/full-300-final.json --format jsonl --max-records 2
 python -m agent_redteam.cli review validation/full-300-final.json --format markdown --max-records 1 --output /tmp/agent-redteam-review.md
 python -m agent_redteam.cli evidence --root validation --output /tmp/agent-redteam-evidence.md
+python -m agent_redteam.cli regress validation/full-300-v2.json validation/full-300-final.json --format json
 python -m agent_redteam.cli release-check --format json
 python -m agent_redteam.cli manifest --format json
 python -m agent_redteam.cli manifest --include-release-check --skip-tests --skip-frontend --skip-evidence --skip-artifacts --format markdown
@@ -499,7 +546,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-175 passed in 10.78s
+179 passed in 10.81s
 ```
 
 ## Current Git State Notes
@@ -517,6 +564,7 @@ Codex-created or modified files:
 - `evidence.py`
 - `release_gate.py`
 - `release_manifest.py`
+- `regression.py`
 - `CODEX_IMPLEMENTATION_REPORT.md`
 - `tests/test_maturity_commands.py`
 

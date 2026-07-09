@@ -114,6 +114,24 @@ def main(argv: list[str] | None = None) -> int:
     p_ci.add_argument("--summary-file", default="", help="额外写出 Markdown summary 文件（适合 $GITHUB_STEP_SUMMARY）")
     p_ci.add_argument("--print-sample-policy", action="store_true", help="打印 .agent-redteam-policy.yml 模板")
 
+    # regress command
+    p_regress = sub.add_parser("regress", help="对比基线和当前扫描 JSON，发现安全回归")
+    p_regress.add_argument("baseline", help="基线 scan --format json 报告")
+    p_regress.add_argument("current", help="当前 scan --format json 报告")
+    p_regress.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal",
+                           help="输出格式")
+    p_regress.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+    p_regress.add_argument("--max-score-drop", type=float, default=2.0,
+                           help="允许的最大总分下降，默认 2.0")
+    p_regress.add_argument("--max-new-critical", type=int, default=0,
+                           help="允许新增 critical failure 数，默认 0")
+    p_regress.add_argument("--max-new-high", type=int, default=0,
+                           help="允许新增 high failure 数，默认 0")
+    p_regress.add_argument("--max-new-failures", type=int, default=-1,
+                           help="允许新增 failure 总数；默认不限制总数，只限制 high/critical")
+    p_regress.add_argument("--max-items", type=int, default=20,
+                           help="输出中最多列出的新增/修复样本数")
+
     # report command
     p_report = sub.add_parser("report", help="从扫描 JSON 生成独立 HTML/Markdown 报告")
     p_report.add_argument("scan_json", help="scan --format json 生成的报告文件")
@@ -197,6 +215,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_init(args)
     elif args.command == "ci":
         return _cmd_ci(args)
+    elif args.command == "regress":
+        return _cmd_regress(args)
     elif args.command == "report":
         return _cmd_report(args)
     elif args.command == "review":
@@ -573,6 +593,50 @@ def _cmd_ci(args) -> int:
     else:
         print(render_policy_terminal(result))
 
+    return 0 if result.passed else 1
+
+
+def _cmd_regress(args) -> int:
+    from .regression import (
+        RegressionOptions,
+        compare_reports,
+        render_regression_json,
+        render_regression_markdown,
+        render_regression_terminal,
+        write_regression,
+    )
+
+    try:
+        result = compare_reports(
+            args.baseline,
+            args.current,
+            RegressionOptions(
+                max_score_drop=args.max_score_drop,
+                max_new_critical=args.max_new_critical,
+                max_new_high=args.max_new_high,
+                max_new_failures=None if args.max_new_failures < 0 else args.max_new_failures,
+                max_items=args.max_items,
+            ),
+        )
+        if args.format == "json":
+            content = render_regression_json(result)
+        elif args.format == "markdown":
+            content = render_regression_markdown(result)
+        else:
+            content = render_regression_terminal(result)
+    except Exception as exc:
+        print(f"ERROR: failed to compare regression reports: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output:
+        try:
+            write_regression(result, args.output, args.format)
+        except OSError as exc:
+            print(f"ERROR: failed to write regression report: {exc}", file=sys.stderr)
+            return 1
+        print(f"Wrote {args.format} regression report: {args.output}")
+    else:
+        print(content)
     return 0 if result.passed else 1
 
 

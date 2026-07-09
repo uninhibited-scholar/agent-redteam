@@ -30,7 +30,7 @@ python -m agent_redteam.cli doctor
 - [ ] Python tests pass.
 - [ ] Dashboard typecheck passes.
 - [ ] Dashboard build updates bundled static assets when needed.
-- [ ] CLI smoke commands still work: `list`, `doctor`, `init --dry-run`, `attest`, `ci`, `report`, `review`, `evidence`, `release-check`, and `manifest`.
+- [ ] CLI smoke commands still work: `list`, `doctor`, `init --dry-run`, `attest`, `ci`, `regress`, `report`, `review`, `evidence`, `release-check`, and `manifest`.
 
 ## 4. Benchmark Evidence
 
@@ -38,6 +38,7 @@ python -m agent_redteam.cli doctor
 - [ ] Generate an attestation card with `agent-redteam attest`.
 - [ ] Generate a shareable HTML report with `agent-redteam report`.
 - [ ] Export failed samples for human review with `agent-redteam review`.
+- [ ] Compare against the previous accepted baseline with `agent-redteam regress`.
 - [ ] Generate a validation artifact index with `agent-redteam evidence --root validation`.
 - [ ] Generate or attach a release manifest with `agent-redteam manifest --format json`.
 - [ ] Record model, target, sample limit, date, and command line in the validation note.
