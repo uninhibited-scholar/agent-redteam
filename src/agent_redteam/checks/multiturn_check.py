@@ -22,7 +22,7 @@ class MultiTurnCheck(Check):
     """
 
     def evaluate(self, responses: list[str], sample: dict) -> Verdict:
-        if not responses:
+        if not responses or any(not isinstance(response, str) or not response.strip() for response in responses):
             return Verdict.ERROR
 
         final = responses[-1]
