@@ -39,6 +39,7 @@ from agent_redteam.regression import (
 )
 from agent_redteam.review import build_review_records, render_review_jsonl
 from agent_redteam.sbom import build_sbom, render_sbom_json, render_sbom_markdown
+from agent_redteam.waivers import evaluate_waivers, sample_waivers
 
 
 def _write_report(
@@ -228,6 +229,96 @@ def test_ci_policy_fails_and_passes_with_explicit_policy(tmp_path):
     assert permissive.passed is True
 
 
+def test_ci_policy_applies_active_waivers_to_failure_counts(tmp_path):
+    report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
+    waivers_path = tmp_path / "waivers.json"
+    waivers_path.write_text(
+        json.dumps(
+            {
+                "waivers": [
+                    {
+                        "suite": "injection",
+                        "sample_id": "inj-sk-meta1234567890abcd",
+                        "owner": "secops@example.com",
+                        "reason": "Accepted temporarily while upstream guardrail is deployed.",
+                        "expires": "2099-12-31",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = evaluate_report(report_path, waivers_path=waivers_path)
+    rendered = json.dumps(result.to_dict(), ensure_ascii=False)
+
+    assert result.passed is True
+    assert result.critical_failures == 0
+    assert result.waived_failures == 1
+    assert "inj-sk-meta1234567890abcd" not in rendered
+    assert "sk-[REDACTED]" in rendered
+
+
+def test_ci_policy_fails_on_expired_or_invalid_waivers(tmp_path):
+    report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
+    expired = tmp_path / "expired.json"
+    expired.write_text(
+        json.dumps(
+            {
+                "waivers": [
+                    {
+                        "suite": "injection",
+                        "sample_id": "inj-sk-meta1234567890abcd",
+                        "owner": "secops@example.com",
+                        "reason": "Old acceptance.",
+                        "expires": "2000-01-01",
+                    },
+                    {
+                        "suite": "injection",
+                        "sample_id": "inj-002",
+                        "owner": "",
+                        "reason": "",
+                        "expires": "2099-12-31",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = evaluate_report(report_path, waivers_path=expired)
+    findings = {finding.rule: finding for finding in result.findings}
+
+    assert result.passed is False
+    assert findings["waivers.expired"].status == "fail"
+    assert findings["waivers.valid"].status == "fail"
+
+
+def test_waiver_evaluation_reports_unused_active_waivers(tmp_path):
+    waivers_path = tmp_path / "waivers.json"
+    waivers_path.write_text(
+        json.dumps(
+            {
+                "waivers": [
+                    {
+                        "suite": "injection",
+                        "sample_id": "inj-unused",
+                        "owner": "secops@example.com",
+                        "reason": "No longer needed.",
+                        "expires": "2099-12-31",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    evaluation = evaluate_waivers([], waivers_path)
+
+    assert len(evaluation.active) == 0
+    assert len(evaluation.unused) == 1
+
+
 def test_cli_ci_exit_codes_and_report_output(tmp_path):
     report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
     html_path = tmp_path / "report.html"
@@ -237,6 +328,8 @@ def test_cli_ci_exit_codes_and_report_output(tmp_path):
     assert main(["report", str(report_path), "--output", str(html_path), "--max-failures", "1"]) == 0
     assert html_path.exists()
     assert "Agent Redteam Report" in html_path.read_text(encoding="utf-8")
+    assert main(["ci", "--print-sample-waivers"]) == 0
+    assert "waivers" in sample_waivers()
 
 
 def test_regression_gate_passes_when_current_improves(tmp_path):
@@ -970,6 +1063,23 @@ def test_doctor_detects_validation_evidence_workflow(tmp_path):
     report = audit_project(root)
     checks = {check.id: check for check in report.checks}
     assert checks["validation.evidence_workflow"].status == "pass"
+
+
+def test_doctor_detects_waiver_workflow(tmp_path):
+    root = tmp_path
+    src = root / "src" / "agent_redteam"
+    tests = root / "tests"
+    src.mkdir(parents=True)
+    tests.mkdir()
+    (src / "waivers.py").write_text("# waivers\n", encoding="utf-8")
+    (src / "ci_policy.py").write_text("from .waivers import evaluate_waivers\n", encoding="utf-8")
+    (src / "cli.py").write_text('p_ci.add_argument("--waivers")\n', encoding="utf-8")
+    (tests / "test_maturity_commands.py").write_text("def test_ci_policy_applies_active_waivers(): pass\n", encoding="utf-8")
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+
+    assert checks["ci.waiver_workflow"].status == "pass"
 
 
 def test_doctor_detects_sbom_workflow(tmp_path):

@@ -559,6 +559,51 @@ dev dependencies: 117
 release artifacts: 2
 ```
 
+### 15. Risk acceptance waivers
+
+Purpose: let teams temporarily accept specific known failures without weakening the global CI policy.
+
+Files:
+- `waivers.py`
+- `ci_policy.py`
+- `cli.py`
+- `project_audit.py`
+- `docs/cli.md`
+- `RELEASE_CHECKLIST.md`
+- `tests/test_maturity_commands.py`
+
+Command:
+
+```bash
+agent-redteam ci scan.json --waivers .agent-redteam-waivers.json
+agent-redteam ci --print-sample-waivers
+```
+
+Features:
+- waiver records are keyed by `(suite, sample_id)`
+- each waiver must include `owner`, `reason`, and ISO `expires`
+- active waivers are subtracted from high/critical failure counts
+- expired or invalid waivers fail the CI gate
+- unused active waivers render as warnings so teams can prune stale risk acceptances
+- waiver output reuses redaction for emails, secrets, sample IDs, and reasons
+- adds a `doctor` check for the waiver workflow
+
+Observed local behavior:
+
+```text
+baseline CI on validation/full-300-final.json:
+critical failures: 8
+high failures: 24
+waived failures: 0
+exit: 1
+
+with temporary waiver for excessive_agency/ea-017:
+critical failures: 7
+high failures: 24
+waived failures: 1
+exit: 1 because remaining high/critical still exceed policy
+```
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -580,6 +625,8 @@ python -m agent_redteam.cli init --target zai --api-key sk-test-secret-123456789
 python -m agent_redteam.cli attest validation/full-300-final.json --max-failures 3
 python -m agent_redteam.cli ci validation/full-300-final.json
 python -m agent_redteam.cli ci validation/full-300-final.json --policy /tmp/agent-redteam-pass-policy.yml --summary-file /tmp/agent-redteam-ci-summary.md
+python -m agent_redteam.cli ci --print-sample-waivers
+python -m agent_redteam.cli ci validation/full-300-final.json --waivers /tmp/agent-redteam-waivers.json --format json
 python -m agent_redteam.cli doctor
 python -m agent_redteam.cli report validation/full-300-final.json --output /tmp/agent-redteam-report.html --max-failures 5
 python -m agent_redteam.cli report validation/full-300-final.json --format markdown --max-failures 2
@@ -602,7 +649,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-186 passed in 10.98s
+190 passed in 11.08s
 ```
 
 ## Current Git State Notes
@@ -622,6 +669,7 @@ Codex-created or modified files:
 - `release_manifest.py`
 - `regression.py`
 - `sbom.py`
+- `waivers.py`
 - `CODEX_IMPLEMENTATION_REPORT.md`
 - `tests/test_maturity_commands.py`
 

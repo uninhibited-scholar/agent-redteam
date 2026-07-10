@@ -113,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
                       help="输出格式")
     p_ci.add_argument("--summary-file", default="", help="额外写出 Markdown summary 文件（适合 $GITHUB_STEP_SUMMARY）")
     p_ci.add_argument("--print-sample-policy", action="store_true", help="打印 .agent-redteam-policy.yml 模板")
+    p_ci.add_argument("--waivers", default="", help="风险接受 waiver JSON 文件")
+    p_ci.add_argument("--print-sample-waivers", action="store_true", help="打印 waiver JSON 模板")
 
     # regress command
     p_regress = sub.add_parser("regress", help="对比基线和当前扫描 JSON，发现安全回归")
@@ -576,16 +578,20 @@ def _cmd_ci(args) -> int:
         render_policy_terminal,
         sample_policy,
     )
+    from .waivers import sample_waivers
 
     if args.print_sample_policy:
         print(sample_policy())
         return 0
+    if args.print_sample_waivers:
+        print(sample_waivers())
+        return 0
     if not args.report:
-        print("ERROR: report file is required unless --print-sample-policy is used", file=sys.stderr)
+        print("ERROR: report file is required unless --print-sample-policy or --print-sample-waivers is used", file=sys.stderr)
         return 2
 
     try:
-        result = evaluate_report(args.report, args.policy or None)
+        result = evaluate_report(args.report, args.policy or None, args.waivers or None)
     except Exception as exc:
         print(f"ERROR: failed to evaluate CI policy: {exc}", file=sys.stderr)
         return 1

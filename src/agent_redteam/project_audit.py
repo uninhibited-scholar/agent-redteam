@@ -66,6 +66,7 @@ def audit_project(root: str | Path | None = None) -> AuditReport:
         _check_community_health_files(project_root),
         _check_web_quality_scripts(project_root),
         _check_test_suite_presence(project_root),
+        _check_waiver_workflow(project_root),
         _check_sbom_workflow(project_root),
         _check_regression_gate_workflow(project_root),
         _check_dashboard_static_assets(project_root),
@@ -300,6 +301,36 @@ def _check_test_suite_presence(root: Path) -> AuditCheck:
         "warn",
         f"Found {len(tests)} test modules.",
         "Keep dedicated tests for CLI, core engine, targets, dashboard API, and mutation logic.",
+    )
+
+
+def _check_waiver_workflow(root: Path) -> AuditCheck:
+    waivers = root / "src" / "agent_redteam" / "waivers.py"
+    ci_policy = _read(root / "src" / "agent_redteam" / "ci_policy.py")
+    cli = _read(root / "src" / "agent_redteam" / "cli.py")
+    tests = _read(root / "tests" / "test_maturity_commands.py")
+    missing = []
+    if not waivers.exists():
+        missing.append("waivers.py")
+    if "evaluate_waivers" not in ci_policy:
+        missing.append("CI integration")
+    if "--waivers" not in cli:
+        missing.append("CLI flag")
+    if "test_ci_policy_applies_active_waivers" not in tests:
+        missing.append("tests")
+    if missing:
+        return AuditCheck(
+            "ci.waiver_workflow",
+            "Risk acceptance workflow",
+            "warn",
+            f"Missing: {', '.join(missing)}.",
+            "Keep tested, expiring waivers so teams can accept known risk without weakening global policy.",
+        )
+    return AuditCheck(
+        "ci.waiver_workflow",
+        "Risk acceptance workflow",
+        "pass",
+        "Expiring CI waivers and tests are present.",
     )
 
 

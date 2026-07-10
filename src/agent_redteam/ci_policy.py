@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .attest import load_report
+from .waivers import WaiverEvaluation, evaluate_waivers
 
 
 DEFAULT_POLICY = {
@@ -45,6 +46,8 @@ class PolicyResult:
     critical_failures: int
     high_failures: int
     error_count: int
+    waived_failures: int
+    waivers: dict[str, Any]
     findings: list[PolicyFinding]
     policy: dict[str, Any]
 
@@ -66,15 +69,22 @@ def load_policy(path: str | Path | None = None) -> dict[str, Any]:
     return policy
 
 
-def evaluate_report(report_path: str | Path, policy_path: str | Path | None = None) -> PolicyResult:
+def evaluate_report(
+    report_path: str | Path,
+    policy_path: str | Path | None = None,
+    waivers_path: str | Path | None = None,
+) -> PolicyResult:
     report, _ = load_report(report_path)
     policy = load_policy(policy_path)
     samples = report.get("samples") if isinstance(report.get("samples"), list) else []
+    waivers = evaluate_waivers(samples, waivers_path)
     suites = report.get("suites") if isinstance(report.get("suites"), list) else []
     failed = [s for s in samples if str(s.get("verdict", "")).lower() == "fail"]
+    active_waiver_keys = waivers.active_keys
+    unwaived_failed = [s for s in failed if (str(s.get("suite", "")), str(s.get("sample_id", ""))) not in active_waiver_keys]
     errors = [s for s in samples if str(s.get("verdict", "")).lower() == "error"]
-    critical = [s for s in failed if str(s.get("severity", "")).lower() == "critical"]
-    high = [s for s in failed if str(s.get("severity", "")).lower() == "high"]
+    critical = [s for s in unwaived_failed if str(s.get("severity", "")).lower() == "critical"]
+    high = [s for s in unwaived_failed if str(s.get("severity", "")).lower() == "high"]
     score = _number(report.get("overall_score"), 0)
     findings: list[PolicyFinding] = []
 
@@ -84,8 +94,9 @@ def evaluate_report(report_path: str | Path, policy_path: str | Path | None = No
     _check_errors(findings, len(errors), bool(policy.get("allow_errors")))
     _check_required_suites(findings, suites, str(policy.get("required_suites", "")))
     _check_target_allowlist(findings, str(report.get("target_model", "")), str(policy.get("target_allowlist", "")))
+    _check_waivers(findings, waivers)
 
-    passed = all(f.status == "pass" for f in findings)
+    passed = all(f.status != "fail" for f in findings)
     return PolicyResult(
         passed=passed,
         score=score,
@@ -94,6 +105,8 @@ def evaluate_report(report_path: str | Path, policy_path: str | Path | None = No
         critical_failures=len(critical),
         high_failures=len(high),
         error_count=len(errors),
+        waived_failures=len(waivers.active),
+        waivers=waivers.to_dict(),
         findings=findings,
         policy=policy,
     )
@@ -108,6 +121,7 @@ def render_policy_terminal(result: PolicyResult) -> str:
         f"Samples: {result.total_samples} total, {result.total_failed} failed",
         f"Critical failures: {result.critical_failures}",
         f"High failures: {result.high_failures}",
+        f"Waived failures: {result.waived_failures}",
         f"Errors: {result.error_count}",
         "",
     ]
@@ -130,6 +144,7 @@ def render_policy_markdown(result: PolicyResult) -> str:
         f"| Failed samples | {result.total_failed} |",
         f"| Critical failures | {result.critical_failures} |",
         f"| High failures | {result.high_failures} |",
+        f"| Waived failures | {result.waived_failures} |",
         f"| Errors | {result.error_count} |",
         "",
         "### Policy Findings",
@@ -164,6 +179,21 @@ def sample_policy() -> str:
         "target_allowlist: ",
         "",
     ])
+
+
+def _check_waivers(findings: list[PolicyFinding], waivers: WaiverEvaluation) -> None:
+    if waivers.invalid:
+        findings.append(PolicyFinding("waivers.valid", "fail", f"{len(waivers.invalid)} invalid waiver(s)"))
+    else:
+        findings.append(PolicyFinding("waivers.valid", "pass", "all waiver records are valid"))
+    if waivers.expired:
+        findings.append(PolicyFinding("waivers.expired", "fail", f"{len(waivers.expired)} expired waiver(s)"))
+    else:
+        findings.append(PolicyFinding("waivers.expired", "pass", "no expired waivers"))
+    if waivers.unused:
+        findings.append(PolicyFinding("waivers.unused", "warn", f"{len(waivers.unused)} active waiver(s) did not match current failures"))
+    else:
+        findings.append(PolicyFinding("waivers.unused", "pass", "no unused active waivers"))
 
 
 def _parse_simple_policy(text: str) -> dict[str, Any]:

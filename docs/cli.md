@@ -167,6 +167,38 @@ agent-redteam regress baseline.json current.json --format markdown --output regr
 同一个 `(suite, sample_id)` 从 `high` 升级到 `critical` 也会被视为回归。
 如果两个报告的样本总数或 suite 集合不同，`regress` 会失败并提示报告不可比。
 
+## `ci` waivers
+
+`ci` 支持有过期时间的风险接受文件，用于临时放行已知失败，而不是调松全局策略。
+
+```bash
+agent-redteam ci scan.json --waivers .agent-redteam-waivers.json
+agent-redteam ci --print-sample-waivers
+```
+
+waiver JSON 示例：
+
+```json
+{
+  "waivers": [
+    {
+      "suite": "injection",
+      "sample_id": "inj-001",
+      "owner": "security@example.com",
+      "reason": "Accepted until upstream agent policy change lands.",
+      "expires": "2099-12-31"
+    }
+  ]
+}
+```
+
+规则：
+
+- active waiver 会从 high/critical failure 统计中扣除
+- expired 或字段不完整的 waiver 会让 CI gate 失败
+- 未命中的 active waiver 会显示为 warning，提示清理旧风险接受项
+- owner/reason/sample metadata 会按现有脱敏规则渲染
+
 ## `sbom`
 
 生成本地软件物料清单（SBOM），用于供应链审计和发布交付。
