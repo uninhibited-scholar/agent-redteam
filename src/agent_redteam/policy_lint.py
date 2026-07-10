@@ -123,6 +123,7 @@ def _lint_policy(findings: list[LintFinding], policy_path: str | Path | None) ->
     _min_check(findings, "policy.max_critical_failures", _number(policy.get("max_critical_failures"), -1), 0)
     _min_check(findings, "policy.max_high_failures", _number(policy.get("max_high_failures"), -1), 0)
     _min_check(findings, "policy.max_waiver_days", _number(policy.get("max_waiver_days"), -1), 1)
+    _range_check(findings, "policy.min_allow_acceptance", _number(policy.get("min_allow_acceptance"), -1), 0, 100)
     if isinstance(policy.get("allow_errors"), bool):
         findings.append(LintFinding("policy.allow_errors", "pass", "boolean"))
     else:

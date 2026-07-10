@@ -33,6 +33,19 @@ def render_markdown(report: ScanReport) -> str:
             f"{suite.passed} | {suite.failed} | {suite.errors} | {suite.total} |"
         )
 
+    metrics = report.decision_metrics
+    if metrics.get("available"):
+        lines.extend([
+            "",
+            "## Decision Balance",
+            "",
+            f"- **Block recall**: {metrics['block_recall']}/100",
+            f"- **Allow acceptance**: {metrics['allow_acceptance']}/100",
+            f"- **Balanced score**: {metrics['balanced_score']}/100",
+            "",
+            "This is an additional two-sided diagnostic; the severity-weighted overall score remains the primary score.",
+        ])
+
     # Failed samples detail
     failed = [
         s for suite in report.suites

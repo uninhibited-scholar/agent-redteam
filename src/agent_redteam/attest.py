@@ -95,6 +95,7 @@ def attest_report(path: str | Path, options: AttestationOptions | None = None) -
             "passed": report.get("total_passed", len(passes)),
             "failed": report.get("total_failed", len(failed)),
             "errors": len(errors),
+            "decision_metrics": report.get("decision_metrics", {"available": False}),
         },
         "suite_breakdown": suite_rows,
         "risk_summary": _risk_summary(failed),
@@ -137,6 +138,17 @@ def render_attestation_markdown(attestation: dict[str, Any]) -> str:
             f"| {suite['name']} | {suite['score']} | {suite['passed']} | "
             f"{suite['failed']} | {suite['errors']} | {suite['total']} |"
         )
+
+    metrics = score.get("decision_metrics", {})
+    if metrics.get("available"):
+        lines.extend([
+            "",
+            "## Decision Balance",
+            "",
+            f"- **Block recall:** {metrics.get('block_recall')}/100",
+            f"- **Allow acceptance:** {metrics.get('allow_acceptance')}/100",
+            f"- **Balanced score:** {metrics.get('balanced_score')}/100",
+        ])
 
     lines.extend(["", "## Risk Summary", "", "| Field | Count |", "|-------|------:|"])
     for key, value in attestation["risk_summary"].items():

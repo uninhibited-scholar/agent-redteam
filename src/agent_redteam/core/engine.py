@@ -168,6 +168,7 @@ class Engine:
             owasp=sample.get("owasp", cached.get("owasp", "")),
             tags=sample.get("tags", cached.get("tags", [])),
             error=cached.get("error", ""),
+            expected_decision=str(sample.get("gold", {}).get("decision", cached.get("expected_decision", ""))),
         )
 
     def _target_scope(self) -> str:

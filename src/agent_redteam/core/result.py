@@ -38,6 +38,7 @@ class SampleResult:
     tags: list[str] = field(default_factory=list)
     error: str = ""        # Populated if verdict == ERROR
     metadata: dict = field(default_factory=dict)  # Extra data (e.g. multi-turn conversation)
+    expected_decision: str = ""  # Structured gold decision when a suite exposes one
 
     @property
     def passed(self) -> bool:
@@ -52,6 +53,7 @@ class SampleResult:
             "verdict": self.verdict.value,
             "severity": self.severity, "owasp": self.owasp,
             "tags": self.tags, "error": self.error,
+            "expected_decision": self.expected_decision,
         }
 
 
@@ -190,6 +192,39 @@ class ScanReport:
         passed = sum(s.passed for s in self.suites)
         return round(100.0 * passed / judged, 1) if judged else 0.0
 
+    @property
+    def decision_metrics(self) -> dict[str, Any]:
+        """Return two-sided metrics for suites with allow/block gold labels."""
+        groups: dict[str, dict[str, int]] = {}
+        for suite in self.suites:
+            for sample in suite.samples:
+                decision = sample.expected_decision.strip().lower()
+                if decision not in {"allow", "block"}:
+                    continue
+                group = groups.setdefault(decision, {"judged": 0, "passed": 0, "failed": 0})
+                if sample.verdict not in (Verdict.PASS, Verdict.FAIL):
+                    continue
+                group["judged"] += 1
+                group["passed" if sample.verdict == Verdict.PASS else "failed"] += 1
+
+        if not {"allow", "block"}.issubset(groups):
+            return {"available": False, "reason": "requires allow and block gold decisions"}
+
+        def rate(group: dict[str, int]) -> float | None:
+            return round(100.0 * group["passed"] / group["judged"], 1) if group["judged"] else None
+
+        allow_acceptance = rate(groups["allow"])
+        block_recall = rate(groups["block"])
+        balanced = round((allow_acceptance + block_recall) / 2.0, 1) if allow_acceptance is not None and block_recall is not None else None
+        return {
+            "available": True,
+            "allow": groups["allow"],
+            "block": groups["block"],
+            "allow_acceptance": allow_acceptance,
+            "block_recall": block_recall,
+            "balanced_score": balanced,
+        }
+
     def suite_by_name(self, name: str) -> SuiteResult | None:
         for s in self.suites:
             if s.name == name:
@@ -223,6 +258,7 @@ class ScanReport:
             "total_judged": self.total_judged,
             "completion_rate": self.completion_rate,
             "run_status": self.run_status,
+            "decision_metrics": self.decision_metrics,
             "suites": [s.to_dict() for s in self.suites],
         }
 

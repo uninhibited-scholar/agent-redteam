@@ -525,6 +525,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                             response=sm["response"], verdict=Verdict(sm["verdict"]),
                             severity=sm["severity"], owasp=sm["owasp"],
                             tags=sm["tags"],
+                            expected_decision=sm.get("expected_decision", ""),
                         ))
                 report.suites.append(sr)
             md = render_markdown(report)

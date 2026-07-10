@@ -131,6 +131,7 @@ class Harness:
             owasp=sample.get("owasp", ""),
             tags=sample.get("tags", []),
             error=error_msg,
+            expected_decision=str(sample.get("gold", {}).get("decision", "")),
         )
 
     def run(self) -> list[SampleResult]:

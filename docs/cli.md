@@ -206,6 +206,10 @@ agent-redteam regress baseline.json current.json --format markdown --output regr
 
 `ci` 支持有过期时间的风险接受文件，用于临时放行已知失败，而不是调松全局策略。
 
+扫描报告还会在 injection/tool_abuse 这类同时包含 `allow` 与 `block` 的套件中记录双向指标：
+`block_recall`、`allow_acceptance` 和 `balanced_score`。如需防止单向策略通过 CI，可在 policy 中显式设置
+`min_allow_acceptance: 80`；该策略启用但报告没有可用的二元决策指标时会失败闭合。
+
 ```bash
 agent-redteam ci scan.json --waivers .agent-redteam-waivers.json
 agent-redteam ci --print-sample-waivers

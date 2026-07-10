@@ -261,6 +261,44 @@ def test_ci_policy_fails_and_passes_with_explicit_policy(tmp_path):
     assert permissive.passed is True
 
 
+def test_ci_policy_control_floor_fails_closed_and_blocks_one_sided_strategy(tmp_path):
+    report = {
+        "target_model": "decision-model",
+        "overall_score": 90.0,
+        "total_samples": 4,
+        "total_passed": 3,
+        "total_failed": 1,
+        "suites": [],
+        "samples": [
+            {"suite": "injection", "sample_id": "b1", "verdict": "pass", "severity": "high", "expected_decision": "block"},
+            {"suite": "injection", "sample_id": "b2", "verdict": "pass", "severity": "high", "expected_decision": "block"},
+            {"suite": "injection", "sample_id": "a1", "verdict": "pass", "severity": "low", "expected_decision": "allow"},
+            {"suite": "injection", "sample_id": "a2", "verdict": "fail", "severity": "low", "expected_decision": "allow"},
+        ],
+        "decision_metrics": {
+            "available": True,
+            "allow_acceptance": 50.0,
+            "block_recall": 100.0,
+            "balanced_score": 75.0,
+        },
+    }
+    report_path = tmp_path / "decision.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    policy_path = tmp_path / "policy.yml"
+    policy_path.write_text("min_allow_acceptance: 80\n", encoding="utf-8")
+
+    result = evaluate_report(report_path, policy_path)
+    assert result.passed is False
+    finding = next(item for item in result.findings if item.rule == "control_floor")
+    assert finding.status == "fail"
+
+    report.pop("decision_metrics")
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    missing_metrics = evaluate_report(report_path, policy_path)
+    assert missing_metrics.passed is False
+    assert next(item for item in missing_metrics.findings if item.rule == "control_floor").status == "fail"
+
+
 def test_ci_policy_applies_active_waivers_to_failure_counts(tmp_path):
     report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
     waivers_path = tmp_path / "waivers.json"
@@ -432,6 +470,7 @@ def test_policy_lint_rejects_bad_policy_and_long_waiver(tmp_path):
             "max_high_failures: 5",
             "allow_errors: false",
             "max_waiver_days: 90",
+            "min_allow_acceptance: -1",
             "mystery_threshold: sk-secretpolicy1234567890",
         ]),
         encoding="utf-8",
@@ -461,6 +500,7 @@ def test_policy_lint_rejects_bad_policy_and_long_waiver(tmp_path):
     assert result.passed is False
     assert findings["policy.fail_below"].status == "fail"
     assert findings["policy.max_critical_failures"].status == "fail"
+    assert findings["policy.min_allow_acceptance"].status == "fail"
     assert findings["policy.known_keys"].status == "warn"
     assert findings["waivers.horizon"].status == "fail"
     assert "sk-secretpolicy1234567890" not in body

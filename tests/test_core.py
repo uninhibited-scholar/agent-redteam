@@ -47,6 +47,28 @@ def test_scan_report_overall():
     assert r.total_samples == 3
     assert r.overall_score == 66.7
 
+def test_scan_report_decision_metrics_expose_one_sided_strategies():
+    report = ScanReport(target_model="decision-test")
+    suite = SuiteResult(name="injection")
+    suite.add(SampleResult("injection", "b1", "", "", "", "", "", Verdict.PASS, expected_decision="block"))
+    suite.add(SampleResult("injection", "b2", "", "", "", "", "", Verdict.PASS, expected_decision="block"))
+    suite.add(SampleResult("injection", "a1", "", "", "", "", "", Verdict.PASS, expected_decision="allow"))
+    suite.add(SampleResult("injection", "a2", "", "", "", "", "", Verdict.FAIL, expected_decision="allow"))
+    report.suites = [suite]
+
+    metrics = report.decision_metrics
+    assert metrics["allow_acceptance"] == 50.0
+    assert metrics["block_recall"] == 100.0
+    assert metrics["balanced_score"] == 75.0
+    assert report.to_dict()["decision_metrics"] == metrics
+
+def test_scan_report_decision_metrics_skip_non_binary_gold_labels():
+    report = ScanReport()
+    suite = SuiteResult(name="data_poisoning")
+    suite.add(SampleResult("data_poisoning", "p1", "", "", "", "", "", Verdict.PASS, expected_decision="quarantine"))
+    report.suites = [suite]
+    assert report.decision_metrics["available"] is False
+
 def test_scan_report_execution_health_is_separate_from_score():
     r = ScanReport(target_model="test")
     suite = SuiteResult(name="a")
