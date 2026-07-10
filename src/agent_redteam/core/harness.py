@@ -7,6 +7,10 @@ from urllib.error import HTTPError
 from .result import SampleResult, Verdict
 
 
+class InvalidTargetResponse(RuntimeError):
+    """Target returned no usable text for a security judgment."""
+
+
 def load_jsonl(path: str) -> list[dict]:
     """Load a JSONL file into a list of dicts."""
     out = []
@@ -32,7 +36,12 @@ def send_message(
         raise ValueError("max_attempts must be at least 1")
     for attempt in range(max_attempts):
         try:
-            return target.send(messages)
+            response = target.send(messages)
+            if not isinstance(response, str):
+                raise InvalidTargetResponse("target returned a non-text response")
+            if not response.strip():
+                raise InvalidTargetResponse("target returned an empty response")
+            return response
         except Exception as exc:
             if attempt < max_attempts - 1 and _is_retryable(exc):
                 time.sleep(_retry_delay(exc, attempt))

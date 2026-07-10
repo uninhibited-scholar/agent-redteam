@@ -112,3 +112,24 @@ def test_legacy_retry_keyword_and_positional_callback_remain_compatible():
     )
     assert harness.run()[0].verdict == Verdict.PASS
     assert len(observed) == 1
+
+
+def test_empty_response_is_retried_then_becomes_error_not_pass():
+    recovering = _Target(["", "  ", "ok"])
+    with patch("agent_redteam.core.harness.time.sleep"):
+        assert send_message(recovering, [], max_attempts=3) == "ok"
+    assert recovering.calls == 3
+
+    empty = _Target(["", "", ""])
+    harness = Harness(
+        empty,
+        [{"id": "one", "question": "q", "_suite": "test"}],
+        lambda sample: [{"role": "user", "content": sample["question"]}],
+        _Check(),
+        max_workers=1,
+        max_attempts=3,
+    )
+    with patch("agent_redteam.core.harness.time.sleep"):
+        result = harness.run()[0]
+    assert result.verdict == Verdict.ERROR
+    assert result.error == "target returned an empty response"

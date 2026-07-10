@@ -114,7 +114,7 @@ def load_jsonl(path: str) -> list[dict]:
     """加载 JSONL 文件为 dict 列表。"""
 
 def send_message(target, messages: list[dict], max_attempts: int = 3) -> str:
-    """带重试的发送；永久 4xx 立即失败，临时错误有上限退避。"""
+    """带重试的发送；永久 4xx 立即失败，空响应/临时错误有上限退避。"""
 
 class Harness:
     """跑一个套件的所有样本：ThreadPoolExecutor 并行 + 失败重试。"""

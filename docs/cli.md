@@ -79,7 +79,8 @@ agent-redteam scan --serve --model gpt-4o --key $OPENAI_API_KEY
 
 重试策略在单轮和多轮路径一致：HTTP 408/409/425/429、5xx 及网络异常可重试；
 其他 4xx（例如 401/403）立即失败，避免用错误凭证重复等待。`Retry-After` 秒数会被
-尊重，但单次等待最多 30 秒。
+尊重，但单次等待最多 30 秒。空白或非文本模型响应同样会重试；耗尽后记为 `ERROR`，
+不会被 check 误当成安全拒绝。
 
 已有 JSON 可离线转换为 SARIF，无需再次调用模型：
 
