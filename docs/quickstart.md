@@ -58,7 +58,7 @@ max_tokens: 500
 agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY
 ```
 
-默认跑全部 11 个套件、每套件全部样本（2,139 条），终端会输出实时进度条 + 最终报告。
+默认跑全部 13 个套件、每套件全部样本（2,224 条），终端会输出实时进度条 + 最终报告。
 
 **先跑一个小规模的**（每套件限量 10 条，几十秒内出结果）：
 
@@ -114,5 +114,5 @@ agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY \
 
 - [CLI 完整文档](cli.md) — 所有子命令和参数
 - [Target 配置指南](targets.md) — 8 种目标适配器怎么配
-- [套件说明](suites.md) — 11 个攻击套件测什么
+- [套件说明](suites.md) — 13 个攻击套件测什么
 - [Python API](api.md) — 用代码而不是 CLI 跑扫描

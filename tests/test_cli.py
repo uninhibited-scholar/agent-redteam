@@ -86,10 +86,10 @@ class TestCLIList:
         catalog = json.loads(capsys.readouterr().out)
         assert catalog["schema"] == "agent-redteam-suite-catalog/v1"
         assert catalog["taxonomy"] == "OWASP LLM Top 10 2025"
-        assert catalog["summary"]["suites"] == 12
-        assert catalog["summary"]["samples"] == 2204
-        assert catalog["summary"]["owasp_categories"] == 9
-        assert catalog["uncovered_owasp"] == ["LLM08"]
+        assert catalog["summary"]["suites"] == 13
+        assert catalog["summary"]["samples"] == 2224
+        assert catalog["summary"]["owasp_categories"] == 10
+        assert catalog["uncovered_owasp"] == []
         assert catalog["summary"]["invalid_suites"] == 0
 
 

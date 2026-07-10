@@ -1,4 +1,4 @@
-"""Attack test suites for agent-redteam — OWASP LLM Top 10 full coverage."""
+"""Attack suites with versioned OWASP LLM Top 10 2025 mappings."""
 from .base import Suite
 from .injection import InjectionSuite
 from .tool_abuse import ToolAbuseSuite
@@ -12,6 +12,7 @@ from .supply_chain import SupplyChainSuite
 from .over_dependency import OverDependencySuite
 from .multi_turn import MultiTurnSuite
 from .data_poisoning import DataPoisoningSuite
+from .vector_embedding import VectorEmbeddingSuite
 
 ALL_SUITES = [
     InjectionSuite,
@@ -26,6 +27,7 @@ ALL_SUITES = [
     OverDependencySuite,
     MultiTurnSuite,
     DataPoisoningSuite,
+    VectorEmbeddingSuite,
 ]
 
 __all__ = [
@@ -35,4 +37,5 @@ __all__ = [
     "ModelDosSuite", "SupplyChainSuite", "OverDependencySuite",
     "MultiTurnSuite",
     "DataPoisoningSuite",
+    "VectorEmbeddingSuite",
 ]

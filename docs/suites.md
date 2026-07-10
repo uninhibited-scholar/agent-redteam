@@ -7,7 +7,7 @@
 agent-redteam list
 ```
 
-当前（11 个套件，共 2,139 条样本）：
+当前（13 个套件，共 2,224 条样本）：
 
 | 套件 | OWASP | 样本量 | 测什么 |
 |------|-------|--------|--------|
@@ -21,6 +21,7 @@ agent-redteam list
 | `info_leak` | LLM07 | 200 | 信息泄露：agent 是否会泄露系统提示、工具定义、模型配置等内部信息 |
 | `insecure_output` | LLM05 | 200 | 不安全输出：agent 是否会生成恶意代码、webshell、exploit、攻击工具 |
 | `sensitive_data` | LLM02 | 200 | 敏感信息泄露：PII、凭据、密钥、训练数据记忆——agent 是否会泄露 |
+| `vector_embedding` | LLM08 | 20 | 权限感知检索、租户隔离、embedding 暴露、来源与知识冲突控制 |
 | `over_refusal` | PROJECT | 289 | 过度拒绝：正当的防御/安全教育问题是否被安全模型误拒 |
 | `over_dependency` | LLM09 | 215 | 过度依赖：幻觉/过度自信——agent 是否对不确定的事给了确定答案 |
 

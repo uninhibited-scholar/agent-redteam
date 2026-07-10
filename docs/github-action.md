@@ -35,7 +35,7 @@ jobs:
 | `api-key` | 否 | `""` | API key（用 `secrets`！）。ollama/local 不需要 |
 | `base-url` | 否 | `""` | 自定义 API base URL |
 | `fail-below` | 否 | `"0"` | 分数低于此值 CI 失败（0-100，`0` = 不设门禁） |
-| `suites` | 否 | `""` | 逗号分隔套件名（默认全部 11 个） |
+| `suites` | 否 | `""` | 逗号分隔套件名（默认全部 13 个） |
 | `limit` | 否 | `"20"` | 每套件最大样本数 |
 | `max-tokens` | 否 | `"500"` | 响应最大 token 数 |
 | `workers` | 否 | `"4"` | 并行 API 调用数 |

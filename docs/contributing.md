@@ -9,7 +9,7 @@
 
 最直接的贡献方式。每个套件的 `data.jsonl` 可以扩充：
 
-1. **选一个套件**（12 个可选，见 [套件说明](suites.md) 和 [风险分类法](taxonomy.md)）：
+1. **选一个套件**（13 个可选，见 [套件说明](suites.md) 和 [风险分类法](taxonomy.md)）：
    - `injection` — Prompt 注入（OWASP LLM01）
    - `tool_abuse` — 工具滥用（LLM01）
    - `multi_turn` — 多轮对话攻击（LLM01）
@@ -20,6 +20,7 @@
    - `info_leak` — 信息泄露（LLM07）
    - `insecure_output` — 不安全输出（LLM05）
    - `sensitive_data` — 敏感数据（LLM02）
+   - `vector_embedding` — 向量/嵌入访问控制（LLM08）
    - `over_refusal` — 过度拒绝（PROJECT，非 OWASP）
    - `over_dependency` — 过度依赖（LLM09）
 2. **读该套件的 `data.jsonl`**，理解样本格式

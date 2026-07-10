@@ -19,7 +19,7 @@ assert report.overall_score >= 80
 
 ## `Engine`
 
-主编排器：注册套件（内置 11 个套件会自动注册）、跑扫描、产出 `ScanReport`。
+主编排器：注册套件（内置 13 个套件会自动注册）、跑扫描、产出 `ScanReport`。
 
 ```python
 class Engine:

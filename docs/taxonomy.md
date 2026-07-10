@@ -13,12 +13,13 @@
 | `insecure_output` | LLM05 Improper Output Handling |
 | `excessive_agency` | LLM06 Excessive Agency |
 | `info_leak` | LLM07 System Prompt Leakage |
+| `vector_embedding` | LLM08 Vector and Embedding Weaknesses |
 | `over_dependency` | LLM09 Misinformation |
 | `model_dos` | LLM10 Unbounded Consumption |
 | `over_refusal` | PROJECT（非 OWASP） |
 
-当前没有独立的 LLM08 Vector and Embedding Weaknesses suite。它会由
-`agent-redteam list --format json --validate` 的 `uncovered_owasp` 字段明确呈现，
-而不会被误报成数据完整性错误。
+当前十个 OWASP LLM 2025 分类均有 suite 或场景映射，`uncovered_owasp` 为空。
+这只声明分类代表性覆盖；新加入的 LLM04/LLM08 各有 20 条高信号准入样本，尚不宣称
+达到其他成熟 suite 的覆盖深度。
 
 分类名称和编号来自 [OWASP LLM Top 10 2025](https://genai.owasp.org/llm-top-10/)。
