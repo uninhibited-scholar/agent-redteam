@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .attest import load_report
-from .waivers import WaiverEvaluation, evaluate_waivers
+from .waivers import DEFAULT_MAX_WAIVER_DAYS, WaiverEvaluation, evaluate_waivers
 
 
 DEFAULT_POLICY = {
@@ -27,6 +27,7 @@ DEFAULT_POLICY = {
     # gated. The sample policy below is stricter for teams adopting CI.
     "required_suites": "",
     "target_allowlist": "",
+    "max_waiver_days": DEFAULT_MAX_WAIVER_DAYS,
 }
 
 
@@ -77,7 +78,8 @@ def evaluate_report(
     report, _ = load_report(report_path)
     policy = load_policy(policy_path)
     samples = report.get("samples") if isinstance(report.get("samples"), list) else []
-    waivers = evaluate_waivers(samples, waivers_path)
+    max_waiver_days = int(_number(policy.get("max_waiver_days"), DEFAULT_MAX_WAIVER_DAYS))
+    waivers = evaluate_waivers(samples, waivers_path, max_waiver_days=max_waiver_days)
     suites = report.get("suites") if isinstance(report.get("suites"), list) else []
     failed = [s for s in samples if str(s.get("verdict", "")).lower() == "fail"]
     active_waiver_keys = waivers.active_keys
@@ -177,6 +179,7 @@ def sample_policy() -> str:
         "required_suites: injection,info_leak,supply_chain",
         "# Optional: comma-separated allowed model name substrings.",
         "target_allowlist: ",
+        "max_waiver_days: 90",
         "",
     ])
 

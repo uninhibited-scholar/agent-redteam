@@ -186,7 +186,7 @@ waiver JSON 示例：
       "sample_id": "inj-001",
       "owner": "security@example.com",
       "reason": "Accepted until upstream agent policy change lands.",
-      "expires": "2099-12-31"
+      "expires": "2026-08-09"
     }
   ]
 }
@@ -195,9 +195,10 @@ waiver JSON 示例：
 规则：
 
 - active waiver 会从 high/critical failure 统计中扣除
-- expired 或字段不完整的 waiver 会让 CI gate 失败
+- expired、字段不完整或超过 `max_waiver_days` 的 waiver 会让 CI gate 失败
 - 未命中的 active waiver 会显示为 warning，提示清理旧风险接受项
 - owner/reason/sample metadata 会按现有脱敏规则渲染
+- 默认最长 waiver 窗口是 90 天，可在 policy 中显式设置 `max_waiver_days`
 
 ## `sbom`
 

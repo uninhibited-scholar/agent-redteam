@@ -582,6 +582,7 @@ agent-redteam ci --print-sample-waivers
 Features:
 - waiver records are keyed by `(suite, sample_id)`
 - each waiver must include `owner`, `reason`, and ISO `expires`
+- waivers are capped by `max_waiver_days` (default 90) to prevent permanent risk suppression
 - active waivers are subtracted from high/critical failure counts
 - expired or invalid waivers fail the CI gate
 - unused active waivers render as warnings so teams can prune stale risk acceptances
@@ -602,6 +603,12 @@ critical failures: 7
 high failures: 24
 waived failures: 1
 exit: 1 because remaining high/critical still exceed policy
+
+with 2099-12-31 waiver for excessive_agency/ea-017:
+critical failures: 8
+waived failures: 0
+waivers.valid: fail, expires beyond max_waiver_days 90
+exit: 1
 ```
 
 ## Config Changes
@@ -649,7 +656,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-190 passed in 11.08s
+191 passed in 10.96s
 ```
 
 ## Current Git State Notes

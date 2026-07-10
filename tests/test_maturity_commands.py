@@ -5,6 +5,7 @@ consume saved scan JSON and first-run onboarding output.
 """
 from __future__ import annotations
 
+import datetime as _dt
 import json
 from pathlib import Path
 import subprocess
@@ -232,6 +233,7 @@ def test_ci_policy_fails_and_passes_with_explicit_policy(tmp_path):
 def test_ci_policy_applies_active_waivers_to_failure_counts(tmp_path):
     report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
     waivers_path = tmp_path / "waivers.json"
+    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
     waivers_path.write_text(
         json.dumps(
             {
@@ -241,7 +243,7 @@ def test_ci_policy_applies_active_waivers_to_failure_counts(tmp_path):
                         "sample_id": "inj-sk-meta1234567890abcd",
                         "owner": "secops@example.com",
                         "reason": "Accepted temporarily while upstream guardrail is deployed.",
-                        "expires": "2099-12-31",
+                        "expires": expires,
                     }
                 ]
             }
@@ -257,6 +259,36 @@ def test_ci_policy_applies_active_waivers_to_failure_counts(tmp_path):
     assert result.waived_failures == 1
     assert "inj-sk-meta1234567890abcd" not in rendered
     assert "sk-[REDACTED]" in rendered
+
+
+def test_ci_policy_rejects_waivers_beyond_maximum_horizon(tmp_path):
+    report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
+    waivers_path = tmp_path / "waivers.json"
+    waivers_path.write_text(
+        json.dumps(
+            {
+                "waivers": [
+                    {
+                        "suite": "injection",
+                        "sample_id": "inj-sk-meta1234567890abcd",
+                        "owner": "secops@example.com",
+                        "reason": "This should not become permanent risk suppression.",
+                        "expires": "2099-12-31",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = evaluate_report(report_path, waivers_path=waivers_path)
+    findings = {finding.rule: finding for finding in result.findings}
+
+    assert result.passed is False
+    assert result.critical_failures == 1
+    assert result.waived_failures == 0
+    assert findings["waivers.valid"].status == "fail"
+    assert "max_waiver_days" in result.waivers["invalid"][0]
 
 
 def test_ci_policy_fails_on_expired_or_invalid_waivers(tmp_path):
@@ -296,6 +328,7 @@ def test_ci_policy_fails_on_expired_or_invalid_waivers(tmp_path):
 
 def test_waiver_evaluation_reports_unused_active_waivers(tmp_path):
     waivers_path = tmp_path / "waivers.json"
+    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
     waivers_path.write_text(
         json.dumps(
             {
@@ -305,7 +338,7 @@ def test_waiver_evaluation_reports_unused_active_waivers(tmp_path):
                         "sample_id": "inj-unused",
                         "owner": "secops@example.com",
                         "reason": "No longer needed.",
-                        "expires": "2099-12-31",
+                        "expires": expires,
                     }
                 ]
             }

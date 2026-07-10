@@ -9,6 +9,8 @@ from typing import Any
 
 from .attest import _redact
 
+DEFAULT_MAX_WAIVER_DAYS = 90
+
 
 @dataclass
 class Waiver:
@@ -80,6 +82,7 @@ def evaluate_waivers(
     waiver_path: str | Path | None,
     *,
     today: _dt.date | None = None,
+    max_waiver_days: int = DEFAULT_MAX_WAIVER_DAYS,
 ) -> WaiverEvaluation:
     waivers = load_waivers(waiver_path)
     if not waivers:
@@ -102,6 +105,10 @@ def evaluate_waivers(
         if expiry is None:
             invalid.append(f"{waiver.suite}/{waiver.sample_id}: invalid expires date")
             continue
+        latest_allowed = today_value + _dt.timedelta(days=max_waiver_days)
+        if expiry > latest_allowed:
+            invalid.append(f"{waiver.suite}/{waiver.sample_id}: expires beyond max_waiver_days {max_waiver_days}")
+            continue
         if expiry < today_value:
             expired.append(waiver)
             continue
@@ -112,6 +119,7 @@ def evaluate_waivers(
 
 
 def sample_waivers() -> str:
+    example_expiry = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
     return json.dumps(
         {
             "waivers": [
@@ -120,7 +128,7 @@ def sample_waivers() -> str:
                     "sample_id": "inj-001",
                     "owner": "security@example.com",
                     "reason": "Accepted until upstream agent policy change lands.",
-                    "expires": "2099-12-31",
+                    "expires": example_expiry,
                 }
             ]
         },
