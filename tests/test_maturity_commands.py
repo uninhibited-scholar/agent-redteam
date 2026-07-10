@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 
 from agent_redteam.attest import attest_report, load_report
+from agent_redteam.catalog import build_catalog, render_catalog_markdown
 from agent_redteam.ci_policy import evaluate_report
 from agent_redteam.cli import main
 from agent_redteam.evidence import (
@@ -147,6 +148,35 @@ def _fake_release_runner_response(command):
             stderr="",
         )
     return None
+
+
+def test_catalog_detects_duplicate_ids_and_owasp_drift():
+    class BrokenSuite:
+        name = "broken"
+        owasp = "LLM01"
+        description = "test fixture"
+        is_multiturn = False
+
+        def load_samples(self):
+            return [
+                {"id": "dup", "owasp": "LLM01", "severity": "high"},
+                {"id": "dup", "owasp": "LLM02"},
+                {"id": "", "owasp": ""},
+            ]
+
+    catalog = build_catalog([BrokenSuite])
+    suite = catalog["suites"][0]
+    markdown = render_catalog_markdown(catalog)
+
+    assert catalog["summary"]["invalid_suites"] == 1
+    assert suite["issues"] == {
+        "duplicate_id": 1,
+        "missing_id": 1,
+        "missing_owasp": 1,
+        "missing_severity": 2,
+        "owasp_mismatch": 1,
+    }
+    assert "duplicate_id: 1" in markdown
 
 
 def test_attest_extracts_json_after_log_prefix_and_redacts_snippets(tmp_path):

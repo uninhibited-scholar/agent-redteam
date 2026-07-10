@@ -42,7 +42,11 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--port", type=int, default=7878, help="Dashboard 端口")
 
     # list command
-    sub.add_parser("list", help="列出可用的攻击套件")
+    p_list = sub.add_parser("list", help="列出并校验内置攻击套件与样本 catalog")
+    p_list.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal",
+                        help="输出格式")
+    p_list.add_argument("--validate", action="store_true",
+                        help="样本元数据不完整、重复 ID 或 OWASP 映射不一致时返回 exit 1")
 
     # serve command
     p_serve = sub.add_parser("serve", help="启动 Web Dashboard")
@@ -223,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "list":
-        return _cmd_list()
+        return _cmd_list(args)
     elif args.command == "history":
         return _cmd_history(args)
     elif args.command == "compare":
@@ -263,19 +267,16 @@ def main(argv: list[str] | None = None) -> int:
     return 1
 
 
-def _cmd_list() -> int:
-    from .targets import OpenAITarget
-    target = OpenAITarget(model="dummy", api_key="dummy")
-    engine = Engine(target)
-    suites = engine.list_suites()
-    print(f"\n可用攻击套件 ({len(suites)}):\n")
-    for name in suites:
-        suite = engine._suites.get(name)
-        if suite:
-            sample_count = len(suite.load_samples())
-            print(f"  {name:<16} {suite.owasp:<6} {sample_count:>4} samples  {suite.description}")
-    print()
-    return 0
+def _cmd_list(args) -> int:
+    from .catalog import build_catalog, render_catalog_json, render_catalog_markdown, render_catalog_terminal
+    catalog = build_catalog()
+    if args.format == "json":
+        print(render_catalog_json(catalog), end="")
+    elif args.format == "markdown":
+        print(render_catalog_markdown(catalog), end="")
+    else:
+        print(render_catalog_terminal(catalog))
+    return 1 if args.validate and catalog["summary"]["invalid_suites"] else 0
 
 
 def _cmd_scan(args) -> int:

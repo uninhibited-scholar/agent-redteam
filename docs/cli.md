@@ -2,7 +2,7 @@
 
 ```
 agent-redteam [-h] [--version]
-              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,regress,sbom,report,review,evidence,release-check,manifest} ...
+              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,policy-lint,regress,sbom,report,review,evidence,release-check,manifest} ...
 ```
 
 ## `scan`
@@ -58,14 +58,16 @@ agent-redteam scan --serve --model gpt-4o --key $OPENAI_API_KEY
 
 ## `list`
 
-列出可用的攻击套件（无参数）。
+列出内置攻击套件与样本 catalog（不调用模型或扫描引擎）。
 
 ```bash
 agent-redteam list
+agent-redteam list --format json --validate
+agent-redteam list --format markdown
 ```
 
-输出每个套件的名称、OWASP 编号、样本数、一句话描述——这是套件数据的权威来源，
-见 [套件说明](suites.md)。
+输出每个套件的名称、OWASP 编号、样本数与模式；`json` 还包含 severity/OWASP 分布。
+`--validate` 会在样本缺少 `id`/`owasp`/severity、存在重复 ID 或 suite 与样本的 OWASP 映射不一致时返回 exit 1，适合在维护样本时使用。见 [套件说明](suites.md)。
 
 ## `serve`
 

@@ -10,7 +10,7 @@
 
 ## 怎么测的
 
-10 个安全维度（对应 OWASP LLM Top 10），每个维度 30 条攻击，总共 300 条。每条攻击自动判定 pass 还是 fail。
+当时的基准选择了 10 个单轮安全套件，每个套件 30 条攻击，总共 300 条。每条攻击自动判定 pass 还是 fail。
 
 包括：prompt 注入、工具滥用、供应链攻击、信息泄露、敏感数据、过度依赖……
 
@@ -58,7 +58,7 @@ GLM-5.2 对经典攻击防御极好：
 
 agent-redteam 是我做的开源项目：
 
-- **2089 条攻击样本**，覆盖 OWASP LLM Top 10 全部 10 类
+- 基准发布时使用 **2,089 条攻击样本**；当前内置 catalog 以 `agent-redteam list --format json --validate` 为准
 - **8 个 target**：OpenAI / Claude / GLM / Ollama（本地免费）/ DeepSeek / Azure / 通义千问
 - **零依赖核心**（Python stdlib only）——在测供应链攻击时不增加你自己的供应链风险
 - **GitHub Action 集成**：一行 YAML 在 CI 里自动跑安全扫描

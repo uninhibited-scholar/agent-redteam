@@ -2,35 +2,35 @@
 
 **AI Agent 红队安全测试平台** — 给 AI agent 跑安全扫描，像 `npm audit` 一样简单。
 
-CLI · TUI · Web Dashboard | 2,139 测试样本 · 11 攻击套件 · OWASP LLM Top 10 全覆盖
+CLI · TUI · Web Dashboard | 2,184 测试样本 · 11 攻击套件 · 覆盖 9 个 OWASP LLM 风险分类
 
 ## 为什么需要它
 
 AI agent 在没有安全检查的情况下就被发布——不像普通软件有 `npm audit`、`snyk scan`
 这样的工具。**Agent Redteam 就是这个缺失的等效工具**：在 agent 上线前，系统性地从
-11 个维度跑攻击测试，输出具体的 pass/fail 分数，而不是模糊的"感觉安全"。
+11 个测试套件跑攻击测试，输出具体的 pass/fail 分数，而不是模糊的"感觉安全"。
 
 - **零依赖核心** — Python stdlib only，`pip install agent-redteam` 不拉任何包。
 - **API key 仅本地** — key 不经过任何第三方，不出现在 HTTP 响应中（有专门测试兜底）。
-- **数字精确** — 每个套件的样本数、分数、判定逻辑都可复现，以 `agent-redteam list` 的实际输出为准。
+- **数字精确** — 每个套件的样本数、分数、判定逻辑都可复现，以 `agent-redteam list --format json --validate` 的实际输出为准。
 
-## 十一个攻击维度（OWASP LLM Top 10 全覆盖）
+## 十一个攻击套件（覆盖 9 个 OWASP LLM 风险分类）
 
 | 套件 | 测什么 | 样本量 | OWASP |
 |------|--------|--------|-------|
-| **injection** | Prompt 注入能否诱导 agent 执行危险操作 | 200 | LLM01 |
+| **injection** | Prompt 注入能否诱导 agent 执行危险操作 | 215 | LLM01 |
 | **tool_abuse** | 破坏性工具调用（rm -rf / DROP TABLE）能否被拦截 | 200 | LLM01 |
 | **multi_turn** | 多轮对话攻击：通过建立信任逐步逼近目标 | 50 | LLM01 |
-| **supply_chain** | typosquatting / dependency confusion / CI-CD 投毒 | 200 | LLM02 |
+| **supply_chain** | typosquatting / dependency confusion / CI-CD 投毒 | 215 | LLM02 |
 | **model_dos** | token 耗尽 / 递归生成 / 上下文炸弹 | 200 | LLM04 |
 | **excessive_agency** | agent 是否声称超出其能力的权限 | 200 | LLM05 |
 | **info_leak** | 系统提示/工具定义/模型配置能否被套出 | 200 | LLM06 |
 | **insecure_output** | 是否会生成恶意代码/webshell/exploit | 200 | LLM07 |
 | **sensitive_data** | PII/凭据/密钥/训练数据泄露 | 200 | LLM08 |
 | **over_refusal** | 正当防御/教育问题是否被安全模型误拒 | 289 | LLM09 |
-| **over_dependency** | 幻觉/过度自信——对不确定的事给了确定答案 | 200 | LLM10 |
+| **over_dependency** | 幻觉/过度自信——对不确定的事给了确定答案 | 215 | LLM10 |
 
-**总计 2,139 条攻击样本**（`agent-redteam list` 实际输出）。详见 [套件说明](suites.md)。
+**总计 2,184 条攻击样本**，覆盖 LLM01、02、04-10；LLM03 尚无独立 suite（以 `agent-redteam list --format json --validate` 为准）。详见 [套件说明](suites.md)。
 
 ## 三种使用方式
 
@@ -87,8 +87,8 @@ DeepSeek / Azure OpenAI / 通义千问 / 任意本地 HTTP 端点。见 [Target 
 |------|------|
 | Python 核心 | 4,528 行（零核心依赖） |
 | 前端 TS/TSX | 19,676 行（74 个组件，11 个页面） |
-| 测试 | 148 个全绿 |
-| 攻击样本 | 2,139 条（11 套件） |
+| 测试 | 199 个全绿 |
+| 攻击样本 | 2,184 条（11 套件） |
 
 ## 许可证
 

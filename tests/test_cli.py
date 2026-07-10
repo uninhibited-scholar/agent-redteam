@@ -81,6 +81,14 @@ class TestCLIList:
         captured = capsys.readouterr()
         assert "LLM" in captured.out
 
+    def test_list_json_is_machine_readable_catalog(self, capsys):
+        assert main(["list", "--format", "json", "--validate"]) == 0
+        catalog = json.loads(capsys.readouterr().out)
+        assert catalog["schema"] == "agent-redteam-suite-catalog/v1"
+        assert catalog["summary"]["suites"] == 11
+        assert catalog["summary"]["samples"] == 2184
+        assert catalog["summary"]["invalid_suites"] == 0
+
 
 class TestCLIHistory:
     def test_history_empty(self, capsys):
