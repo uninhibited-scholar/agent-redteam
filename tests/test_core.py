@@ -47,6 +47,20 @@ def test_scan_report_overall():
     assert r.total_samples == 3
     assert r.overall_score == 66.7
 
+def test_scan_report_execution_health_is_separate_from_score():
+    r = ScanReport(target_model="test")
+    suite = SuiteResult(name="a")
+    suite.add(SampleResult("a", "1", "", "", "", "", "", Verdict.PASS))
+    suite.add(SampleResult("a", "2", "", "", "", "", "", Verdict.ERROR))
+    r.suites = [suite]
+
+    assert r.overall_score == 100.0
+    assert r.total_judged == 1
+    assert r.total_errors == 1
+    assert r.completion_rate == 50.0
+    assert r.run_status == "incomplete"
+    assert r.to_dict()["run_status"] == "incomplete"
+
 def test_scan_report_summary():
     r = ScanReport(target_model="test-model")
     s = SuiteResult(name="injection")

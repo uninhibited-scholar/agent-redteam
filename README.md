@@ -60,6 +60,9 @@ agent-redteam scan --model gpt-4o --suites all --dry-run
 agent-redteam scan --model ... --fail-below 80 --format json > report.json
 ```
 
+扫描默认也会在存在 `ERROR` 或没有有效判定时 exit 1，避免 API 故障被误当成安全通过；
+只有明确接受部分结果时才使用 `--allow-errors`。
+
 <details>
 <summary>终端报告效果（GLM-5.2 真实验证 · 300 样本）</summary>
 
@@ -157,7 +160,8 @@ jobs:
           limit: 20               # 每套件 20 条（快速 CI）
 ```
 
-**Outputs 可在后续 step 引用**：`steps.scan.outputs.score`、`steps.scan.outputs.total-failed`
+**Outputs 可在后续 step 引用**：`score`、`total-failed`、`total-errors`、`run-status`
+与 `sarif-file`。
 
 <details>
 <summary>完整示例 + 多 target 配置（点开）</summary>

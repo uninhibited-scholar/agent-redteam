@@ -89,8 +89,11 @@ agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY \
 ```bash
 agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY --format json > report.json
 agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY --format markdown > report.md
-agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY --format sarif > report.sarif
+agent-redteam report report.json --format sarif --output report.sarif
 ```
+
+最后一条从已有 JSON 离线生成 SARIF，不会再次调用模型。真实扫描存在 `ERROR` 或零有效
+判定时默认返回非零；`--allow-errors` 只用于明确接受部分结果的场景。
 
 ## 打开 Web Dashboard
 

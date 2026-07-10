@@ -49,6 +49,8 @@ jobs:
 | `score` | 总分（0-100） |
 | `total-samples` | 测试的样本总数 |
 | `total-failed` | 失败样本数 |
+| `total-errors` | 未获得安全判定的样本数 |
+| `run-status` | 执行完整性：`complete` / `incomplete` / `no_data` |
 | `sarif-file` | 生成的 SARIF 文件路径 |
 
 在后续 step 里引用：
@@ -59,6 +61,7 @@ jobs:
   run: |
     echo "## 🛡️ Security Score: ${{ steps.scan.outputs.score }}/100" >> $GITHUB_STEP_SUMMARY
     echo "${{ steps.scan.outputs.total-failed }} failures out of ${{ steps.scan.outputs.total-samples }} samples" >> $GITHUB_STEP_SUMMARY
+    echo "Run: ${{ steps.scan.outputs.run-status }} (${{ steps.scan.outputs.total-errors }} errors)" >> $GITHUB_STEP_SUMMARY
 ```
 
 （记得给这个 step 起 `id: scan`。）
@@ -106,6 +109,8 @@ jobs:
           echo "| **Score** | ${{ steps.scan.outputs.score }}/100 |" >> $GITHUB_STEP_SUMMARY
           echo "| **Samples** | ${{ steps.scan.outputs.total-samples }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Failed** | ${{ steps.scan.outputs.total-failed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Errors** | ${{ steps.scan.outputs.total-errors }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run status** | ${{ steps.scan.outputs.run-status }} |" >> $GITHUB_STEP_SUMMARY
 ```
 
 你得到什么：

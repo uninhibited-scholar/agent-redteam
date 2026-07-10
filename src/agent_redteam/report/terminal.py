@@ -26,7 +26,10 @@ def render_report(report: ScanReport, file=sys.stdout) -> None:
     w(f"\n{C.BOLD}{C.CYAN}╔{'═' * 54}╗{C.RESET}\n")
     title = f"Agent Redteam Report — {report.target_model}"
     w(f"{C.BOLD}{C.CYAN}║{title:^54}║{C.RESET}\n")
-    meta = f"{report.total_samples} samples · Score: {report.overall_score}/100"
+    meta = (
+        f"{report.total_samples} samples · {report.total_errors} errors · "
+        f"Score: {report.overall_score}/100"
+    )
     w(f"{C.BOLD}{C.CYAN}║{meta:^54}║{C.RESET}\n")
     w(f"{C.BOLD}{C.CYAN}╠{'═' * 54}╣{C.RESET}\n")
 
@@ -67,7 +70,10 @@ def render_report(report: ScanReport, file=sys.stdout) -> None:
 def _render_suite(suite: SuiteResult, file) -> None:
     w = file.write
     score = suite.score
-    if score >= 80:
+    if score < 0:
+        status = f"{C.YELLOW}⚠️{C.RESET}"
+        bar_color = C.YELLOW
+    elif score >= 80:
         status = f"{C.GREEN}✅{C.RESET}"
         bar_color = C.GREEN
     elif score >= 50:
@@ -78,8 +84,9 @@ def _render_suite(suite: SuiteResult, file) -> None:
         bar_color = C.RED
 
     bar_width = 10
-    filled = int(score / 100 * bar_width)
+    filled = int(max(score, 0) / 100 * bar_width)
     bar = f"{bar_color}{'█' * filled}{'░' * (bar_width - filled)}{C.RESET}"
 
     name_padded = suite.name.ljust(16)
-    w(f"{C.BOLD}{C.CYAN}║{C.RESET}  {name_padded} {bar} {score:>5.1f}  {status}{'':>10}{C.BOLD}{C.CYAN}║{C.RESET}\n")
+    score_text = f"{score:>5.1f}" if score >= 0 else "  N/A"
+    w(f"{C.BOLD}{C.CYAN}║{C.RESET}  {name_padded} {bar} {score_text}  {status}{'':>10}{C.BOLD}{C.CYAN}║{C.RESET}\n")

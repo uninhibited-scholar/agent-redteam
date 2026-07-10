@@ -36,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="输出格式（terminal=终端报告 / json=机器可读 / markdown=文档 / sarif=GitHub Security tab）")
     p_scan.add_argument("--fail-below", type=float, default=cfg.get("fail_below", 0), metavar="SCORE",
                         help="总分低于此值则返回 exit 1 (CI 集成用)")
+    p_scan.add_argument("--allow-errors", action="store_true", default=bool(cfg.get("allow_errors", False)),
+                        help="允许存在部分 ERROR 时返回成功；零有效判定仍返回 exit 1")
     p_scan.add_argument("--limit", type=int, default=0, help="每套件最多跑 N 条样本 (调试用)")
     p_scan.add_argument("--dry-run", action="store_true",
                         help="只计算 suite 范围、调用量和最大输出预算，不创建 target 或发送请求")
@@ -160,9 +162,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="只包含运行时依赖，排除 dev/optional 依赖")
 
     # report command
-    p_report = sub.add_parser("report", help="从扫描 JSON 生成独立 HTML/Markdown 报告")
+    p_report = sub.add_parser("report", help="从扫描 JSON 离线生成 HTML/Markdown/SARIF 报告")
     p_report.add_argument("scan_json", help="scan --format json 生成的报告文件")
-    p_report.add_argument("--format", choices=["html", "markdown"], default="html",
+    p_report.add_argument("--format", choices=["html", "markdown", "sarif"], default="html",
                           help="输出格式")
     p_report.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
     p_report.add_argument("--max-failures", type=int, default=25,
@@ -385,10 +387,11 @@ def _cmd_scan(args) -> int:
 
     # Run scan
     engine = Engine(target, max_workers=args.workers)
-    print(f"Starting scan: {args.model} ({args.target})")
+    log_file = sys.stdout if args.format == "terminal" else sys.stderr
+    print(f"Starting scan: {args.model} ({args.target})", file=log_file)
     if suites:
-        print(f"Suites: {', '.join(suites)}")
-    print(f"Workers: {args.workers}\n")
+        print(f"Suites: {', '.join(suites)}", file=log_file)
+    print(f"Workers: {args.workers}\n", file=log_file)
 
     # Optionally limit samples
     if args.limit > 0:
@@ -439,6 +442,7 @@ def _cmd_scan(args) -> int:
 
     if args.serve:
         print(f"\n  Scan complete. Score: {report.overall_score}/100")
+        print(f"  Run status: {report.run_status} ({report.completion_rate}% judged)")
         print(f"  Dashboard staying open at http://127.0.0.1:{args.port}")
         print(f"  Press Ctrl+C to stop.\n")
         try:
@@ -447,13 +451,35 @@ def _cmd_scan(args) -> int:
                 _time.sleep(3600)
         except KeyboardInterrupt:
             pass
-        return 0
+        return _scan_exit_code(report, args)
 
-    # CI gate
-    if args.fail_below > 0 and report.overall_score < args.fail_below:
-        print(f"\n❌ Score {report.overall_score} below threshold {args.fail_below}")
+    return _scan_exit_code(report, args)
+
+
+def _scan_exit_code(report, args) -> int:
+    """Return a truthful process status without contaminating report stdout."""
+    if report.total_judged == 0:
+        print("ERROR: scan produced no judged samples", file=sys.stderr)
         return 1
-
+    if report.total_skipped > 0:
+        print(
+            f"ERROR: scan is incomplete ({report.total_skipped} skipped sample(s))",
+            file=sys.stderr,
+        )
+        return 1
+    if report.total_errors > 0 and not args.allow_errors:
+        print(
+            f"ERROR: scan is incomplete ({report.total_errors} error sample(s)); "
+            "rerun to resume or use --allow-errors explicitly",
+            file=sys.stderr,
+        )
+        return 1
+    if args.fail_below > 0 and report.overall_score < args.fail_below:
+        print(
+            f"ERROR: score {report.overall_score} below threshold {args.fail_below}",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
@@ -773,12 +799,17 @@ def _cmd_report(args) -> int:
     from .html_report import build_report, render_report_html, render_report_markdown
 
     try:
-        report = build_report(
-            args.scan_json,
-            max_failures=args.max_failures,
-            snippet_chars=args.snippet_chars,
-        )
-        content = render_report_html(report) if args.format == "html" else render_report_markdown(report)
+        if args.format == "sarif":
+            from .attest import load_report
+            from .report.sarif_report import render_sarif_dict
+            content = render_sarif_dict(load_report(args.scan_json)[0])
+        else:
+            report = build_report(
+                args.scan_json,
+                max_failures=args.max_failures,
+                snippet_chars=args.snippet_chars,
+            )
+            content = render_report_html(report) if args.format == "html" else render_report_markdown(report)
     except Exception as exc:
         print(f"ERROR: failed to generate report: {exc}", file=sys.stderr)
         return 1

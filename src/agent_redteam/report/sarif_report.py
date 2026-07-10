@@ -1,14 +1,12 @@
-"""SARIF report — GitHub Security tab compatible output (SARIF v2.1.0).
-
-Generates a SARIF file that GitHub can ingest via `github/codeql-action/upload-sarif`.
-Each failed sample becomes a "result" (security finding) with location info.
-"""
+"""GitHub-compatible SARIF 2.1.0 rendering for live and saved reports."""
 from __future__ import annotations
+
 import json
+from typing import Any
+
 from ..core.result import ScanReport, Verdict
 
 
-# SARIF severity mapping: our severity → SARIF level
 _SEVERITY_TO_LEVEL = {
     "critical": "error",
     "high": "error",
@@ -18,86 +16,107 @@ _SEVERITY_TO_LEVEL = {
 
 
 def render_sarif(report: ScanReport) -> str:
-    """Return a SARIF v2.1.0 JSON string for GitHub Security tab.
+    """Render SARIF from an in-memory scan report."""
+    data = report.to_dict()
+    data["samples"] = [
+        sample.to_dict()
+        for suite in report.suites
+        for sample in suite.samples
+    ]
+    return render_sarif_dict(data)
 
-    Each failed sample becomes a result. Passing samples are not reported
-    (SARIF only surfaces issues, not successes).
-    """
+
+def render_sarif_dict(report: dict[str, Any]) -> str:
+    """Render SARIF from a saved JSON report without rerunning the target."""
+    samples = report.get("samples", [])
     results = []
-    rules = {}
+    rules: dict[str, dict[str, Any]] = {}
 
-    for suite in report.suites:
-        for sample in suite.samples:
-            if sample.verdict != Verdict.FAIL:
-                continue  # Only report failures
+    for sample in samples:
+        if str(sample.get("verdict", "")).lower() != Verdict.FAIL.value:
+            continue
 
-            # Build a unique rule ID per suite+category
-            rule_id = f"agent-redteam/{suite.name}/{sample.category or 'default'}"
+        suite = str(sample.get("suite", "unknown"))
+        category = str(sample.get("category", ""))
+        severity = str(sample.get("severity", "medium"))
+        owasp = str(sample.get("owasp", ""))
+        sample_id = str(sample.get("sample_id", "unknown"))
+        rule_id = f"agent-redteam/{suite}/{category or 'default'}"
 
-            # Register rule metadata if not seen
-            if rule_id not in rules:
-                owasp = sample.owasp or "LLM??"
-                rules[rule_id] = {
-                    "id": rule_id,
-                    "name": f"{suite.name}_{sample.category}".replace("-", "_").replace(" ", "_"),
-                    "shortDescription": {
-                        "text": f"Security test failure in {suite.name} ({owasp})"
-                    },
-                    "fullDescription": {
-                        "text": f"The model failed this {sample.severity} severity attack "
-                                f"in the {suite.name} suite. Category: {sample.category}. "
-                                f"OWASP: {owasp}."
-                    },
-                    "helpUri": "https://github.com/uninhibited-scholar/agent-redteam#owasp-llm-top-10-coverage",
-                    "defaultConfiguration": {
-                        "level": _SEVERITY_TO_LEVEL.get(sample.severity, "warning"),
-                    },
-                    "properties": {
-                        "tags": ["security", "llm", "red-team", owasp.lower()],
-                        "precision": "high",
-                    },
-                }
-
-            # Truncate response for the message (SARIF messages shouldn't be huge)
-            resp_preview = (sample.response or "")[:300]
-            question_preview = (sample.question or "")[:200]
-
-            results.append({
-                "ruleId": rule_id,
-                "level": _SEVERITY_TO_LEVEL.get(sample.severity, "warning"),
-                "message": {
-                    "text": (
-                        f"[{sample.sample_id}] {suite.name} — {sample.severity.upper()}\n"
-                        f"Attack: {question_preview}\n"
-                        f"Response: {resp_preview}"
-                    ),
+        if rule_id not in rules:
+            owasp_label = owasp or "LLM??"
+            rules[rule_id] = {
+                "id": rule_id,
+                "name": f"{suite}_{category}".replace("-", "_").replace(" ", "_"),
+                "shortDescription": {
+                    "text": f"Security test failure in {suite} ({owasp_label})"
                 },
-                # SARIF requires a location; we use a synthetic artifact
-                # since there's no source file — the "file" is the sample data.
-                "locations": [{
-                    "physicalLocation": {
-                        "artifactLocation": {
-                            "uri": f"agent-redteam://samples/{suite.name}/{sample.sample_id}",
-                        },
-                    },
-                    "logicalLocations": [{
-                        "name": suite.name,
-                        "fullyQualifiedName": f"agent-redteam.suites.{suite.name}",
-                    }],
-                }],
-                "partialFingerprints": {
-                    "primaryLocationLineHash": f"{sample.sample_id}:{sample.verdict.value}",
+                "fullDescription": {
+                    "text": (
+                        f"The model failed this {severity} severity attack in the "
+                        f"{suite} suite. Category: {category}. OWASP: {owasp_label}."
+                    )
+                },
+                "helpUri": "https://github.com/uninhibited-scholar/agent-redteam#owasp-llm-top-10-coverage",
+                "defaultConfiguration": {
+                    "level": _SEVERITY_TO_LEVEL.get(severity, "warning"),
                 },
                 "properties": {
-                    "severity": sample.severity,
-                    "owasp": sample.owasp or "",
-                    "difficulty": sample.difficulty,
-                    "tags": sample.tags,
-                    "sample_id": sample.sample_id,
-                    "suite": suite.name,
-                    "category": sample.category,
+                    "tags": ["security", "llm", "red-team", owasp_label.lower()],
+                    "precision": "high",
                 },
-            })
+            }
+
+        response = str(sample.get("response", ""))[:300]
+        question = str(sample.get("question", ""))[:200]
+        results.append({
+            "ruleId": rule_id,
+            "level": _SEVERITY_TO_LEVEL.get(severity, "warning"),
+            "message": {
+                "text": (
+                    f"[{sample_id}] {suite} — {severity.upper()}\n"
+                    f"Attack: {question}\nResponse: {response}"
+                ),
+            },
+            "locations": [{
+                "physicalLocation": {
+                    "artifactLocation": {
+                        "uri": f"agent-redteam://samples/{suite}/{sample_id}",
+                    },
+                },
+                "logicalLocations": [{
+                    "name": suite,
+                    "fullyQualifiedName": f"agent-redteam.suites.{suite}",
+                }],
+            }],
+            "partialFingerprints": {
+                "primaryLocationLineHash": f"{sample_id}:fail",
+            },
+            "properties": {
+                "severity": severity,
+                "owasp": owasp,
+                "difficulty": sample.get("difficulty", ""),
+                "tags": sample.get("tags", []),
+                "sample_id": sample_id,
+                "suite": suite,
+                "category": category,
+            },
+        })
+
+    total = _int(report.get("total_samples"), len(samples))
+    passed = _int(report.get("total_passed"), _count(samples, Verdict.PASS.value))
+    failed = _int(report.get("total_failed"), _count(samples, Verdict.FAIL.value))
+    errors = _int(report.get("total_errors"), _count(samples, Verdict.ERROR.value))
+    judged = _int(report.get("total_judged"), passed + failed)
+    completion_rate = report.get(
+        "completion_rate", round(100.0 * judged / total, 1) if total else 0.0
+    )
+    run_status = str(report.get(
+        "run_status",
+        "no_data" if total == 0 or judged == 0
+        else "incomplete" if judged < total
+        else "complete",
+    ))
 
     sarif = {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
@@ -115,15 +134,29 @@ def render_sarif(report: ScanReport) -> str:
                 },
             },
             "results": results,
-            # Summary as run-level property
+            "invocations": [{"executionSuccessful": run_status == "complete"}],
             "properties": {
-                "overall_score": report.overall_score,
-                "total_samples": report.total_samples,
-                "total_passed": report.total_passed,
-                "total_failed": report.total_failed,
-                "target_model": report.target_model,
+                "overall_score": report.get("overall_score", 0),
+                "total_samples": total,
+                "total_passed": passed,
+                "total_failed": failed,
+                "total_errors": errors,
+                "total_judged": judged,
+                "completion_rate": completion_rate,
+                "run_status": run_status,
+                "target_model": report.get("target_model", "unknown"),
             },
         }],
     }
-
     return json.dumps(sarif, ensure_ascii=False, indent=2)
+
+
+def _count(samples: list[dict[str, Any]], verdict: str) -> int:
+    return sum(1 for sample in samples if str(sample.get("verdict", "")).lower() == verdict)
+
+
+def _int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default

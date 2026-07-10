@@ -75,7 +75,7 @@ def load_default_profile() -> dict:
 _CONFIG_PATH = os.path.join(os.path.expanduser("~/.agent-redteam"), "config")
 _CONFIG_KEYS = (
     "api_key", "base_url", "model", "target", "suites",
-    "workers", "max_tokens", "fail_below",
+    "workers", "max_tokens", "fail_below", "allow_errors",
 )
 
 

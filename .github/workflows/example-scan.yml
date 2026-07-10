@@ -50,6 +50,8 @@ jobs:
           echo "| **Score** | ${{ steps.scan.outputs.score }}/100 |" >> $GITHUB_STEP_SUMMARY
           echo "| **Samples** | ${{ steps.scan.outputs.total-samples }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Failed** | ${{ steps.scan.outputs.total-failed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Errors** | ${{ steps.scan.outputs.total-errors }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run status** | ${{ steps.scan.outputs.run-status }} |" >> $GITHUB_STEP_SUMMARY
 
 # ----------------------------------------------------------------------------
 # What you get:

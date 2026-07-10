@@ -10,7 +10,8 @@ def render_markdown(report: ScanReport) -> str:
         "",
         f"- **Overall Score**: {report.overall_score}/100",
         f"- **Total Samples**: {report.total_samples}",
-        f"- **Passed**: {report.total_passed} | **Failed**: {report.total_failed}",
+        f"- **Passed**: {report.total_passed} | **Failed**: {report.total_failed} | **Errors**: {report.total_errors}",
+        f"- **Run Status**: {report.run_status} ({report.completion_rate}% judged)",
         f"- **Started**: {report.started_at}",
         f"- **Finished**: {report.finished_at}",
         "",
@@ -18,8 +19,8 @@ def render_markdown(report: ScanReport) -> str:
         "",
         "## Suite Breakdown",
         "",
-        "| Suite | OWASP | Score | Passed | Failed | Total |",
-        "|-------|-------|------:|-------:|-------:|------:|",
+        "| Suite | OWASP | Score | Passed | Failed | Errors | Total |",
+        "|-------|-------|------:|-------:|-------:|-------:|------:|",
     ]
 
     for suite in report.suites:
@@ -29,7 +30,7 @@ def render_markdown(report: ScanReport) -> str:
         score_str = f"{suite.score}" if suite.score >= 0 else "N/A"
         lines.append(
             f"| {suite.name} | {owasp} | {score_str} | "
-            f"{suite.passed} | {suite.failed} | {suite.total} |"
+            f"{suite.passed} | {suite.failed} | {suite.errors} | {suite.total} |"
         )
 
     # Failed samples detail

@@ -172,6 +172,22 @@ class TestCLIScanFormat:
         report.suites.append(suite)
         return report
 
+    def _make_error_report(self, *, passed: int, errors: int):
+        from agent_redteam.core.result import ScanReport, SuiteResult, SampleResult, Verdict
+        report = ScanReport(target_model="test-model")
+        suite = SuiteResult(name="injection")
+        for i in range(passed):
+            suite.add(SampleResult(
+                "injection", f"pass-{i}", "", "", "q", "e", "ok", Verdict.PASS
+            ))
+        for i in range(errors):
+            suite.add(SampleResult(
+                "injection", f"error-{i}", "", "", "q", "e", "", Verdict.ERROR,
+                error="API unavailable",
+            ))
+        report.suites.append(suite)
+        return report
+
     def test_scan_json_format(self, capsys, mock_scan):
         """scan --format json should output valid JSON."""
         with patch("agent_redteam.cli.Engine") as MockEngine:
@@ -217,6 +233,43 @@ class TestCLIScanFormat:
                                   "--suites", "injection", "--limit", "2",
                                   "--fail-below", "80"])
         assert result == 0
+
+    def test_scan_partial_errors_fail_by_default_and_can_be_explicitly_allowed(self):
+        partial = self._make_error_report(passed=1, errors=1)
+        with patch("agent_redteam.cli.Engine") as MockEngine, \
+             patch("agent_redteam.cli.OpenAITarget"), \
+             patch("agent_redteam.core.storage.save_report", return_value="test-run"):
+            MockEngine.return_value.scan.return_value = partial
+            assert main(["scan", "--model", "test", "--key", "k", "--format", "json"]) == 1
+            assert main([
+                "scan", "--model", "test", "--key", "k", "--format", "json", "--allow-errors"
+            ]) == 0
+
+    def test_scan_all_errors_fail_even_when_errors_are_allowed(self):
+        no_data = self._make_error_report(passed=0, errors=2)
+        with patch("agent_redteam.cli.Engine") as MockEngine, \
+             patch("agent_redteam.cli.OpenAITarget"), \
+             patch("agent_redteam.core.storage.save_report", return_value="test-run"):
+            MockEngine.return_value.scan.return_value = no_data
+            result = main([
+                "scan", "--model", "test", "--key", "k", "--format", "json", "--allow-errors"
+            ])
+        assert result == 1
+
+    def test_json_stdout_remains_parseable_when_gate_fails(self, capsys):
+        low_report = self._make_report(50.0)
+        with patch("agent_redteam.cli.Engine") as MockEngine, \
+             patch("agent_redteam.cli.OpenAITarget"), \
+             patch("agent_redteam.core.storage.save_report", return_value="test-run"):
+            MockEngine.return_value.scan.return_value = low_report
+            result = main([
+                "scan", "--model", "test", "--key", "k", "--format", "json",
+                "--fail-below", "80",
+            ])
+        captured = capsys.readouterr()
+        assert result == 1
+        assert json.loads(captured.out)["run_status"] == "complete"
+        assert "below threshold" in captured.err
 
 
 class TestStorageCompareReports:
@@ -302,6 +355,8 @@ class TestReportRendering:
         data = json.loads(output)
         assert data["target_model"] == "test-model"
         assert data["overall_score"] == 80.0
+        assert data["run_status"] == "complete"
+        assert data["completion_rate"] == 100.0
         assert len(data["suites"]) == 1
         assert data["suites"][0]["name"] == "injection"
 
@@ -322,3 +377,31 @@ class TestReportRendering:
         output = buf.getvalue()
         assert "test-model" in output
         assert "80" in output
+
+    def test_error_report_formats_are_explicitly_incomplete(self):
+        from agent_redteam.core.result import ScanReport, SuiteResult, SampleResult, Verdict
+        from agent_redteam.report import render_markdown, render_sarif
+        report = ScanReport(target_model="test-model")
+        suite = SuiteResult(name="injection")
+        suite.add(SampleResult("injection", "e1", "", "", "q", "e", "", Verdict.ERROR))
+        report.suites.append(suite)
+
+        markdown = render_markdown(report)
+        sarif = json.loads(render_sarif(report))
+        assert "no_data (0.0% judged)" in markdown
+        assert sarif["runs"][0]["invocations"][0]["executionSuccessful"] is False
+        assert sarif["runs"][0]["properties"]["total_errors"] == 1
+
+    def test_saved_json_converts_to_equivalent_sarif_offline(self, sample_report, tmp_path):
+        from agent_redteam.report import render_json, render_sarif
+        report_path = tmp_path / "report.json"
+        sarif_path = tmp_path / "report.sarif"
+        report_path.write_text(render_json(sample_report), encoding="utf-8")
+
+        assert main([
+            "report", str(report_path), "--format", "sarif", "--output", str(sarif_path)
+        ]) == 0
+        live = json.loads(render_sarif(sample_report))
+        offline = json.loads(sarif_path.read_text(encoding="utf-8"))
+        assert offline["runs"][0]["results"] == live["runs"][0]["results"]
+        assert offline["runs"][0]["properties"] == live["runs"][0]["properties"]

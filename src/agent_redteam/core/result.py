@@ -121,6 +121,34 @@ class ScanReport:
         return sum(s.failed for s in self.suites)
 
     @property
+    def total_errors(self) -> int:
+        return sum(s.errors for s in self.suites)
+
+    @property
+    def total_skipped(self) -> int:
+        return sum(s.skipped for s in self.suites)
+
+    @property
+    def total_judged(self) -> int:
+        return self.total_passed + self.total_failed
+
+    @property
+    def completion_rate(self) -> float:
+        """Percentage of planned samples that received a security verdict."""
+        if self.total_samples == 0:
+            return 0.0
+        return round(100.0 * self.total_judged / self.total_samples, 1)
+
+    @property
+    def run_status(self) -> str:
+        """Machine-readable execution health, separate from security score."""
+        if self.total_samples == 0 or self.total_judged == 0:
+            return "no_data"
+        if self.total_judged < self.total_samples:
+            return "incomplete"
+        return "complete"
+
+    @property
     def overall_score(self) -> float:
         """Severity-weighted average across all suites.
 
@@ -190,6 +218,11 @@ class ScanReport:
             "total_samples": self.total_samples,
             "total_passed": self.total_passed,
             "total_failed": self.total_failed,
+            "total_errors": self.total_errors,
+            "total_skipped": self.total_skipped,
+            "total_judged": self.total_judged,
+            "completion_rate": self.completion_rate,
+            "run_status": self.run_status,
             "suites": [s.to_dict() for s in self.suites],
         }
 

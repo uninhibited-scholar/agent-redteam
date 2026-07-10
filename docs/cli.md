@@ -15,7 +15,7 @@ agent-redteam scan [--model MODEL] [--base-url BASE_URL] [--key KEY]
                     [--endpoint ENDPOINT] [--suites SUITES]
                     [--max-tokens MAX_TOKENS] [--workers WORKERS]
                     [--format {terminal,json,markdown,sarif}]
-                    [--fail-below SCORE] [--limit LIMIT] [--tui]
+                    [--fail-below SCORE] [--allow-errors] [--limit LIMIT] [--tui]
                     [--dry-run] [--serve] [--port PORT]
 ```
 
@@ -31,6 +31,7 @@ agent-redteam scan [--model MODEL] [--base-url BASE_URL] [--key KEY]
 | `--workers` | 并行 API 调用数 |
 | `--format` | `terminal`（默认）/ `json`（机器可读）/ `markdown`（文档）/ `sarif`（GitHub Security tab） |
 | `--fail-below` | 总分低于此值则 exit 1（CI 集成用） |
+| `--allow-errors` | 明确允许部分样本为 `ERROR`；零有效判定仍 exit 1 |
 | `--limit` | 每套件最多跑 N 条样本（调试/快速验证用） |
 | `--dry-run` | 离线计算 suite 范围、模型调用数和最大输出 token 预算，不创建 target 或发送请求 |
 | `--tui` | 启动 Textual 实时界面 |
@@ -66,6 +67,17 @@ agent-redteam scan --serve --model gpt-4o --key $OPENAI_API_KEY
 理论上限；multi-turn 场景会按实际 turn 数计入 planned calls，失败重试不在计划内。
 它不估算输入 token，也不根据供应商价格推算费用。`suites: all` 会展开全部
 内置 suite；未知、重复或与 `all` 混用的 suite 名会在发送请求前返回 exit 2。
+
+真实扫描默认要求每条样本都获得 `PASS` 或 `FAIL` 判定：存在 `ERROR`、`SKIP` 或完全
+没有有效判定时返回 exit 1。临时 API 错误可直接重跑并由 checkpoint 续扫；只有明确
+接受部分结果时才使用 `--allow-errors`。JSON、Markdown 和 SARIF 正文只写 stdout，
+进度与失败原因写 stderr，因此重定向后的机器可读文件保持可解析。
+
+已有 JSON 可离线转换为 SARIF，无需再次调用模型：
+
+```bash
+agent-redteam report report.json --format sarif --output report.sarif
+```
 
 ## `list`
 

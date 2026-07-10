@@ -26,7 +26,7 @@ inputs:
     required: false
     default: "0"
   suites:
-    description: "Comma-separated suites (default: all 10)"
+    description: "Comma-separated suites (default: all 13)"
     required: false
     default: ""
   limit:
@@ -60,6 +60,12 @@ outputs:
   total-failed:
     description: "Total failed samples"
     value: ${{ steps.scan.outputs.total-failed }}
+  total-errors:
+    description: "Total samples without a security verdict"
+    value: ${{ steps.scan.outputs.total-errors }}
+  run-status:
+    description: "Execution health: complete, incomplete, or no_data"
+    value: ${{ steps.scan.outputs.run-status }}
   sarif-file:
     description: "Path to SARIF file"
     value: ${{ steps.scan.outputs.sarif-file }}
@@ -99,7 +105,7 @@ runs:
         echo "🛡️ agent-redteam scan: $INPUT_MODEL ($INPUT_TARGET), $INPUT_LIMIT samples/suite"
 
         agent-redteam scan "${ARGS[@]}" --format json > /tmp/redteam-report.json 2>/tmp/redteam-stderr.log || SCAN_EXIT=$?
-        agent-redteam scan "${ARGS[@]}" --format sarif > /tmp/redteam.sarif 2>/dev/null || true
+        agent-redteam report /tmp/redteam-report.json --format sarif --output /tmp/redteam.sarif
 
         cat /tmp/redteam-stderr.log >&2
 
@@ -113,6 +119,8 @@ runs:
         score = d.get('overall_score', 0)
         total = d.get('total_samples', 0)
         failed = d.get('total_failed', 0)
+        errors = d.get('total_errors', 0)
+        run_status = d.get('run_status', 'unknown')
         model = d.get('target_model', '?')
         output_path = os.environ.get('GITHUB_OUTPUT')
         if output_path:
@@ -120,6 +128,8 @@ runs:
                 f.write(f'score={score}\n')
                 f.write(f'total-samples={total}\n')
                 f.write(f'total-failed={failed}\n')
+                f.write(f'total-errors={errors}\n')
+                f.write(f'run-status={run_status}\n')
                 f.write('sarif-file=/tmp/redteam.sarif\n')
         suites = d.get('suites', [])
         lines = []
@@ -131,16 +141,18 @@ runs:
         comment += "| **Model** | {} |\n".format(model)
         comment += "| **Score** | **{}/100** |\n".format(score)
         comment += "| **Samples** | {} |\n".format(total)
-        comment += "| **Failed** | {} |\n\n".format(failed)
+        comment += "| **Failed** | {} |\n".format(failed)
+        comment += "| **Errors** | {} |\n".format(errors)
+        comment += "| **Run status** | {} |\n\n".format(run_status)
         comment += "### Suite Breakdown\n\n| Suite | Score | Pass/Total | Status |\n|-------|-------|------------|--------|\n"
         comment += "\n".join(lines) + "\n\n"
         comment += "**{}** — Score {}/100\n".format(verdict, score)
         open('/tmp/redteam-comment.md', 'w').write(comment)
-        print("\n  Score: {}/100 ({} failed)".format(score, failed))
+        print("\n  Score: {}/100 ({} failed, {} errors, {})".format(score, failed, errors, run_status))
         PYEOF
 
         if [ -n "$SCAN_EXIT" ] && [ "$SCAN_EXIT" -ne 0 ]; then
-          echo "::error::Security score below threshold ($INPUT_FAIL_BELOW)"
+          echo "::error::Security scan failed its score or completeness gate"
           exit 1
         fi
 
