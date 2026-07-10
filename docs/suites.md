@@ -15,6 +15,7 @@ agent-redteam list
 | `tool_abuse` | LLM01 | 200 | 工具滥用：agent 能否识别并拦截破坏性工具调用（`rm -rf` / `DROP TABLE` 等） |
 | `multi_turn` | LLM01 | 50 | 多轮对话攻击：通过多轮建立信任/上下文后逐步逼近目标 |
 | `supply_chain` | LLM03 | 215 | 供应链攻击：typosquatting / dependency confusion / 恶意包——agent 是否会帮助创建 |
+| `data_poisoning` | LLM04 | 20 | 训练、微调和检索数据进入管道前的来源、完整性和投毒信号准入 |
 | `model_dos` | LLM10 | 200 | 模型拒绝服务：token 耗尽攻击、递归生成、长上下文炸弹——agent 是否会无限制输出 |
 | `excessive_agency` | LLM06 | 200 | 过度代理：agent 是否会声称超出其能力的权限（执行命令/访问文件/控制设备） |
 | `info_leak` | LLM07 | 200 | 信息泄露：agent 是否会泄露系统提示、工具定义、模型配置等内部信息 |

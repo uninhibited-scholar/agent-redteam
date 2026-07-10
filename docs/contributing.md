@@ -9,11 +9,12 @@
 
 最直接的贡献方式。每个套件的 `data.jsonl` 可以扩充：
 
-1. **选一个套件**（11 个可选，见 [套件说明](suites.md) 和 [风险分类法](taxonomy.md)）：
+1. **选一个套件**（12 个可选，见 [套件说明](suites.md) 和 [风险分类法](taxonomy.md)）：
    - `injection` — Prompt 注入（OWASP LLM01）
    - `tool_abuse` — 工具滥用（LLM01）
    - `multi_turn` — 多轮对话攻击（LLM01）
    - `supply_chain` — 供应链攻击（LLM03）
+   - `data_poisoning` — 数据/模型投毒准入（LLM04）
    - `model_dos` — 拒绝服务（LLM10）
    - `excessive_agency` — 过度自主（LLM06）
    - `info_leak` — 信息泄露（LLM07）

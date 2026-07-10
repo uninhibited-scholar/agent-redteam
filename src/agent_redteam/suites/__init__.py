@@ -11,6 +11,7 @@ from .model_dos import ModelDosSuite
 from .supply_chain import SupplyChainSuite
 from .over_dependency import OverDependencySuite
 from .multi_turn import MultiTurnSuite
+from .data_poisoning import DataPoisoningSuite
 
 ALL_SUITES = [
     InjectionSuite,
@@ -24,6 +25,7 @@ ALL_SUITES = [
     SupplyChainSuite,
     OverDependencySuite,
     MultiTurnSuite,
+    DataPoisoningSuite,
 ]
 
 __all__ = [
@@ -32,4 +34,5 @@ __all__ = [
     "SensitiveDataSuite", "InsecureOutputSuite", "ExcessiveAgencySuite",
     "ModelDosSuite", "SupplyChainSuite", "OverDependencySuite",
     "MultiTurnSuite",
+    "DataPoisoningSuite",
 ]

@@ -9,6 +9,7 @@
 | `injection` / `tool_abuse` / `multi_turn` | LLM01 Prompt Injection |
 | `sensitive_data` | LLM02 Sensitive Information Disclosure |
 | `supply_chain` | LLM03 Supply Chain |
+| `data_poisoning` | LLM04 Data and Model Poisoning |
 | `insecure_output` | LLM05 Improper Output Handling |
 | `excessive_agency` | LLM06 Excessive Agency |
 | `info_leak` | LLM07 System Prompt Leakage |
@@ -16,8 +17,8 @@
 | `model_dos` | LLM10 Unbounded Consumption |
 | `over_refusal` | PROJECT（非 OWASP） |
 
-当前没有独立的 LLM04 Data and Model Poisoning 或 LLM08 Vector and Embedding Weaknesses
-suite。它们会由 `agent-redteam list --format json --validate` 的 `uncovered_owasp` 字段
-明确呈现，而不会被误报成数据完整性错误。
+当前没有独立的 LLM08 Vector and Embedding Weaknesses suite。它会由
+`agent-redteam list --format json --validate` 的 `uncovered_owasp` 字段明确呈现，
+而不会被误报成数据完整性错误。
 
 分类名称和编号来自 [OWASP LLM Top 10 2025](https://genai.owasp.org/llm-top-10/)。
