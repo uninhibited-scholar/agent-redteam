@@ -21,7 +21,7 @@ from agent_redteam.evidence import (
 )
 from agent_redteam.html_report import build_report, render_report_html
 from agent_redteam.onboarding import InitOptions, initialize_project, render_init_json
-from agent_redteam.policy_lint import lint_policy_files, render_policy_lint_json
+from agent_redteam.policy_lint import lint_policy_files, render_policy_lint_json, render_policy_lint_terminal
 from agent_redteam.project_audit import audit_project
 from agent_redteam.release_gate import (
     ReleaseCheckOptions,
@@ -464,6 +464,18 @@ def test_policy_lint_redacts_secret_paths(tmp_path):
 
     assert "sk-secretpath1234567890" not in body
     assert "sk-[REDACTED]" in body
+
+
+def test_policy_lint_terminal_renderer_redacts_finding_details():
+    result = lint_policy_files()
+    result.findings[0].detail = "raw sk-terminalsecret1234567890 and secops@example.com"
+
+    body = render_policy_lint_terminal(result)
+
+    assert "sk-terminalsecret1234567890" not in body
+    assert "secops@example.com" not in body
+    assert "sk-[REDACTED]" in body
+    assert "[REDACTED_EMAIL]" in body
 
 
 def test_cli_ci_exit_codes_and_report_output(tmp_path):

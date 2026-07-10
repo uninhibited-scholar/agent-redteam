@@ -79,7 +79,7 @@ def render_policy_lint_terminal(result: PolicyLintResult) -> str:
         "",
     ]
     for finding in result.findings:
-        lines.append(f"[{finding.status.upper():<4}] {finding.rule}: {finding.detail}")
+        lines.append(f"[{finding.status.upper():<4}] {_redact(finding.rule)}: {_redact(finding.detail)}")
     lines.append("")
     return "\n".join(lines)
 
