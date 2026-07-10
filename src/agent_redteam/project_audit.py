@@ -67,6 +67,7 @@ def audit_project(root: str | Path | None = None) -> AuditReport:
         _check_web_quality_scripts(project_root),
         _check_test_suite_presence(project_root),
         _check_waiver_workflow(project_root),
+        _check_policy_lint_workflow(project_root),
         _check_sbom_workflow(project_root),
         _check_regression_gate_workflow(project_root),
         _check_dashboard_static_assets(project_root),
@@ -331,6 +332,33 @@ def _check_waiver_workflow(root: Path) -> AuditCheck:
         "Risk acceptance workflow",
         "pass",
         "Expiring CI waivers and tests are present.",
+    )
+
+
+def _check_policy_lint_workflow(root: Path) -> AuditCheck:
+    lint = root / "src" / "agent_redteam" / "policy_lint.py"
+    cli = _read(root / "src" / "agent_redteam" / "cli.py")
+    tests = _read(root / "tests" / "test_maturity_commands.py")
+    missing = []
+    if not lint.exists():
+        missing.append("policy_lint.py")
+    if "policy-lint" not in cli:
+        missing.append("CLI command")
+    if "test_policy_lint" not in tests:
+        missing.append("tests")
+    if missing:
+        return AuditCheck(
+            "ci.policy_lint",
+            "Policy lint workflow",
+            "warn",
+            f"Missing: {', '.join(missing)}.",
+            "Keep a tested config linter so CI policy and waiver files fail fast before scans run.",
+        )
+    return AuditCheck(
+        "ci.policy_lint",
+        "Policy lint workflow",
+        "pass",
+        "Policy and waiver lint command and tests are present.",
     )
 
 

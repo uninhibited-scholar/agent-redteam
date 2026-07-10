@@ -38,6 +38,7 @@ python -m agent_redteam.cli doctor
 - [ ] Generate an attestation card with `agent-redteam attest`.
 - [ ] Generate a shareable HTML report with `agent-redteam report`.
 - [ ] Export failed samples for human review with `agent-redteam review`.
+- [ ] Lint CI policy and waiver files with `agent-redteam policy-lint`.
 - [ ] Compare against the previous accepted baseline with `agent-redteam regress`.
 - [ ] Treat score drops as noisy within policy, but keep new/escalated high and critical failures at zero tolerance unless there is an explicit risk acceptance note.
 - [ ] If known failures are accepted, record them in an expiring waiver file instead of weakening global CI thresholds; keep expiry within `max_waiver_days`.

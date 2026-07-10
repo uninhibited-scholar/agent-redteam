@@ -21,6 +21,7 @@ from agent_redteam.evidence import (
 )
 from agent_redteam.html_report import build_report, render_report_html
 from agent_redteam.onboarding import InitOptions, initialize_project, render_init_json
+from agent_redteam.policy_lint import lint_policy_files, render_policy_lint_json
 from agent_redteam.project_audit import audit_project
 from agent_redteam.release_gate import (
     ReleaseCheckOptions,
@@ -352,6 +353,119 @@ def test_waiver_evaluation_reports_unused_active_waivers(tmp_path):
     assert len(evaluation.unused) == 1
 
 
+def test_policy_lint_accepts_valid_policy_and_short_waiver(tmp_path):
+    policy_path = tmp_path / "policy.yml"
+    policy_path.write_text(
+        "\n".join([
+            "fail_below: 80",
+            "max_critical_failures: 0",
+            "max_high_failures: 5",
+            "allow_errors: false",
+            "max_waiver_days: 90",
+        ]),
+        encoding="utf-8",
+    )
+    waivers_path = tmp_path / "waivers.json"
+    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
+    waivers_path.write_text(
+        json.dumps(
+            {
+                "waivers": [
+                    {
+                        "suite": "injection",
+                        "sample_id": "inj-001",
+                        "owner": "secops@example.com",
+                        "reason": "Temporary acceptance.",
+                        "expires": expires,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = lint_policy_files(policy_path, waivers_path)
+    body = render_policy_lint_json(result)
+
+    assert result.passed is True
+    assert '"fail": 0' in body
+    assert "secops@example.com" not in body
+    assert "[REDACTED_EMAIL]" not in body
+
+
+def test_policy_lint_rejects_bad_policy_and_long_waiver(tmp_path):
+    policy_path = tmp_path / "policy.yml"
+    policy_path.write_text(
+        "\n".join([
+            "fail_below: 101",
+            "max_critical_failures: -1",
+            "max_high_failures: 5",
+            "allow_errors: false",
+            "max_waiver_days: 90",
+            "mystery_threshold: sk-secretpolicy1234567890",
+        ]),
+        encoding="utf-8",
+    )
+    waivers_path = tmp_path / "waivers.json"
+    waivers_path.write_text(
+        json.dumps(
+            {
+                "waivers": [
+                    {
+                        "suite": "injection",
+                        "sample_id": "inj-001",
+                        "owner": "secops@example.com",
+                        "reason": "Too long.",
+                        "expires": "2099-12-31",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = lint_policy_files(policy_path, waivers_path)
+    findings = {finding.rule: finding for finding in result.findings}
+    body = render_policy_lint_json(result)
+
+    assert result.passed is False
+    assert findings["policy.fail_below"].status == "fail"
+    assert findings["policy.max_critical_failures"].status == "fail"
+    assert findings["policy.known_keys"].status == "warn"
+    assert findings["waivers.horizon"].status == "fail"
+    assert "sk-secretpolicy1234567890" not in body
+
+
+def test_policy_lint_warns_on_duplicate_waiver_keys(tmp_path):
+    waivers_path = tmp_path / "waivers.json"
+    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
+    row = {
+        "suite": "injection",
+        "sample_id": "inj-001",
+        "owner": "secops@example.com",
+        "reason": "Temporary acceptance.",
+        "expires": expires,
+    }
+    waivers_path.write_text(json.dumps({"waivers": [row, dict(row)]}), encoding="utf-8")
+
+    result = lint_policy_files(waivers_path=waivers_path)
+    findings = {finding.rule: finding for finding in result.findings}
+
+    assert result.passed is True
+    assert findings["waivers.duplicates"].status == "warn"
+
+
+def test_policy_lint_redacts_secret_paths(tmp_path):
+    policy_path = tmp_path / "policy-sk-secretpath1234567890.yml"
+    policy_path.write_text("fail_below: 80\n", encoding="utf-8")
+
+    result = lint_policy_files(policy_path)
+    body = render_policy_lint_json(result)
+
+    assert "sk-secretpath1234567890" not in body
+    assert "sk-[REDACTED]" in body
+
+
 def test_cli_ci_exit_codes_and_report_output(tmp_path):
     report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
     html_path = tmp_path / "report.html"
@@ -363,6 +477,7 @@ def test_cli_ci_exit_codes_and_report_output(tmp_path):
     assert "Agent Redteam Report" in html_path.read_text(encoding="utf-8")
     assert main(["ci", "--print-sample-waivers"]) == 0
     assert "waivers" in sample_waivers()
+    assert main(["policy-lint", "--format", "json"]) == 0
 
 
 def test_regression_gate_passes_when_current_improves(tmp_path):
@@ -1113,6 +1228,22 @@ def test_doctor_detects_waiver_workflow(tmp_path):
     checks = {check.id: check for check in report.checks}
 
     assert checks["ci.waiver_workflow"].status == "pass"
+
+
+def test_doctor_detects_policy_lint_workflow(tmp_path):
+    root = tmp_path
+    src = root / "src" / "agent_redteam"
+    tests = root / "tests"
+    src.mkdir(parents=True)
+    tests.mkdir()
+    (src / "policy_lint.py").write_text("# policy lint\n", encoding="utf-8")
+    (src / "cli.py").write_text('sub.add_parser("policy-lint")\n', encoding="utf-8")
+    (tests / "test_maturity_commands.py").write_text("def test_policy_lint(): pass\n", encoding="utf-8")
+
+    report = audit_project(root)
+    checks = {check.id: check for check in report.checks}
+
+    assert checks["ci.policy_lint"].status == "pass"
 
 
 def test_doctor_detects_sbom_workflow(tmp_path):

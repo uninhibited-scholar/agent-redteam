@@ -611,6 +611,37 @@ waivers.valid: fail, expires beyond max_waiver_days 90
 exit: 1
 ```
 
+### 16. Policy lint
+
+Purpose: fail fast on broken CI policy or waiver files before requiring a scan report.
+
+Files:
+- `policy_lint.py`
+- `cli.py`
+- `project_audit.py`
+- `docs/cli.md`
+- `RELEASE_CHECKLIST.md`
+- `tests/test_maturity_commands.py`
+
+Command:
+
+```bash
+agent-redteam policy-lint --policy .agent-redteam-policy.yml --waivers .agent-redteam-waivers.json
+```
+
+Checks:
+- policy loadability
+- unknown policy keys
+- numeric policy thresholds
+- `allow_errors` type
+- waiver loadability
+- missing waiver fields
+- expired waiver records
+- waiver expiry beyond `max_waiver_days`
+- duplicate waiver keys
+
+The command is report-free and does not import the scan engine.
+
 ## Config Changes
 
 `core/config.py` now treats these keys as recognized scan config:
@@ -634,6 +665,8 @@ python -m agent_redteam.cli ci validation/full-300-final.json
 python -m agent_redteam.cli ci validation/full-300-final.json --policy /tmp/agent-redteam-pass-policy.yml --summary-file /tmp/agent-redteam-ci-summary.md
 python -m agent_redteam.cli ci --print-sample-waivers
 python -m agent_redteam.cli ci validation/full-300-final.json --waivers /tmp/agent-redteam-waivers.json --format json
+python -m agent_redteam.cli policy-lint --format json
+python -m agent_redteam.cli policy-lint --waivers /tmp/agent-redteam-waivers.json --format json
 python -m agent_redteam.cli doctor
 python -m agent_redteam.cli report validation/full-300-final.json --output /tmp/agent-redteam-report.html --max-failures 5
 python -m agent_redteam.cli report validation/full-300-final.json --format markdown --max-failures 2
@@ -656,7 +689,7 @@ npm --prefix web run build
 Final test result:
 
 ```text
-191 passed in 10.96s
+196 passed in 10.96s
 ```
 
 ## Current Git State Notes
@@ -670,6 +703,7 @@ Codex-created or modified files:
 - `html_report.py`
 - `onboarding.py`
 - `project_audit.py`
+- `policy_lint.py`
 - `review.py`
 - `evidence.py`
 - `release_gate.py`

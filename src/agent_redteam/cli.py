@@ -116,6 +116,16 @@ def main(argv: list[str] | None = None) -> int:
     p_ci.add_argument("--waivers", default="", help="风险接受 waiver JSON 文件")
     p_ci.add_argument("--print-sample-waivers", action="store_true", help="打印 waiver JSON 模板")
 
+    # policy-lint command
+    p_policy_lint = sub.add_parser("policy-lint", help="不依赖扫描报告，预检 CI policy 和 waiver 配置")
+    p_policy_lint.add_argument("--policy", default="", help="策略文件路径；留空则检查内置默认策略")
+    p_policy_lint.add_argument("--waivers", default="", help="风险接受 waiver JSON 文件")
+    p_policy_lint.add_argument("--max-waiver-days", type=int, default=0,
+                               help="覆盖 waiver 最大有效天数；默认使用 policy 或内置 90 天")
+    p_policy_lint.add_argument("--format", choices=["terminal", "json", "markdown"], default="terminal",
+                               help="输出格式")
+    p_policy_lint.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+
     # regress command
     p_regress = sub.add_parser("regress", help="对比基线和当前扫描 JSON，发现安全回归")
     p_regress.add_argument("baseline", help="基线 scan --format json 报告")
@@ -228,6 +238,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_init(args)
     elif args.command == "ci":
         return _cmd_ci(args)
+    elif args.command == "policy-lint":
+        return _cmd_policy_lint(args)
     elif args.command == "regress":
         return _cmd_regress(args)
     elif args.command == "sbom":
@@ -612,6 +624,43 @@ def _cmd_ci(args) -> int:
     else:
         print(render_policy_terminal(result))
 
+    return 0 if result.passed else 1
+
+
+def _cmd_policy_lint(args) -> int:
+    from .policy_lint import (
+        lint_policy_files,
+        render_policy_lint_json,
+        render_policy_lint_markdown,
+        render_policy_lint_terminal,
+        write_policy_lint,
+    )
+
+    try:
+        result = lint_policy_files(
+            args.policy or None,
+            args.waivers or None,
+            max_waiver_days=None if args.max_waiver_days <= 0 else args.max_waiver_days,
+        )
+        if args.format == "json":
+            content = render_policy_lint_json(result)
+        elif args.format == "markdown":
+            content = render_policy_lint_markdown(result)
+        else:
+            content = render_policy_lint_terminal(result)
+    except Exception as exc:
+        print(f"ERROR: failed to lint policy configuration: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output:
+        try:
+            write_policy_lint(result, args.output, args.format)
+        except OSError as exc:
+            print(f"ERROR: failed to write policy lint report: {exc}", file=sys.stderr)
+            return 1
+        print(f"Wrote {args.format} policy lint report: {args.output}")
+    else:
+        print(content)
     return 0 if result.passed else 1
 
 

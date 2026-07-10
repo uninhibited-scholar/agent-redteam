@@ -200,6 +200,23 @@ waiver JSON 示例：
 - owner/reason/sample metadata 会按现有脱敏规则渲染
 - 默认最长 waiver 窗口是 90 天，可在 policy 中显式设置 `max_waiver_days`
 
+## `policy-lint`
+
+`policy-lint` 不需要扫描报告，用于在 PR 或发布前提前检查 CI policy 与 waiver 文件。
+
+```bash
+agent-redteam policy-lint --policy .agent-redteam-policy.yml
+agent-redteam policy-lint --policy .agent-redteam-policy.yml --waivers .agent-redteam-waivers.json
+agent-redteam policy-lint --waivers .agent-redteam-waivers.json --format json
+```
+
+它会检查：
+
+- policy 阈值是否在合理范围内
+- 是否存在未知 policy key
+- waiver 是否缺字段、过期或超过 `max_waiver_days`
+- waiver 是否存在重复 `(suite, sample_id)` key
+
 ## `sbom`
 
 生成本地软件物料清单（SBOM），用于供应链审计和发布交付。
