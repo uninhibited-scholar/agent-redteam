@@ -54,7 +54,13 @@ def on_result(sample_result):
 report = engine.scan(on_result=on_result)
 ```
 
-扫描内置检查点支持（`~/.agent-redteam/checkpoints/`），中断后重跑会跳过已完成的样本。
+扫描内置检查点支持（`~/.agent-redteam/checkpoints/`）：
+
+- 单轮样本和完整的多轮场景都会在完成后写入检查点；中断后以相同范围重跑会复用已判定的 `PASS` / `FAIL`。
+- `ERROR` 视为临时失败，不会被当作完成；下次运行会自动重试。
+- 检查点绑定非秘密 target 配置、model、套件、limit 之后的样本内容及判定实现；endpoint、数据、范围或检查逻辑变化不会误用旧结果。
+- 只要报告仍含 `ERROR`，活动检查点就会保留；全部获得有效判定后才归档为 `.done`。
+- 检查点可能包含模型响应，文件权限固定为 `0600`。不要将该目录提交到版本库。
 
 ## 自定义套件
 

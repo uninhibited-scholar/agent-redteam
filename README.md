@@ -299,7 +299,7 @@ agent-redteam/
 │   ├── cli.py                      # CLI 入口
 │   └── tui.py                      # TUI
 ├── web/                            # React 前端源码 (19,000+ 行)
-├── tests/                          # 75 个测试
+├── tests/                          # Python 自动化测试套件
 └── pyproject.toml
 ```
 
