@@ -39,6 +39,7 @@ jobs:
 | `limit` | 否 | `"20"` | 每套件最大样本数 |
 | `max-tokens` | 否 | `"500"` | 响应最大 token 数 |
 | `workers` | 否 | `"4"` | 并行 API 调用数 |
+| `max-attempts` | 否 | `"3"` | 每次模型调用最多总尝试次数（1-10） |
 | `upload-sarif` | 否 | `"true"` | 是否上传 SARIF 到 Security tab |
 | `pr-comment` | 否 | `"true"` | 是否在 PR 上评论结果（存在则更新，不存在则新建） |
 

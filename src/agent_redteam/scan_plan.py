@@ -31,6 +31,7 @@ class ScanPlan:
     target: str
     model: str
     workers: int
+    max_attempts_per_call: int
     limit_per_suite: int
     max_output_tokens_per_call: int
     suites: tuple[PlannedSuite, ...]
@@ -42,6 +43,14 @@ class ScanPlan:
     @property
     def output_token_ceiling(self) -> int:
         return self.total_calls * self.max_output_tokens_per_call
+
+    @property
+    def max_calls_with_retries(self) -> int:
+        return self.total_calls * self.max_attempts_per_call
+
+    @property
+    def max_output_token_ceiling_with_retries(self) -> int:
+        return self.max_calls_with_retries * self.max_output_tokens_per_call
 
     @property
     def estimated_parallel_batches(self) -> int:
@@ -57,11 +66,14 @@ class ScanPlan:
             "target": self.target,
             "model": self.model,
             "workers": self.workers,
+            "max_attempts_per_call": self.max_attempts_per_call,
             "limit_per_suite": self.limit_per_suite,
             "max_output_tokens_per_call": self.max_output_tokens_per_call,
             "total_suites": len(self.suites),
             "total_calls": self.total_calls,
             "output_token_ceiling": self.output_token_ceiling,
+            "max_calls_with_retries": self.max_calls_with_retries,
+            "max_output_token_ceiling_with_retries": self.max_output_token_ceiling_with_retries,
             "estimated_parallel_batches": self.estimated_parallel_batches,
             "retry_calls_included": False,
             "suites": [suite.to_dict() for suite in self.suites],
@@ -87,6 +99,7 @@ def build_scan_plan(
     limit: int,
     max_tokens: int,
     workers: int,
+    max_attempts: int = 3,
 ) -> ScanPlan:
     if workers < 1:
         raise ValueError("workers must be at least 1")
@@ -94,6 +107,8 @@ def build_scan_plan(
         raise ValueError("max_tokens must be at least 1")
     if limit < 0:
         raise ValueError("limit must be 0 or greater")
+    if not 1 <= max_attempts <= 10:
+        raise ValueError("max_attempts must be between 1 and 10")
 
     from .suites import ALL_SUITES
 
@@ -127,6 +142,7 @@ def build_scan_plan(
         target=target,
         model=model,
         workers=workers,
+        max_attempts_per_call=max_attempts,
         limit_per_suite=limit,
         max_output_tokens_per_call=max_tokens,
         suites=tuple(suites),
@@ -141,8 +157,11 @@ def render_scan_plan_terminal(plan: ScanPlan) -> str:
     lines = [
         f"Scan plan: {plan.model} ({plan.target})",
         f"Suites: {len(plan.suites)} | Calls before retries: {plan.total_calls} | Workers: {plan.workers}",
+        f"Max attempts/call: {plan.max_attempts_per_call}",
+        f"Worst-case calls with retries: {plan.max_calls_with_retries}",
         f"Max output tokens/call: {plan.max_output_tokens_per_call}",
         f"Output token ceiling: {plan.output_token_ceiling}",
+        f"Worst-case output token ceiling: {plan.max_output_token_ceiling_with_retries}",
         f"Estimated parallel batches: {plan.estimated_parallel_batches}",
         "Network calls performed: 0",
         "",
@@ -162,8 +181,11 @@ def render_scan_plan_markdown(plan: ScanPlan) -> str:
         f"- Target: `{plan.target}` / `{plan.model}`",
         f"- Suites: {len(plan.suites)}",
         f"- Calls: {plan.total_calls}",
+        f"- Max attempts per call: {plan.max_attempts_per_call}",
+        f"- Worst-case calls with retries: {plan.max_calls_with_retries}",
         "- Retry calls included: no",
         f"- Output token ceiling: {plan.output_token_ceiling}",
+        f"- Worst-case output token ceiling: {plan.max_output_token_ceiling_with_retries}",
         "- Network calls performed: 0",
         "",
         "| Suite | OWASP | Planned samples | Planned calls | Mode | Available |",

@@ -23,6 +23,9 @@ def test_full_scan_plan_matches_catalog_without_network_calls():
     assert body["total_suites"] == 13
     assert body["total_calls"] == 2334
     assert body["output_token_ceiling"] == 1_167_000
+    assert body["max_attempts_per_call"] == 3
+    assert body["max_calls_with_retries"] == 7002
+    assert body["max_output_token_ceiling_with_retries"] == 3_501_000
     assert body["network_calls_performed"] == 0
     assert body["retry_calls_included"] is False
 
@@ -77,6 +80,8 @@ def test_scan_plan_rejects_unknown_suite_and_invalid_ranges():
         build_scan_plan(**{**kwargs, "suite_names": None, "max_tokens": 0})
     with pytest.raises(ValueError, match="limit"):
         build_scan_plan(**{**kwargs, "suite_names": None, "limit": -1})
+    with pytest.raises(ValueError, match="max_attempts"):
+        build_scan_plan(**{**kwargs, "suite_names": None, "max_attempts": 0})
 
 
 def test_cli_dry_run_is_json_secret_safe_and_constructs_no_target(capsys):
@@ -84,12 +89,13 @@ def test_cli_dry_run_is_json_secret_safe_and_constructs_no_target(capsys):
         code = main([
             "scan", "--model", "test-model", "--key", "sk-plansecret1234567890",
             "--suites", "injection,data_poisoning", "--limit", "5",
-            "--dry-run", "--format", "json",
+            "--max-attempts", "4", "--dry-run", "--format", "json",
         ])
     body = capsys.readouterr().out
     parsed = json.loads(body)
     assert code == 0
     assert parsed["total_calls"] == 10
+    assert parsed["max_calls_with_retries"] == 40
     assert parsed["network_calls_performed"] == 0
     assert "sk-plansecret1234567890" not in body
     target.assert_not_called()

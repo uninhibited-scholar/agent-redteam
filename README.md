@@ -62,6 +62,8 @@ agent-redteam scan --model ... --fail-below 80 --format json > report.json
 
 扫描默认也会在存在 `ERROR` 或没有有效判定时 exit 1，避免 API 故障被误当成安全通过；
 只有明确接受部分结果时才使用 `--allow-errors`。
+离线计划同时给出基础调用量和按 `--max-attempts` 计算的最坏重试上限；401/403 等
+永久 4xx 不会重试，429、5xx 和网络异常采用有上限的退避重试。
 
 <details>
 <summary>终端报告效果（GLM-5.2 真实验证 · 300 样本）</summary>

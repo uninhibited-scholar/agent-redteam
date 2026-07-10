@@ -32,6 +32,8 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--suites", default=cfg.get("suites", ""), help="只跑特定套件，逗号分隔 (如 injection,info_leak)")
     p_scan.add_argument("--max-tokens", type=int, default=cfg.get("max_tokens", 500))
     p_scan.add_argument("--workers", type=int, default=cfg.get("workers", 4), help="并行 API 调用数")
+    p_scan.add_argument("--max-attempts", type=int, default=cfg.get("max_attempts", 3),
+                        help="每次模型调用的最大总尝试次数 (1-10，默认 3)")
     p_scan.add_argument("--format", choices=["terminal", "json", "markdown", "sarif"], default="terminal",
                         help="输出格式（terminal=终端报告 / json=机器可读 / markdown=文档 / sarif=GitHub Security tab）")
     p_scan.add_argument("--fail-below", type=float, default=cfg.get("fail_below", 0), metavar="SCORE",
@@ -305,6 +307,7 @@ def _cmd_scan(args) -> int:
             limit=args.limit,
             max_tokens=args.max_tokens,
             workers=args.workers,
+            max_attempts=args.max_attempts,
         )
     except ValueError as exc:
         print(f"ERROR: {exc}")
@@ -386,7 +389,7 @@ def _cmd_scan(args) -> int:
             sys.stderr.flush()
 
     # Run scan
-    engine = Engine(target, max_workers=args.workers)
+    engine = Engine(target, max_workers=args.workers, max_attempts=args.max_attempts)
     log_file = sys.stdout if args.format == "terminal" else sys.stderr
     print(f"Starting scan: {args.model} ({args.target})", file=log_file)
     if suites:

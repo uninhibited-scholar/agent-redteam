@@ -41,6 +41,10 @@ inputs:
     description: "Parallel API calls (default: 4)"
     required: false
     default: "4"
+  max-attempts:
+    description: "Maximum total attempts per model call (1-10, default: 3)"
+    required: false
+    default: "3"
   upload-sarif:
     description: "Upload SARIF to GitHub Security tab (default: true)"
     required: false
@@ -95,8 +99,9 @@ runs:
         INPUT_LIMIT: ${{ inputs.limit }}
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
         INPUT_WORKERS: ${{ inputs.workers }}
+        INPUT_MAX_ATTEMPTS: ${{ inputs.max-attempts }}
       run: |
-        ARGS=(--model "$INPUT_MODEL" --target "$INPUT_TARGET" --workers "$INPUT_WORKERS" --limit "$INPUT_LIMIT" --max-tokens "$INPUT_MAX_TOKENS")
+        ARGS=(--model "$INPUT_MODEL" --target "$INPUT_TARGET" --workers "$INPUT_WORKERS" --max-attempts "$INPUT_MAX_ATTEMPTS" --limit "$INPUT_LIMIT" --max-tokens "$INPUT_MAX_TOKENS")
         [ -n "$INPUT_API_KEY" ] && export OPENAI_API_KEY="$INPUT_API_KEY"
         [ -n "$INPUT_BASE_URL" ] && ARGS+=(--base-url "$INPUT_BASE_URL")
         [ -n "$INPUT_SUITES" ] && ARGS+=(--suites "$INPUT_SUITES")

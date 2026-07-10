@@ -1345,6 +1345,7 @@ def test_action_uses_env_key_not_argv():
     assert "export OPENAI_API_KEY=\"$INPUT_API_KEY\"" in text
     assert 'agent-redteam scan "${ARGS[@]}" --format json' in text
     assert text.count('agent-redteam scan "${ARGS[@]}"') == 1
+    assert '--max-attempts "$INPUT_MAX_ATTEMPTS"' in text
     assert "agent-redteam report /tmp/redteam-report.json --format sarif" in text
     assert "f.write(f'total-errors={errors}\\n')" in text
     assert "f.write(f'run-status={run_status}\\n')" in text

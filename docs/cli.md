@@ -14,6 +14,7 @@ agent-redteam scan [--model MODEL] [--base-url BASE_URL] [--key KEY]
                     [--target {openai,claude,zai,local,ollama,deepseek,azure,qwen}]
                     [--endpoint ENDPOINT] [--suites SUITES]
                     [--max-tokens MAX_TOKENS] [--workers WORKERS]
+                    [--max-attempts MAX_ATTEMPTS]
                     [--format {terminal,json,markdown,sarif}]
                     [--fail-below SCORE] [--allow-errors] [--limit LIMIT] [--tui]
                     [--dry-run] [--serve] [--port PORT]
@@ -29,6 +30,7 @@ agent-redteam scan [--model MODEL] [--base-url BASE_URL] [--key KEY]
 | `--suites` | 只跑特定套件，逗号分隔（如 `injection,info_leak`） |
 | `--max-tokens` | 单次响应最大 token 数 |
 | `--workers` | 并行 API 调用数 |
+| `--max-attempts` | 每次模型调用最多总尝试次数（1–10，默认 3） |
 | `--format` | `terminal`（默认）/ `json`（机器可读）/ `markdown`（文档）/ `sarif`（GitHub Security tab） |
 | `--fail-below` | 总分低于此值则 exit 1（CI 集成用） |
 | `--allow-errors` | 明确允许部分样本为 `ERROR`；零有效判定仍 exit 1 |
@@ -63,8 +65,10 @@ agent-redteam scan --target local --endpoint http://localhost:8000/chat
 agent-redteam scan --serve --model gpt-4o --key $OPENAI_API_KEY
 ```
 
-`--dry-run` 的 `output_token_ceiling` 是 `planned calls × max_tokens`，只表示模型输出的
-理论上限；multi-turn 场景会按实际 turn 数计入 planned calls，失败重试不在计划内。
+`--dry-run` 的 `output_token_ceiling` 是 `planned calls × max_tokens`，表示不含重试的
+模型输出理论上限；multi-turn 场景会按实际 turn 数计入 planned calls。输出还会给出
+`max_calls_with_retries` 与 `max_output_token_ceiling_with_retries`，按 `--max-attempts`
+计算最坏上限。
 它不估算输入 token，也不根据供应商价格推算费用。`suites: all` 会展开全部
 内置 suite；未知、重复或与 `all` 混用的 suite 名会在发送请求前返回 exit 2。
 
@@ -72,6 +76,10 @@ agent-redteam scan --serve --model gpt-4o --key $OPENAI_API_KEY
 没有有效判定时返回 exit 1。临时 API 错误可直接重跑并由 checkpoint 续扫；只有明确
 接受部分结果时才使用 `--allow-errors`。JSON、Markdown 和 SARIF 正文只写 stdout，
 进度与失败原因写 stderr，因此重定向后的机器可读文件保持可解析。
+
+重试策略在单轮和多轮路径一致：HTTP 408/409/425/429、5xx 及网络异常可重试；
+其他 4xx（例如 401/403）立即失败，避免用错误凭证重复等待。`Retry-After` 秒数会被
+尊重，但单次等待最多 30 秒。
 
 已有 JSON 可离线转换为 SARIF，无需再次调用模型：
 

@@ -1,7 +1,7 @@
 """Tests for multi-turn attack suite, harness, and check."""
 import json
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from agent_redteam.core.multiturn import MultiTurnHarness
 from agent_redteam.checks.multiturn_check import MultiTurnCheck
 from agent_redteam.core.result import Verdict
@@ -143,9 +143,28 @@ class TestMultiTurnHarness:
             "turns": [{"role": "user", "content": "x"}],
         }
         harness = MultiTurnHarness(target=target, scenarios=[scenario], check=MultiTurnCheck())
-        results = harness.run()
+        with patch("agent_redteam.core.harness.time.sleep"):
+            results = harness.run()
         assert results[0].verdict == Verdict.ERROR
         assert "API down" in results[0].error
+
+    def test_uses_same_three_attempt_policy_as_single_turn(self):
+        target = MagicMock()
+        target.send.side_effect = [ConnectionError("temporary"), ConnectionError("temporary"), "safe"]
+        scenario = {
+            "id": "test-retry",
+            "_suite": "multi_turn",
+            "turns": [{"role": "user", "content": "x"}],
+        }
+        with patch("agent_redteam.core.harness.time.sleep"):
+            result = MultiTurnHarness(
+                target=target,
+                scenarios=[scenario],
+                check=MultiTurnCheck(),
+                max_attempts=3,
+            ).run()[0]
+        assert target.send.call_count == 3
+        assert result.verdict == Verdict.PASS
 
 
 class TestMultiTurnSuite:

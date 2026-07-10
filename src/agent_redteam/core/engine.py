@@ -19,9 +19,12 @@ class Engine:
         print(report.summary())
     """
 
-    def __init__(self, target, max_workers: int = 4):
+    def __init__(self, target, max_workers: int = 4, max_attempts: int = 3):
+        if not 1 <= max_attempts <= 10:
+            raise ValueError("max_attempts must be between 1 and 10")
         self.target = target
         self.max_workers = max_workers
+        self.max_attempts = max_attempts
         self._suites: dict[str, object] = {}
         self._register_builtin_suites()
 
@@ -105,6 +108,7 @@ class Engine:
                     scenarios=todo,
                     check=suite.check,
                     on_result=cp_callback if todo else None,
+                    max_attempts=self.max_attempts,
                 )
                 results = mt_harness.run()
                 for r in results:
@@ -134,6 +138,7 @@ class Engine:
                 build_messages=suite.build_messages,
                 check=suite.check,
                 max_workers=self.max_workers,
+                max_attempts=self.max_attempts,
                 on_result=cp_callback if todo else None,
             )
             results = harness.run()
