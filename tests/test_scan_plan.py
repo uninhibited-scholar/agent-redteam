@@ -21,11 +21,11 @@ def test_full_scan_plan_matches_catalog_without_network_calls():
     )
     body = plan.to_dict()
     assert body["total_suites"] == 13
-    assert body["total_calls"] == 2334
-    assert body["output_token_ceiling"] == 1_167_000
+    assert body["total_calls"] == 2414
+    assert body["output_token_ceiling"] == 1_207_000
     assert body["max_attempts_per_call"] == 3
-    assert body["max_calls_with_retries"] == 7002
-    assert body["max_output_token_ceiling_with_retries"] == 3_501_000
+    assert body["max_calls_with_retries"] == 7242
+    assert body["max_output_token_ceiling_with_retries"] == 3_621_000
     assert body["network_calls_performed"] == 0
     assert body["retry_calls_included"] is False
 

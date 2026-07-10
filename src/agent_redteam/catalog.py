@@ -36,6 +36,7 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
         issues: Counter[str] = Counter()
         severity: Counter[str] = Counter()
         sample_owasp: Counter[str] = Counter()
+        decision: Counter[str] = Counter()
         try:
             samples = suite.load_samples()
         except Exception as exc:
@@ -47,6 +48,7 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
                 "samples": 0,
                 "severity": {},
                 "sample_owasp": {},
+                "decision": {},
                 "issues": {"load_error": 1},
                 "valid": False,
             })
@@ -89,6 +91,10 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
                 severity[value] += 1
             else:
                 issues["missing_severity"] += 1
+            if isinstance(sample.get("gold"), dict):
+                raw_decision = str(sample["gold"].get("decision", "")).strip().lower()
+                if raw_decision:
+                    decision[raw_decision] += 1
 
         if not samples:
             issues["empty_suite"] += 1
@@ -104,6 +110,7 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
             "samples": len(samples),
             "severity": dict(sorted(severity.items())),
             "sample_owasp": dict(sorted(sample_owasp.items())),
+            "decision": dict(sorted(decision.items())),
             "issues": dict(sorted(issues.items())),
             "valid": not issues,
         })
@@ -142,16 +149,19 @@ def render_catalog_markdown(catalog: dict) -> str:
         f"{summary['suites']} suites, {summary['samples']} samples, "
         f"{summary['owasp_categories']} OWASP categories.",
         "",
-        "| Suite | OWASP | Samples | Mode | Metadata |",
-        "|---|---:|---:|---|---|",
+        "| Suite | OWASP | Samples | Mode | Decisions | Metadata |",
+        "|---|---:|---:|---|---|---|",
     ]
     for suite in catalog["suites"]:
         mode = "multi-turn" if suite["multi_turn"] else "single-turn"
         metadata = "valid" if suite["valid"] else ", ".join(
             f"{key}: {value}" for key, value in suite["issues"].items()
         )
+        decisions = ", ".join(
+            f"{key}:{value}" for key, value in suite.get("decision", {}).items()
+        ) or "-"
         lines.append(
-            f"| {suite['name']} | {suite['owasp']} | {suite['samples']} | {mode} | {metadata} |"
+            f"| {suite['name']} | {suite['owasp']} | {suite['samples']} | {mode} | {decisions} | {metadata} |"
         )
     if summary["issue_counts"]:
         lines.extend(["", "## Validation issues", ""])
@@ -168,8 +178,12 @@ def render_catalog_terminal(catalog: dict) -> str:
     for suite in catalog["suites"]:
         mode = "multi" if suite["multi_turn"] else "single"
         status = "OK" if suite["valid"] else "INVALID"
+        decisions = ", ".join(
+            f"{key}:{value}" for key, value in suite.get("decision", {}).items()
+        )
+        decision_text = f"  {decisions}" if decisions else ""
         lines.append(
-            f"  {suite['name']:<18} {suite['owasp']:<6} {suite['samples']:>4} samples  {mode:<6} {status}"
+            f"  {suite['name']:<18} {suite['owasp']:<6} {suite['samples']:>4} samples  {mode:<6} {status}{decision_text}"
         )
     if summary["issue_counts"]:
         details = ", ".join(f"{key}={value}" for key, value in summary["issue_counts"].items())

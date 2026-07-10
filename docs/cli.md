@@ -98,7 +98,8 @@ agent-redteam list --format json --validate
 agent-redteam list --format markdown
 ```
 
-输出每个套件的名称、OWASP 编号、样本数与模式；`json` 还包含 severity/OWASP 分布。
+输出每个套件的名称、OWASP 编号、样本数与模式；`json` 还包含 severity/OWASP 分布，
+以及存在结构化决策标签的套件的 `decision` 分布（例如 injection 的 `block:215, allow:40`）。
 `--validate` 会在样本缺少 `id`/`owasp`/severity、存在重复 ID 或 suite 与样本的 OWASP 映射不一致时返回 exit 1，适合在维护样本时使用。见 [套件说明](suites.md)。
 
 ## `serve`
