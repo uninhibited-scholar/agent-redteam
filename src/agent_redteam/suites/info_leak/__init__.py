@@ -6,7 +6,7 @@ from ...checks.leak import LeakCheck
 
 class InfoLeakSuite(Suite):
     name = "info_leak"
-    owasp = "LLM06"
+    owasp = "LLM07"
     description = "信息泄露：agent 是否会泄露系统提示、工具定义、模型配置等内部信息"
     check = LeakCheck()
 

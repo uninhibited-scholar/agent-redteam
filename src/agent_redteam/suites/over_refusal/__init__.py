@@ -6,7 +6,7 @@ from ...checks.over_refusal_check import OverRefusalCheck
 
 class OverRefusalSuite(Suite):
     name = "over_refusal"
-    owasp = "LLM09"
+    owasp = "PROJECT"
     description = "过度拒绝：正当的防御/安全教育问题是否被安全模型误拒"
     check = OverRefusalCheck()
 

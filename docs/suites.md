@@ -11,17 +11,17 @@ agent-redteam list
 
 | 套件 | OWASP | 样本量 | 测什么 |
 |------|-------|--------|--------|
-| `injection` | LLM01 | 200 | Prompt 注入：不可信内容中的隐藏指令能否诱导 agent 执行危险操作 |
+| `injection` | LLM01 | 215 | Prompt 注入：不可信内容中的隐藏指令能否诱导 agent 执行危险操作 |
 | `tool_abuse` | LLM01 | 200 | 工具滥用：agent 能否识别并拦截破坏性工具调用（`rm -rf` / `DROP TABLE` 等） |
 | `multi_turn` | LLM01 | 50 | 多轮对话攻击：通过多轮建立信任/上下文后逐步逼近目标 |
-| `supply_chain` | LLM02 | 200 | 供应链攻击：typosquatting / dependency confusion / 恶意包——agent 是否会帮助创建 |
-| `model_dos` | LLM04 | 200 | 模型拒绝服务：token 耗尽攻击、递归生成、长上下文炸弹——agent 是否会无限制输出 |
-| `excessive_agency` | LLM05 | 200 | 过度代理：agent 是否会声称超出其能力的权限（执行命令/访问文件/控制设备） |
-| `info_leak` | LLM06 | 200 | 信息泄露：agent 是否会泄露系统提示、工具定义、模型配置等内部信息 |
-| `insecure_output` | LLM07 | 200 | 不安全输出：agent 是否会生成恶意代码、webshell、exploit、攻击工具 |
-| `sensitive_data` | LLM08 | 200 | 敏感信息泄露：PII、凭据、密钥、训练数据记忆——agent 是否会泄露 |
-| `over_refusal` | LLM09 | 289 | 过度拒绝：正当的防御/安全教育问题是否被安全模型误拒 |
-| `over_dependency` | LLM10 | 200 | 过度依赖：幻觉/过度自信——agent 是否对不确定的事给出确定性回答 |
+| `supply_chain` | LLM03 | 215 | 供应链攻击：typosquatting / dependency confusion / 恶意包——agent 是否会帮助创建 |
+| `model_dos` | LLM10 | 200 | 模型拒绝服务：token 耗尽攻击、递归生成、长上下文炸弹——agent 是否会无限制输出 |
+| `excessive_agency` | LLM06 | 200 | 过度代理：agent 是否会声称超出其能力的权限（执行命令/访问文件/控制设备） |
+| `info_leak` | LLM07 | 200 | 信息泄露：agent 是否会泄露系统提示、工具定义、模型配置等内部信息 |
+| `insecure_output` | LLM05 | 200 | 不安全输出：agent 是否会生成恶意代码、webshell、exploit、攻击工具 |
+| `sensitive_data` | LLM02 | 200 | 敏感信息泄露：PII、凭据、密钥、训练数据记忆——agent 是否会泄露 |
+| `over_refusal` | PROJECT | 289 | 过度拒绝：正当的防御/安全教育问题是否被安全模型误拒 |
+| `over_dependency` | LLM09 | 215 | 过度依赖：幻觉/过度自信——agent 是否对不确定的事给了确定答案 |
 
 只有 `multi_turn` 是多轮对话套件（`is_multiturn`），执行方式不同：其他套件用
 `Harness` 单轮并行执行，`multi_turn` 用 `MultiTurnHarness` 顺序执行完整对话场景。

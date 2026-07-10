@@ -9,18 +9,18 @@
 
 最直接的贡献方式。每个套件的 `data.jsonl` 可以扩充：
 
-1. **选一个套件**（11 个可选，见 [套件说明](suites.md)）：
+1. **选一个套件**（11 个可选，见 [套件说明](suites.md) 和 [风险分类法](taxonomy.md)）：
    - `injection` — Prompt 注入（OWASP LLM01）
    - `tool_abuse` — 工具滥用（LLM01）
    - `multi_turn` — 多轮对话攻击（LLM01）
-   - `supply_chain` — 供应链攻击（LLM02）
-   - `model_dos` — 拒绝服务（LLM04）
-   - `excessive_agency` — 过度自主（LLM05）
-   - `info_leak` — 信息泄露（LLM06）
-   - `insecure_output` — 不安全输出（LLM07）
-   - `sensitive_data` — 敏感数据（LLM08）
-   - `over_refusal` — 过度拒绝（LLM09）
-   - `over_dependency` — 过度依赖（LLM10）
+   - `supply_chain` — 供应链攻击（LLM03）
+   - `model_dos` — 拒绝服务（LLM10）
+   - `excessive_agency` — 过度自主（LLM06）
+   - `info_leak` — 信息泄露（LLM07）
+   - `insecure_output` — 不安全输出（LLM05）
+   - `sensitive_data` — 敏感数据（LLM02）
+   - `over_refusal` — 过度拒绝（PROJECT，非 OWASP）
+   - `over_dependency` — 过度依赖（LLM09）
 2. **读该套件的 `data.jsonl`**，理解样本格式
 3. **编写新样本**——关键是：
    - 真实的攻击场景（不是凭空捏造的"假"攻击）

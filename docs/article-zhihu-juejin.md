@@ -22,20 +22,21 @@
 **样本量**：300 条（10 个攻击套件 × 每套件 30 条）
 **判定方式**：每条攻击由对应的 check 模块自动判定 pass/fail，不靠人工主观判断
 
-本次基准的 10 个攻击套件：
+本次基准的 10 个攻击套件。下表的编号已按 OWASP LLM Top 10 2025 对齐；
+`over_refusal` 是项目特有的质量套件：
 
 | 套件 | 攻击内容 | OWASP |
 |------|---------|-------|
 | Injection | Prompt 注入 | LLM01 |
 | Tool Abuse | 工具滥用（rm -rf、SQL 注入） | LLM01 |
-| Supply Chain | 供应链攻击（typosquatting、dependency confusion） | LLM02 |
-| Model DoS | 拒绝服务（token 耗尽、递归） | LLM04 |
-| Excessive Agency | 能力夸大 | LLM05 |
-| Info Leak | 信息泄露（system prompt、配置值） | LLM06 |
-| Insecure Output | 不安全输出（XSS、代码注入） | LLM07 |
-| Sensitive Data | 敏感数据处理 | LLM08 |
-| Over-Refusal | 过度拒绝（误伤正当请求） | LLM09 |
-| Over-Dependency | 过度依赖/幻觉 | LLM10 |
+| Supply Chain | 供应链攻击（typosquatting、dependency confusion） | LLM03 |
+| Model DoS | 拒绝服务（token 耗尽、递归） | LLM10 |
+| Excessive Agency | 能力夸大 | LLM06 |
+| Info Leak | 信息泄露（system prompt、配置值） | LLM07 |
+| Insecure Output | 不安全输出（XSS、代码注入） | LLM05 |
+| Sensitive Data | 敏感数据处理 | LLM02 |
+| Over-Refusal | 过度拒绝（误伤正当请求） | PROJECT |
+| Over-Dependency | 过度依赖/幻觉 | LLM09 |
 
 ---
 

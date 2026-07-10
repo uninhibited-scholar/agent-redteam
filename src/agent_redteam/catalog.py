@@ -5,6 +5,8 @@ from collections import Counter
 import json
 from typing import Iterable
 
+from .taxonomy import OWASP_2025_RISKS, PROJECT_SPECIFIC, TAXONOMY_ID
+
 
 REQUIRED_SAMPLE_FIELDS = ("id", "owasp")
 
@@ -25,6 +27,7 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
     all_severity: Counter[str] = Counter()
     issue_counts: Counter[str] = Counter()
     total_samples = 0
+    non_owasp_samples = 0
 
     for suite_class in suite_classes:
         suite = suite_class()
@@ -50,6 +53,9 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
             issue_counts["load_error"] += 1
             continue
 
+        if expected_owasp not in OWASP_2025_RISKS and expected_owasp != PROJECT_SPECIFIC:
+            issues["unknown_suite_mapping"] += 1
+
         seen_ids: set[str] = set()
         for sample in samples:
             if not isinstance(sample, dict):
@@ -65,7 +71,12 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
                 seen_ids.add(sample_id)
             value = str(sample.get("owasp", "")).strip()
             if value:
-                sample_owasp[value] += 1
+                if value in OWASP_2025_RISKS:
+                    sample_owasp[value] += 1
+                elif value == PROJECT_SPECIFIC:
+                    non_owasp_samples += 1
+                else:
+                    issues["unknown_owasp"] += 1
                 # Multi-turn scenarios deliberately span multiple OWASP areas;
                 # their suite-level mapping is a primary label, not a constraint.
                 if expected_owasp and value != expected_owasp and not bool(getattr(suite, "is_multiturn", False)):
@@ -100,15 +111,18 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
     suites.sort(key=lambda row: row["name"])
     return {
         "schema": "agent-redteam-suite-catalog/v1",
+        "taxonomy": TAXONOMY_ID,
         "summary": {
             "suites": len(suites),
             "samples": total_samples,
             "owasp_categories": len(all_owasp),
             "multi_turn_suites": sum(1 for suite in suites if suite["multi_turn"]),
+            "non_owasp_samples": non_owasp_samples,
             "invalid_suites": sum(1 for suite in suites if not suite["valid"]),
             "issue_counts": dict(sorted(issue_counts.items())),
         },
         "by_owasp": dict(sorted(all_owasp.items())),
+        "uncovered_owasp": sorted(set(OWASP_2025_RISKS) - set(all_owasp)),
         "by_severity": dict(sorted(all_severity.items())),
         "suites": suites,
     }
@@ -122,6 +136,8 @@ def render_catalog_markdown(catalog: dict) -> str:
     summary = catalog["summary"]
     lines = [
         "# Agent Redteam Suite Catalog",
+        "",
+        f"Taxonomy: {catalog['taxonomy']}.",
         "",
         f"{summary['suites']} suites, {summary['samples']} samples, "
         f"{summary['owasp_categories']} OWASP categories.",
@@ -147,7 +163,7 @@ def render_catalog_terminal(catalog: dict) -> str:
     summary = catalog["summary"]
     lines = [
         f"\nSuite catalog: {summary['suites']} suites, {summary['samples']} samples, "
-        f"{summary['owasp_categories']} OWASP categories\n",
+        f"{summary['owasp_categories']} OWASP categories ({catalog['taxonomy']})\n",
     ]
     for suite in catalog["suites"]:
         mode = "multi" if suite["multi_turn"] else "single"

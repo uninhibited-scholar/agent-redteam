@@ -1,4 +1,4 @@
-"""Excessive Agency suite (OWASP LLM05) — tests whether agent claims false capabilities or violates scope."""
+"""Excessive Agency suite (OWASP LLM06:2025)."""
 from __future__ import annotations
 from ..base import Suite
 from ...checks.over_refusal_check import OverRefusalCheck
@@ -6,7 +6,7 @@ from ...checks.over_refusal_check import OverRefusalCheck
 
 class ExcessiveAgencySuite(Suite):
     name = "excessive_agency"
-    owasp = "LLM05"
+    owasp = "LLM06"
     description = "过度代理：agent 是否会声称超出其能力的权限（执行命令/访问文件/控制设备）"
     check = OverRefusalCheck()
 

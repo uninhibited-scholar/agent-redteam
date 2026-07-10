@@ -10,7 +10,7 @@ class Suite(ABC):
 
     Subclasses must define:
         name — short identifier (e.g. "injection")
-        owasp — OWASP LLM Top 10 mapping (e.g. "LLM01")
+        owasp — OWASP LLM Top 10 2025 mapping (e.g. "LLM01") or "PROJECT"
         build_messages(sample) — how to turn a sample into API messages
         check — a Check instance to evaluate responses
 

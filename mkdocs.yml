@@ -51,6 +51,7 @@ nav:
   - CLI 参考: cli.md
   - Target 配置: targets.md
   - 套件说明: suites.md
+  - 风险分类法: taxonomy.md
   - GitHub Action: github-action.md
   - Python API: api.md
   - 安全基准: benchmark.md
