@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--fail-below", type=float, default=cfg.get("fail_below", 0), metavar="SCORE",
                         help="总分低于此值则返回 exit 1 (CI 集成用)")
     p_scan.add_argument("--limit", type=int, default=0, help="每套件最多跑 N 条样本 (调试用)")
+    p_scan.add_argument("--dry-run", action="store_true",
+                        help="只计算 suite 范围、调用量和最大输出预算，不创建 target 或发送请求")
     p_scan.add_argument("--tui", action="store_true", help="启动 Textual 实时界面")
     p_scan.add_argument("--serve", action="store_true", help="扫描完成后启动 Web Dashboard")
     p_scan.add_argument("--port", type=int, default=7878, help="Dashboard 端口")
@@ -285,6 +287,39 @@ def _cmd_scan(args) -> int:
         print("ERROR: --model 必填，或在 ~/.agent-redteam/config 中配置 model")
         return 2
 
+    from .scan_plan import (
+        build_scan_plan,
+        parse_suite_selection,
+        render_scan_plan_json,
+        render_scan_plan_markdown,
+        render_scan_plan_terminal,
+    )
+    try:
+        suites = parse_suite_selection(args.suites)
+        plan = build_scan_plan(
+            target=args.target,
+            model=args.model,
+            suite_names=suites,
+            limit=args.limit,
+            max_tokens=args.max_tokens,
+            workers=args.workers,
+        )
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
+        return 2
+
+    if args.dry_run:
+        if args.format == "sarif":
+            print("ERROR: --dry-run does not support --format sarif")
+            return 2
+        if args.format == "json":
+            print(render_scan_plan_json(plan), end="")
+        elif args.format == "markdown":
+            print(render_scan_plan_markdown(plan), end="")
+        else:
+            print(render_scan_plan_terminal(plan), end="")
+        return 0
+
     # Build target
     if args.target == "claude":
         target = ClaudeTarget(model=args.model, api_key=args.key, max_tokens=args.max_tokens)
@@ -322,9 +357,6 @@ def _cmd_scan(args) -> int:
             model=args.model, api_key=args.key,
             base_url=args.base_url, max_tokens=args.max_tokens,
         )
-
-    # Determine suites
-    suites = [s.strip() for s in args.suites.split(",") if s.strip()] or None
 
     # TUI mode
     if args.tui:

@@ -60,6 +60,15 @@ agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY
 
 默认跑全部 13 个套件、每套件全部样本（2,224 条），终端会输出实时进度条 + 最终报告。
 
+建议首次运行前先做离线预检，确认模型调用量与最大输出预算：
+
+```bash
+agent-redteam scan --model gpt-4o --suites all --dry-run
+```
+
+预检不会创建 target、读取远端数据或发送模型请求。完整扫描调用量较大时，可用
+`--suites` 和 `--limit` 缩小范围后再次预检。
+
 **先跑一个小规模的**（每套件限量 10 条，几十秒内出结果）：
 
 ```bash

@@ -53,6 +53,9 @@ pip install agent-redteam
 # 扫描任意 OpenAI 兼容端点
 agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY
 
+# 首次扫描前离线查看 suite 范围、调用数和最大输出 token 预算
+agent-redteam scan --model gpt-4o --suites all --dry-run
+
 # CI 集成（分数低于 80 则 exit 1）
 agent-redteam scan --model ... --fail-below 80 --format json > report.json
 ```

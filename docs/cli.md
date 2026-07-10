@@ -16,7 +16,7 @@ agent-redteam scan [--model MODEL] [--base-url BASE_URL] [--key KEY]
                     [--max-tokens MAX_TOKENS] [--workers WORKERS]
                     [--format {terminal,json,markdown,sarif}]
                     [--fail-below SCORE] [--limit LIMIT] [--tui]
-                    [--serve] [--port PORT]
+                    [--dry-run] [--serve] [--port PORT]
 ```
 
 | 参数 | 说明 |
@@ -32,6 +32,7 @@ agent-redteam scan [--model MODEL] [--base-url BASE_URL] [--key KEY]
 | `--format` | `terminal`（默认）/ `json`（机器可读）/ `markdown`（文档）/ `sarif`（GitHub Security tab） |
 | `--fail-below` | 总分低于此值则 exit 1（CI 集成用） |
 | `--limit` | 每套件最多跑 N 条样本（调试/快速验证用） |
+| `--dry-run` | 离线计算 suite 范围、模型调用数和最大输出 token 预算，不创建 target 或发送请求 |
 | `--tui` | 启动 Textual 实时界面 |
 | `--serve` | 扫描完成后启动 Web Dashboard |
 | `--port` | Dashboard 端口 |
@@ -49,12 +50,22 @@ agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY --fail-below 80
 agent-redteam scan --model gpt-4o --key $OPENAI_API_KEY \
   --suites injection,info_leak,supply_chain --limit 20
 
+# 先确认调用量和最大输出预算；不会联网
+agent-redteam scan --model gpt-4o --suites all --dry-run
+agent-redteam scan --model gpt-4o --suites injection,info_leak \
+  --limit 20 --dry-run --format json
+
 # 扫描本地 agent（任意 HTTP 端点）
 agent-redteam scan --target local --endpoint http://localhost:8000/chat
 
 # 扫描完直接打开 Dashboard
 agent-redteam scan --serve --model gpt-4o --key $OPENAI_API_KEY
 ```
+
+`--dry-run` 的 `output_token_ceiling` 是 `planned calls × max_tokens`，只表示模型输出的
+理论上限；multi-turn 场景会按实际 turn 数计入 planned calls，失败重试不在计划内。
+它不估算输入 token，也不根据供应商价格推算费用。`suites: all` 会展开全部
+内置 suite；未知、重复或与 `all` 混用的 suite 名会在发送请求前返回 exit 2。
 
 ## `list`
 
