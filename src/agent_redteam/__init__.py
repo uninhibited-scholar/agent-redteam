@@ -17,7 +17,7 @@ from .core.engine import Engine
 from .core.result import ScanReport, SuiteResult, SampleResult, Verdict
 from .sdk import scan_agent, scan_callable, scan_langchain
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __all__ = [
     "Engine", "ScanReport", "SuiteResult", "SampleResult", "Verdict",
     "scan_agent", "scan_callable", "scan_langchain",

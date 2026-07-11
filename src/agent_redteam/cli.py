@@ -633,16 +633,20 @@ def _cmd_compare(args) -> int:
 def _cmd_adaptive(args) -> int:
     """Run AI vs AI evolutionary attack."""
     from .adaptive import AdaptiveAttacker
+    from .core.config import load_scan_config
+
+    cfg = load_scan_config()
+    api_key = args.key or cfg.get("api_key", cfg.get("key", ""))
 
     # Build target (same logic as scan)
     if args.target == "zai":
         from .targets import ZaiTarget
-        target = ZaiTarget(model=args.model, api_key=args.key)
+        target = ZaiTarget(model=args.model, api_key=api_key)
     elif args.target == "ollama":
         from .targets import OllamaTarget
         target = OllamaTarget(model=args.model)
     else:
-        target = OpenAITarget(model=args.model, api_key=args.key)
+        target = OpenAITarget(model=args.model, api_key=api_key)
 
     suites = [s.strip() for s in args.suites.split(",") if s.strip()]
     attacker = AdaptiveAttacker(target, seed_suites=suites)
