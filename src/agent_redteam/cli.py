@@ -230,6 +230,17 @@ def main(argv: list[str] | None = None) -> int:
     p_manifest.add_argument("--strict-warnings", action="store_true", help="嵌入 release-check 时 doctor warning 也视为失败")
     p_manifest.add_argument("--timeout", type=int, default=300, help="嵌入 release-check 时每个外部命令的超时时间（秒）")
 
+    # adaptive command
+    p_adapt = sub.add_parser("adaptive", help="AI vs AI 进化攻击：自动变异并寻找绕过")
+    p_adapt.add_argument("--model", required=True, help="目标模型 ID")
+    p_adapt.add_argument("--target", default="openai", help="目标类型（同 scan）")
+    p_adapt.add_argument("--key", default="", help="API key")
+    p_adapt.add_argument("--suites", default="injection", help="种子攻击来源套件（逗号分隔）")
+    p_adapt.add_argument("--rounds", type=int, default=10, help="最大进化轮次")
+    p_adapt.add_argument("--target-bypasses", type=int, default=5, help="找到多少个绕过后停止")
+    p_adapt.add_argument("--mutations", type=int, default=3, help="每个种子每轮变异次数")
+    p_adapt.add_argument("--format", choices=["terminal", "json"], default="terminal")
+
     args = parser.parse_args(argv)
 
     if args.command == "list":
@@ -264,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_release_check(args)
     elif args.command == "manifest":
         return _cmd_manifest(args)
+    elif args.command == "adaptive":
+        return _cmd_adaptive(args)
     elif args.command == "serve":
         from .dashboard import serve_dashboard
         serve_dashboard(host=args.host, port=args.port, open_browser=not args.no_browser)
@@ -531,6 +544,45 @@ def _cmd_compare(args) -> int:
 
     print(f"  ╚══════════════════════════════════════════════════╝\n")
     return 0
+
+
+def _cmd_adaptive(args) -> int:
+    """Run AI vs AI evolutionary attack."""
+    from .adaptive import AdaptiveAttacker
+
+    # Build target (same logic as scan)
+    if args.target == "zai":
+        from .targets import ZaiTarget
+        target = ZaiTarget(model=args.model, api_key=args.key)
+    elif args.target == "ollama":
+        from .targets import OllamaTarget
+        target = OllamaTarget(model=args.model)
+    else:
+        target = OpenAITarget(model=args.model, api_key=args.key)
+
+    suites = [s.strip() for s in args.suites.split(",") if s.strip()]
+    attacker = AdaptiveAttacker(target, seed_suites=suites)
+
+    print(f"\n  🧬 Adaptive Attack: {args.model} ({args.target})")
+    print(f"  Seeds: {args.suites} | Rounds: {args.rounds} | Target: {args.target_bypasses} bypasses\n")
+
+    def on_bypass(b):
+        mark = "🔴"
+        print(f"  {mark} [Round {b.round}] BYPASS via {b.strategy}: {b.question[:60]}...")
+
+    report = attacker.run(
+        max_rounds=args.rounds,
+        target_bypasses=args.target_bypasses,
+        mutations_per_seed=args.mutations,
+    )
+
+    if args.format == "json":
+        import json as _json
+        print(_json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+    else:
+        print(f"\n{report.summary()}")
+
+    return 0 if report.bypass_count > 0 else 1
 
 
 def _cmd_mutate(args) -> int:
