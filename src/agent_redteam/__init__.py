@@ -7,9 +7,18 @@
     engine = Engine(target)
     report = engine.scan()
     print(report.summary())
+
+SDK API (one-line integration):
+    from agent_redteam import scan_agent, scan_callable, scan_langchain
+    report = scan_agent(my_agent)
+    report = scan_callable(lambda msg: model.generate(msg))
 """
 from .core.engine import Engine
 from .core.result import ScanReport, SuiteResult, SampleResult, Verdict
+from .sdk import scan_agent, scan_callable, scan_langchain
 
-__version__ = "0.3.0"
-__all__ = ["Engine", "ScanReport", "SuiteResult", "SampleResult", "Verdict"]
+__version__ = "0.4.0"
+__all__ = [
+    "Engine", "ScanReport", "SuiteResult", "SampleResult", "Verdict",
+    "scan_agent", "scan_callable", "scan_langchain",
+]
