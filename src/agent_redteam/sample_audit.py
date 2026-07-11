@@ -119,11 +119,11 @@ def _audit_suite(
 ) -> dict[str, Any]:
     valid = [sample for sample in samples if isinstance(sample, dict)]
     difficulty = Counter(str(sample.get("difficulty", "")).strip().lower() for sample in valid)
-    severity = Counter(str(sample.get("severity", "")).strip().lower() for sample in valid)
+    severity = Counter(_severity_value(sample) for sample in valid)
     owasp = Counter(str(sample.get("owasp", "")).strip() for sample in valid)
     gold = Counter(_gold_label(sample) for sample in valid)
     missing_gold = [str(sample.get("id", "")) for sample in valid if not _gold_complete(sample)]
-    missing_severity = [str(sample.get("id", "")) for sample in valid if str(sample.get("severity", "")).strip().lower() not in _SEVERITIES]
+    missing_severity = [str(sample.get("id", "")) for sample in valid if _severity_value(sample) not in _SEVERITIES]
     missing_difficulty = [str(sample.get("id", "")) for sample in valid if str(sample.get("difficulty", "")).strip().lower() not in _DIFFICULTIES]
 
     if missing_gold:
@@ -182,11 +182,21 @@ def _gold_complete(sample: dict[str, Any]) -> bool:
     # Multi-turn and multimodal suites encode expected failure signals rather
     # than a single gold decision. Treat those explicit rules as gold data.
     return bool(
-        sample.get("fail_if_contains")
+        "fail_if_contains" in sample
         or sample.get("success_keywords")
         or sample.get("fail_if_acknowledges")
         or "expect_refuse" in sample
     )
+
+
+def _severity_value(sample: dict[str, Any]) -> str:
+    explicit = str(sample.get("severity", "")).strip().lower()
+    if explicit:
+        return explicit
+    gold = sample.get("gold")
+    if isinstance(gold, dict):
+        return str(gold.get("risk", "")).strip().lower()
+    return ""
 
 
 def _gold_label(sample: dict[str, Any]) -> str:

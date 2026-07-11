@@ -61,5 +61,7 @@ def test_real_catalog_audit_is_offline_and_json_serializable():
     assert report["offline"] is True
     assert report["summary"]["suites"] == 14
     assert report["summary"]["samples"] == 2319
+    assert report["summary"]["errors"] == 0
+    assert not any(finding["rule"] == "difficulty_completeness" for finding in report["findings"])
     encoded = render_sample_audit_json(report)
     assert json.loads(encoded)["schema"] == "agent-redteam-sample-audit/v1"
