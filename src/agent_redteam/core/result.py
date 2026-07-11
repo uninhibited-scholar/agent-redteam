@@ -109,6 +109,7 @@ class ScanReport:
     suites: list[SuiteResult] = field(default_factory=list)
     started_at: str = ""
     finished_at: str = ""
+    benchmark_profile: dict[str, Any] | None = None
 
     @property
     def total_samples(self) -> int:
@@ -216,7 +217,7 @@ class ScanReport:
         allow_acceptance = rate(groups["allow"])
         block_recall = rate(groups["block"])
         balanced = round((allow_acceptance + block_recall) / 2.0, 1) if allow_acceptance is not None and block_recall is not None else None
-        return {
+        data = {
             "available": True,
             "allow": groups["allow"],
             "block": groups["block"],
@@ -224,6 +225,7 @@ class ScanReport:
             "block_recall": block_recall,
             "balanced_score": balanced,
         }
+        return data
 
     def suite_by_name(self, name: str) -> SuiteResult | None:
         for s in self.suites:
@@ -245,7 +247,7 @@ class ScanReport:
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "target_model": self.target_model,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
@@ -261,6 +263,9 @@ class ScanReport:
             "decision_metrics": self.decision_metrics,
             "suites": [s.to_dict() for s in self.suites],
         }
+        if self.benchmark_profile is not None:
+            data["benchmark_profile"] = self.benchmark_profile
+        return data
 
 
 def _bar(pct: float, width: int = 10) -> str:

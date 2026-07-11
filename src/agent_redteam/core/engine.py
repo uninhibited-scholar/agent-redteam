@@ -60,6 +60,10 @@ class Engine:
             if suite is None:
                 continue
             samples = suite.load_samples()
+            selected_ids = getattr(suite, "_sample_ids", None)
+            if selected_ids is not None:
+                selected = set(selected_ids)
+                samples = [sample for sample in samples if str(sample.get("id", "")) in selected]
             limit = getattr(suite, "_limit", 0)
             if limit and limit > 0:
                 samples = samples[:limit]

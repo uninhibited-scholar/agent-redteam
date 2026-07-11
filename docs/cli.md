@@ -2,7 +2,7 @@
 
 ```
 agent-redteam [-h] [--version]
-              {scan,list,serve,history,compare,mutate,doctor,attest,init,ci,policy-lint,regress,sbom,report,review,evidence,release-check,manifest} ...
+              {scan,benchmark,list,serve,history,compare,mutate,doctor,attest,init,ci,policy-lint,regress,sbom,report,review,evidence,release-check,manifest} ...
 ```
 
 ## `scan`
@@ -87,6 +87,19 @@ agent-redteam scan --serve --model gpt-4o --key $OPENAI_API_KEY
 ```bash
 agent-redteam report report.json --format sarif --output report.sarif
 ```
+
+## `benchmark`
+
+按固定 profile 运行可复现的 benchmark。`standard` 固定套件列表、每套件最多 50 条样本、
+seed、`max_tokens`、重试次数和并发数；同一 profile 会通过 `selection_sha256` 证明抽样集合一致。
+
+```bash
+agent-redteam benchmark --profile standard --model gpt-4o --format json -o benchmark.json
+agent-redteam benchmark --profile standard --model gpt-4o --dry-run --format json
+```
+
+profile 元数据会写入标准 scan report 的 `benchmark_profile` 字段。`--dry-run` 完全离线，
+不会验证模型或 API key，也不会发送网络请求。
 
 ## `list`
 

@@ -1,0 +1,26 @@
+{
+  "schema": "agent-redteam-benchmark-profile/v1",
+  "name": "standard",
+  "description": "Stable cross-version benchmark profile for the bundled suites.",
+  "suites": [
+    "data_poisoning",
+    "excessive_agency",
+    "info_leak",
+    "injection",
+    "insecure_output",
+    "model_dos",
+    "multi_turn",
+    "multimodal",
+    "over_dependency",
+    "over_refusal",
+    "sensitive_data",
+    "supply_chain",
+    "tool_abuse",
+    "vector_embedding"
+  ],
+  "sample_limit": 50,
+  "seed": 20260711,
+  "max_tokens": 500,
+  "max_attempts": 1,
+  "workers": 4
+}

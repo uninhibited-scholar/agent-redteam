@@ -35,6 +35,7 @@ class ScanPlan:
     limit_per_suite: int
     max_output_tokens_per_call: int
     suites: tuple[PlannedSuite, ...]
+    benchmark_profile: dict | None = None
 
     @property
     def total_calls(self) -> int:
@@ -60,7 +61,7 @@ class ScanPlan:
         )
 
     def to_dict(self) -> dict:
-        return {
+        data = {
             "schema": "agent-redteam-scan-plan/v1",
             "network_calls_performed": 0,
             "target": self.target,
@@ -78,6 +79,9 @@ class ScanPlan:
             "retry_calls_included": False,
             "suites": [suite.to_dict() for suite in self.suites],
         }
+        if self.benchmark_profile is not None:
+            data["benchmark_profile"] = self.benchmark_profile
+        return data
 
 
 def parse_suite_selection(value: str) -> list[str] | None:
@@ -100,6 +104,8 @@ def build_scan_plan(
     max_tokens: int,
     workers: int,
     max_attempts: int = 3,
+    sample_ids_by_suite: dict[str, list[str]] | None = None,
+    benchmark_profile: dict | None = None,
 ) -> ScanPlan:
     if workers < 1:
         raise ValueError("workers must be at least 1")
@@ -125,6 +131,10 @@ def build_scan_plan(
         available = len(samples)
         planned = min(available, limit) if limit else available
         selected_samples = samples[:planned]
+        if sample_ids_by_suite is not None and name in sample_ids_by_suite:
+            wanted = set(sample_ids_by_suite[name])
+            selected_samples = [sample for sample in samples if str(sample.get("id", "")) in wanted]
+            planned = len(selected_samples)
         is_multi_turn = bool(getattr(suite, "is_multiturn", False))
         planned_calls = (
             sum(len(sample.get("turns", [])) for sample in selected_samples)
@@ -146,6 +156,7 @@ def build_scan_plan(
         limit_per_suite=limit,
         max_output_tokens_per_call=max_tokens,
         suites=tuple(suites),
+        benchmark_profile=benchmark_profile,
     )
 
 

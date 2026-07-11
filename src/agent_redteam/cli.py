@@ -1,6 +1,6 @@
 """CLI entry point — agent-redteam command."""
 from __future__ import annotations
-import argparse, os, sys
+import argparse, json, os, sys
 
 from .core.engine import Engine
 from .targets import OpenAITarget, ClaudeTarget, LocalTarget
@@ -46,6 +46,18 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--tui", action="store_true", help="启动 Textual 实时界面")
     p_scan.add_argument("--serve", action="store_true", help="扫描完成后启动 Web Dashboard")
     p_scan.add_argument("--port", type=int, default=7878, help="Dashboard 端口")
+
+    # benchmark command
+    p_benchmark = sub.add_parser("benchmark", help="按固定 profile 运行可复现 benchmark")
+    p_benchmark.add_argument("--profile", default="standard", help="固定 benchmark profile（默认 standard）")
+    p_benchmark.add_argument("--model", default=cfg.get("model", ""), help="模型 ID")
+    p_benchmark.add_argument("--target", choices=["openai", "claude", "zai", "local", "ollama", "deepseek", "azure", "qwen"], default=cfg.get("target", "openai"))
+    p_benchmark.add_argument("--key", default=cfg.get("api_key", cfg.get("key", os.environ.get("OPENAI_API_KEY", ""))), help="API key")
+    p_benchmark.add_argument("--base-url", default=cfg.get("base_url", os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")))
+    p_benchmark.add_argument("--endpoint", default="", help="本地 agent endpoint")
+    p_benchmark.add_argument("--format", choices=["terminal", "json", "markdown", "sarif"], default="terminal")
+    p_benchmark.add_argument("--output", "-o", default="", help="输出文件；留空则打印到 stdout")
+    p_benchmark.add_argument("--dry-run", action="store_true", help="只输出固定 profile 的离线计划")
 
     # list command
     p_list = sub.add_parser("list", help="列出并校验内置攻击套件与样本 catalog")
@@ -245,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         return _cmd_list(args)
+    elif args.command == "benchmark":
+        return _cmd_benchmark(args)
     elif args.command == "history":
         return _cmd_history(args)
     elif args.command == "compare":
@@ -298,6 +312,44 @@ def _cmd_list(args) -> int:
     return 1 if args.validate and catalog["summary"]["invalid_suites"] else 0
 
 
+def _cmd_benchmark(args) -> int:
+    from .benchmark import load_profile, select_sample_ids, selection_hash
+
+    try:
+        profile = load_profile(args.profile)
+        selected = select_sample_ids(profile)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"ERROR: invalid benchmark profile: {exc}")
+        return 2
+
+    profile = dict(profile)
+    profile["selected_sample_count"] = sum(len(ids) for ids in selected.values())
+    profile["selection_sha256"] = selection_hash(selected)
+    scan_args = argparse.Namespace(
+        model=args.model,
+        base_url=args.base_url,
+        key=args.key,
+        target=args.target,
+        endpoint=args.endpoint,
+        suites=",".join(profile["suites"]),
+        max_tokens=profile["max_tokens"],
+        workers=profile["workers"],
+        max_attempts=profile["max_attempts"],
+        format=args.format,
+        fail_below=0,
+        allow_errors=False,
+        limit=0,
+        dry_run=args.dry_run,
+        tui=False,
+        serve=False,
+        port=7878,
+        output=args.output,
+        benchmark_profile=profile,
+        benchmark_selection=selected,
+    )
+    return _cmd_scan(scan_args)
+
+
 def _cmd_scan(args) -> int:
     # Validate model
     if not args.model:
@@ -311,6 +363,8 @@ def _cmd_scan(args) -> int:
         render_scan_plan_markdown,
         render_scan_plan_terminal,
     )
+    benchmark_profile = getattr(args, "benchmark_profile", None)
+    benchmark_selection = getattr(args, "benchmark_selection", None)
     try:
         suites = parse_suite_selection(args.suites)
         plan = build_scan_plan(
@@ -321,6 +375,8 @@ def _cmd_scan(args) -> int:
             max_tokens=args.max_tokens,
             workers=args.workers,
             max_attempts=args.max_attempts,
+            sample_ids_by_suite=benchmark_selection,
+            benchmark_profile=benchmark_profile,
         )
     except ValueError as exc:
         print(f"ERROR: {exc}")
@@ -331,11 +387,17 @@ def _cmd_scan(args) -> int:
             print("ERROR: --dry-run does not support --format sarif")
             return 2
         if args.format == "json":
-            print(render_scan_plan_json(plan), end="")
+            body = render_scan_plan_json(plan)
         elif args.format == "markdown":
-            print(render_scan_plan_markdown(plan), end="")
+            body = render_scan_plan_markdown(plan)
         else:
-            print(render_scan_plan_terminal(plan), end="")
+            body = render_scan_plan_terminal(plan)
+        output = getattr(args, "output", "")
+        if output:
+            from pathlib import Path
+            Path(output).write_text(body, encoding="utf-8")
+        else:
+            print(body, end="")
         return 0
 
     # Build target
@@ -403,6 +465,10 @@ def _cmd_scan(args) -> int:
 
     # Run scan
     engine = Engine(target, max_workers=args.workers, max_attempts=args.max_attempts)
+    if benchmark_selection:
+        for name, sample_ids in benchmark_selection.items():
+            if name in engine._suites:
+                engine._suites[name]._sample_ids = sample_ids
     log_file = sys.stdout if args.format == "terminal" else sys.stderr
     print(f"Starting scan: {args.model} ({args.target})", file=log_file)
     if suites:
@@ -433,6 +499,8 @@ def _cmd_scan(args) -> int:
         print(f"  Scanning... events streaming to LiveScan page\n")
 
     report = engine.scan(suites=suites, on_result=on_result)
+    if benchmark_profile is not None:
+        report.benchmark_profile = benchmark_profile
     sys.stderr.write("\r" + " " * 60 + "\r")
 
     if ws_state:
@@ -447,12 +515,28 @@ def _cmd_scan(args) -> int:
 
     # Output (only for non-serve mode; serve mode shows in browser)
     if not args.serve:
+        output = getattr(args, "output", "")
         if args.format == "json":
-            print(render_json(report))
+            body = render_json(report)
+            if output:
+                from pathlib import Path
+                Path(output).write_text(body, encoding="utf-8")
+            else:
+                print(body)
         elif args.format == "markdown":
-            print(render_markdown(report))
+            body = render_markdown(report)
+            if output:
+                from pathlib import Path
+                Path(output).write_text(body, encoding="utf-8")
+            else:
+                print(body)
         elif args.format == "sarif":
-            print(render_sarif(report))
+            body = render_sarif(report)
+            if output:
+                from pathlib import Path
+                Path(output).write_text(body, encoding="utf-8")
+            else:
+                print(body)
         else:
             render_report(report)
 
