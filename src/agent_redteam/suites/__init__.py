@@ -13,6 +13,7 @@ from .over_dependency import OverDependencySuite
 from .multi_turn import MultiTurnSuite
 from .data_poisoning import DataPoisoningSuite
 from .vector_embedding import VectorEmbeddingSuite
+from .multimodal import MultimodalSuite
 
 ALL_SUITES = [
     InjectionSuite,
@@ -28,6 +29,7 @@ ALL_SUITES = [
     MultiTurnSuite,
     DataPoisoningSuite,
     VectorEmbeddingSuite,
+    MultimodalSuite,
 ]
 
 __all__ = [
@@ -38,4 +40,5 @@ __all__ = [
     "MultiTurnSuite",
     "DataPoisoningSuite",
     "VectorEmbeddingSuite",
+    "MultimodalSuite",
 ]
