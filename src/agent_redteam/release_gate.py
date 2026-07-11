@@ -73,6 +73,7 @@ def run_release_gate(
     steps: list[ReleaseStep] = []
 
     steps.append(_doctor_step(project_root, opts, run))
+    steps.append(_sample_audit_step())
     if opts.skip_tests:
         steps.append(_skip("tests", "Python tests", "Skipped by --skip-tests"))
     else:
@@ -186,6 +187,19 @@ def _evidence_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> Rel
     if skipped:
         return ReleaseStep("evidence", "Validation evidence index", "fail", f"{reports} reports, {auxiliary} auxiliary, {documents} docs, {skipped} skipped", command, duration)
     return ReleaseStep("evidence", "Validation evidence index", "pass", f"{reports} reports, {auxiliary} auxiliary, {documents} docs, 0 skipped", command, duration)
+
+
+def _sample_audit_step() -> ReleaseStep:
+    """Run the offline sample audit without invoking the scan engine."""
+    from .sample_audit import audit_samples
+
+    report = audit_samples()
+    summary = report["summary"]
+    detail = f"{summary['samples']} samples, {summary['errors']} errors, {summary['warnings']} warnings"
+    status: Status = "fail" if summary["errors"] else "pass"
+    if summary["errors"]:
+        detail += "; sample quality errors must be fixed before release"
+    return ReleaseStep("sample-audit", "Sample quality audit", status, detail, [])
 
 
 def _sbom_step(root: Path, opts: ReleaseCheckOptions, runner: Runner) -> ReleaseStep:

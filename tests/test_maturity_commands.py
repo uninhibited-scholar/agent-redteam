@@ -1049,7 +1049,10 @@ def test_release_gate_passes_with_fake_runner_and_artifacts(tmp_path):
     markdown = render_release_gate_markdown(result)
 
     assert result.passed is True
-    assert {step.name for step in result.steps} >= {"doctor", "tests", "frontend.build", "evidence", "sbom", "artifacts"}
+    assert {step.name for step in result.steps} >= {"doctor", "sample-audit", "tests", "frontend.build", "evidence", "sbom", "artifacts"}
+    sample_audit = next(step for step in result.steps if step.name == "sample-audit")
+    assert sample_audit.status == "pass"
+    assert "2319 samples" in sample_audit.detail
     assert "PASS" in markdown
     assert "9 reports, 2 auxiliary, 5 docs, 0 skipped" in markdown
     assert "3 components, 1 python, 2 npm, 0 python runtime, 2 npm runtime, 1 release artifacts" in markdown

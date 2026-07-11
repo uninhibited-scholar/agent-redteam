@@ -287,7 +287,7 @@ SBOM 从本地文件生成，不联网、不查询漏洞库：
 
 ## `release-check`
 
-本地发布前门禁，组合 doctor、pytest、前端检查、证据索引、SBOM 和包产物检查。
+本地发布前门禁，组合 doctor、pytest、前端检查、离线 sample-audit、证据索引、SBOM 和包产物检查。
 
 ```bash
 agent-redteam release-check
@@ -298,6 +298,7 @@ agent-redteam release-check --format json
 `release-check` 会要求 wheel/sdist 存在；如果安装了 `twine`，还会运行 `twine check`。
 缺少 `twine` 时只跳过包元数据检查，不跳过包文件存在性检查。
 它也会生成 JSON SBOM 并确认至少包含项目组件。
+sample-audit 的质量 error 会阻断发布，warning 会保留在门禁结果中但不会单独阻断。
 
 ## `manifest`
 
