@@ -79,9 +79,12 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
                     non_owasp_samples += 1
                 else:
                     issues["unknown_owasp"] += 1
-                # Multi-turn scenarios deliberately span multiple OWASP areas;
-                # their suite-level mapping is a primary label, not a constraint.
-                if expected_owasp and value != expected_owasp and not bool(getattr(suite, "is_multiturn", False)):
+                # Multi-turn and multimodal scenarios deliberately span multiple
+                # OWASP areas; their suite-level mapping is a primary label, not
+                # a constraint.
+                if expected_owasp and value != expected_owasp and not bool(
+                    getattr(suite, "is_multiturn", False) or getattr(suite, "is_multimodal", False)
+                ):
                     issues["owasp_mismatch"] += 1
             raw_severity = sample.get("severity")
             if not raw_severity and isinstance(sample.get("gold"), dict):

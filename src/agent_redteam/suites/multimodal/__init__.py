@@ -70,6 +70,11 @@ class MultimodalSuite(Suite):
     description = "多模态攻击：图片中的隐藏 prompt、文档不可见图层的注入、SVG 隐写"
     check = MultimodalCheck()
 
+    @property
+    def is_multimodal(self) -> bool:
+        """Multimodal attacks span multiple OWASP categories."""
+        return True
+
     def build_messages(self, sample: dict) -> list[dict]:
         """Build messages that simulate multimodal input.
 
