@@ -6,7 +6,7 @@
 
 给 AI Agent 跑安全扫描，像 `npm audit` 一样简单
 
-CLI · TUI · Web Dashboard | 2,304 测试样本 · 13 攻击套件 · OWASP LLM 2025 十类均有测试
+CLI · TUI · Web Dashboard · GitHub Action | 2,319 测试样本 · 14 攻击套件（含多轮+多模态+自适应）· OWASP LLM 2025 全覆盖
 
 </div>
 
@@ -154,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: uninhibited-scholar/agent-redteam@v0.3.0
+      - uses: uninhibited-scholar/agent-redteam@v0.4.0
         with:
           model: gpt-4o
           api-key: \${{ secrets.OPENAI_API_KEY }}
@@ -257,6 +257,7 @@ agent-redteam scan --serve --model ... --key ...
 ## 编程 API
 
 ```python
+# 方式 1：底层 Engine API
 from agent_redteam import Engine
 from agent_redteam.targets import OpenAITarget
 
@@ -265,7 +266,25 @@ engine = Engine(target)
 report = engine.scan()
 print(report.summary())
 assert report.overall_score >= 80
+
+# 方式 2：一行 SDK（自动检测 .send()/.invoke()/__call__）
+from agent_redteam import scan_agent, scan_callable, scan_langchain
+
+report = scan_agent(my_agent)                           # 任意 agent 对象
+report = scan_callable(lambda msg: model.generate(msg))  # str → str 函数
+report = scan_langchain(my_chain)                        # LangChain chain
 ```
+
+## 攻击维度
+
+| 维度 | 套件 | 说明 |
+|------|------|------|
+| 单轮攻击 | injection / tool_abuse / info_leak 等 10 个 | OWASP LLM Top 10 全覆盖 |
+| 多轮对话攻击 | `multi_turn` | 3-5 轮渐进式对话，先建信任再下手 |
+| 多模态攻击 | `multimodal` | SVG 隐藏文字 / HTML 注释 / PDF 元数据 / 零宽隐写 |
+| 数据投毒 | `data_poisoning` | 训练/微调/检索数据完整性 |
+| 向量检索 | `vector_embedding` | 跨租户查询 / ACL 漂移 / embedding 暴露 |
+| 自适应进化 | `adaptive` 命令 | AI vs AI：自动变异攻击直到找到绕过 |
 
 ## 支持的目标
 
