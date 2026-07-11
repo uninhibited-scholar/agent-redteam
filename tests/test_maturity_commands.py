@@ -757,7 +757,7 @@ def test_sbom_summarizes_python_npm_and_artifacts(tmp_path):
         "\n".join([
             "[project]",
             'name = "agent-redteam"',
-            'version = "0.3.0"',
+            'version = "0.4.0"',
             'license = {text = "MIT"}',
             'dependencies = ["requests>=2.0"]',
             "",
@@ -778,7 +778,7 @@ def test_sbom_summarizes_python_npm_and_artifacts(tmp_path):
         ),
         encoding="utf-8",
     )
-    artifact = root / "dist" / "agent_redteam-0.3.0.tar.gz"
+    artifact = root / "dist" / "agent_redteam-0.4.0.tar.gz"
     artifact.write_text("sdist", encoding="utf-8")
 
     sbom = build_sbom(root)
@@ -807,7 +807,7 @@ def test_sbom_runtime_only_excludes_dev_dependencies(tmp_path):
         "\n".join([
             "[project]",
             'name = "agent-redteam"',
-            'version = "0.3.0"',
+            'version = "0.4.0"',
             'dependencies = []',
             "",
             "[project.optional-dependencies]",
@@ -833,7 +833,7 @@ def test_cli_sbom_writes_markdown(tmp_path):
     root = tmp_path
     (root / "web").mkdir()
     (root / "pyproject.toml").write_text(
-        '[project]\nname = "agent-redteam"\nversion = "0.3.0"\ndependencies = []\n',
+        '[project]\nname = "agent-redteam"\nversion = "0.4.0"\ndependencies = []\n',
         encoding="utf-8",
     )
     (root / "web" / "package-lock.json").write_text(json.dumps({"packages": {}}), encoding="utf-8")
@@ -947,8 +947,8 @@ def test_release_manifest_summarizes_artifacts_evidence_and_git(tmp_path):
     validation = root / "validation"
     dist.mkdir()
     validation.mkdir()
-    wheel = dist / "agent_redteam-0.3.0-py3-none-any.whl"
-    sdist = dist / "agent_redteam-0.3.0.tar.gz"
+    wheel = dist / "agent_redteam-0.4.0-py3-none-any.whl"
+    sdist = dist / "agent_redteam-0.4.0.tar.gz"
     wheel.write_text("wheel bytes", encoding="utf-8")
     sdist.write_text("sdist bytes", encoding="utf-8")
     _write_report(validation / "scan.json", score=88.0, verdict="fail")
@@ -985,8 +985,8 @@ def test_release_manifest_redacts_unavailable_evidence_reason(tmp_path):
     root = tmp_path
     dist = root / "dist"
     dist.mkdir()
-    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
-    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0.tar.gz").write_text("sdist", encoding="utf-8")
 
     manifest = build_release_manifest(root, evidence_root="sk-secretmissing1234567890")
     body = render_manifest_json(manifest)
@@ -1002,8 +1002,8 @@ def test_cli_manifest_writes_markdown_and_embeds_release_check(tmp_path):
     validation = root / "validation"
     dist.mkdir()
     validation.mkdir()
-    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
-    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0.tar.gz").write_text("sdist", encoding="utf-8")
     _write_report(validation / "scan.json", score=91.0, verdict="pass", severity="low")
     output = tmp_path / "manifest.md"
 
@@ -1031,8 +1031,8 @@ def test_release_gate_passes_with_fake_runner_and_artifacts(tmp_path):
     root = tmp_path
     dist = root / "dist"
     dist.mkdir()
-    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
-    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0.tar.gz").write_text("sdist", encoding="utf-8")
 
     def fake_runner(command, cwd, timeout):
         joined = " ".join(command)
@@ -1059,8 +1059,8 @@ def test_release_gate_fails_on_doctor_warnings_when_strict(tmp_path):
     root = tmp_path
     dist = root / "dist"
     dist.mkdir()
-    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
-    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0.tar.gz").write_text("sdist", encoding="utf-8")
 
     def fake_runner(command, cwd, timeout):
         joined = " ".join(command)
@@ -1113,8 +1113,8 @@ def test_release_gate_skips_twine_when_not_installed(tmp_path, monkeypatch):
     root = tmp_path
     dist = root / "dist"
     dist.mkdir()
-    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
-    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0.tar.gz").write_text("sdist", encoding="utf-8")
     monkeypatch.setattr(release_gate.shutil, "which", lambda name: None)
 
     def fake_runner(command, cwd, timeout):
@@ -1138,8 +1138,8 @@ def test_release_gate_runs_twine_check_when_available(tmp_path, monkeypatch):
     root = tmp_path
     dist = root / "dist"
     dist.mkdir()
-    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
-    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0.tar.gz").write_text("sdist", encoding="utf-8")
     monkeypatch.setattr(release_gate.shutil, "which", lambda name: "/usr/bin/twine")
     commands = []
 
@@ -1166,8 +1166,8 @@ def test_release_gate_fails_when_twine_check_fails(tmp_path, monkeypatch):
     root = tmp_path
     dist = root / "dist"
     dist.mkdir()
-    (dist / "agent_redteam-0.3.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
-    (dist / "agent_redteam-0.3.0.tar.gz").write_text("sdist", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0-py3-none-any.whl").write_text("wheel", encoding="utf-8")
+    (dist / "agent_redteam-0.4.0.tar.gz").write_text("sdist", encoding="utf-8")
     monkeypatch.setattr(release_gate.shutil, "which", lambda name: "/usr/bin/twine")
 
     def fake_runner(command, cwd, timeout):
@@ -1202,8 +1202,8 @@ def test_cli_release_check_supports_skip_mode_json():
 
 def test_doctor_detects_action_key_argv_pattern(tmp_path):
     root = tmp_path
-    (root / "pyproject.toml").write_text('version = "0.3.0"\ndependencies = []\n', encoding="utf-8")
-    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.3.0\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text('version = "0.4.0"\ndependencies = []\n', encoding="utf-8")
+    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.4.0\n", encoding="utf-8")
     (root / "action.yml").write_text(
         'runs:\n  using: "composite"\n  steps:\n    - run: agent-redteam scan --key $INPUT_API_KEY\n',
         encoding="utf-8",
@@ -1216,8 +1216,8 @@ def test_doctor_detects_action_key_argv_pattern(tmp_path):
 
 def test_doctor_accepts_current_action_docs_and_web_quality_scripts(tmp_path):
     root = tmp_path
-    (root / "pyproject.toml").write_text('version = "0.3.0"\ndependencies = []\n', encoding="utf-8")
-    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.3.0\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text('version = "0.4.0"\ndependencies = []\n', encoding="utf-8")
+    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.4.0\n", encoding="utf-8")
     (root / "SECURITY.md").write_text("# Security Policy\n", encoding="utf-8")
     (root / "CONTRIBUTING.md").write_text("# Contributing\n", encoding="utf-8")
     (root / "RELEASE_CHECKLIST.md").write_text("# Release Checklist\n", encoding="utf-8")
@@ -1265,8 +1265,8 @@ def test_doctor_accepts_current_action_docs_and_web_quality_scripts(tmp_path):
 
 def test_doctor_warns_when_security_policy_is_missing(tmp_path):
     root = tmp_path
-    (root / "pyproject.toml").write_text('version = "0.3.0"\ndependencies = []\n', encoding="utf-8")
-    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.3.0\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text('version = "0.4.0"\ndependencies = []\n', encoding="utf-8")
+    (root / "README.md").write_text("uses: uninhibited-scholar/agent-redteam@v0.4.0\n", encoding="utf-8")
     (root / "CONTRIBUTING.md").write_text("# Contributing\n", encoding="utf-8")
     (root / "RELEASE_CHECKLIST.md").write_text("# Release Checklist\n", encoding="utf-8")
     github = root / ".github"

@@ -19,7 +19,7 @@ assert report.overall_score >= 80
 
 ## `Engine`
 
-主编排器：注册套件（内置 13 个套件会自动注册）、跑扫描、产出 `ScanReport`。
+主编排器：注册套件（内置 14 个套件会自动注册）、跑扫描、产出 `ScanReport`。
 
 ```python
 class Engine:
@@ -87,6 +87,25 @@ class MySuite(Suite):
 engine.register_suite(MySuite())
 report = engine.scan(suites=["my_suite"])
 ```
+
+## 样本质量审计
+
+样本审计是离线 Python API，不创建 target、不调用模型，也不修改样本文件：
+
+```python
+from pathlib import Path
+from agent_redteam.sample_audit import audit_samples, render_sample_audit_json
+
+audit = audit_samples()
+Path("sample-audit.json").write_text(
+    render_sample_audit_json(audit), encoding="utf-8"
+)
+print(audit["summary"])
+```
+
+报告包含近似语义重复对及其 `sample_id`、难度/严重度分布、gold 完整性、OWASP
+覆盖、以及对 check 是否具有基本区分度的保守 synthetic probe。它是质量审计提示，
+不是对样本内容的自动批准；`warning` 项仍需人工确认后再修改数据。
 
 ## `Target`
 
