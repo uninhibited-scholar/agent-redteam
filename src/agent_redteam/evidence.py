@@ -190,8 +190,8 @@ def _auxiliary_entry(path: Path, base: Path) -> dict[str, Any] | None:
     if not raw.strip():
         return None
     try:
-        data = json.loads(raw.decode("utf-8", errors="replace"))
-    except json.JSONDecodeError:
+        data = _extract_artifact_json(raw.decode("utf-8", errors="replace"))
+    except ValueError:
         return None
 
     if isinstance(data, dict) and isinstance(data.get("results"), list):
@@ -203,6 +203,22 @@ def _auxiliary_entry(path: Path, base: Path) -> dict[str, Any] | None:
             "batch": data.get("batch", ""),
             "records": len(rows),
             "counts": _value_counts(rows, "verdict"),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }
+
+    if isinstance(data, dict) and isinstance(data.get("bypasses"), list) and isinstance(data.get("history"), list):
+        bypasses = data["bypasses"]
+        return {
+            "path": _safe_rel(path, base),
+            "artifact_type": "adaptive_attack",
+            "model": _redact(str(data.get("target_model", ""))),
+            "rounds": data.get("rounds", 0),
+            "records": len(bypasses),
+            "counts": {
+                "bypasses": len(bypasses),
+                "attempts": _int(data.get("total_attempts")),
+                "strategies": _value_counts(bypasses, "strategy"),
+            },
             "sha256": hashlib.sha256(raw).hexdigest(),
         }
 
@@ -222,6 +238,20 @@ def _auxiliary_entry(path: Path, base: Path) -> dict[str, Any] | None:
             }
 
     return None
+
+
+def _extract_artifact_json(text: str) -> Any:
+    """Extract a JSON object/array from an optional terminal log prefix."""
+    decoder = json.JSONDecoder()
+    starts = [index for index, char in enumerate(text) if char in "[{]"]
+    for start in starts:
+        try:
+            value, _ = decoder.raw_decode(text[start:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, (dict, list)):
+            return value
+    raise ValueError("No JSON artifact found")
 
 
 def _skip_reason(path: Path, exc: Exception) -> str:

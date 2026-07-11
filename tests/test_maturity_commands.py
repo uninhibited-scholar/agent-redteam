@@ -901,16 +901,28 @@ def test_evidence_index_summarizes_auxiliary_json_artifacts(tmp_path):
         ),
         encoding="utf-8",
     )
+    (validation / "adaptive.json").write_text(
+        json.dumps({
+            "target_model": "GLM-5.2 sk-adaptive-secret1234567890",
+            "rounds": 1,
+            "total_attempts": 2,
+            "bypass_count": 1,
+            "bypasses": [{"strategy": "url_encode", "sample_id": "inj-001", "response": "secret"}],
+            "history": [{"round": 1, "attempts": 2, "bypasses": 1}],
+        }),
+        encoding="utf-8",
+    )
 
     index = build_evidence_index(validation, options=EvidenceOptions(max_reports=1))
     body = render_evidence_json(index)
     markdown = render_evidence_markdown(index)
 
     assert index["summary"]["reports"] == 1
-    assert index["summary"]["auxiliary"] == 2
+    assert index["summary"]["auxiliary"] == 3
     assert index["summary"]["skipped"] == 0
-    assert {item["artifact_type"] for item in index["auxiliary"]} == {"multi_turn_batch", "mutation_results"}
+    assert {item["artifact_type"] for item in index["auxiliary"]} == {"multi_turn_batch", "mutation_results", "adaptive_attack"}
     assert "sk-auxsecret1234567890" not in body
+    assert "sk-adaptive-secret1234567890" not in body
     assert "sk-[REDACTED]" in body
     assert "Auxiliary JSON Artifacts" in markdown
     assert "bypassed=1" in markdown
