@@ -183,15 +183,11 @@ def render_attestation_markdown(attestation: dict[str, Any]) -> str:
                 "",
                 "**Question snippet**",
                 "",
-                "```text",
-                item["question_snippet"],
-                "```",
+                *_fenced_block(item["question_snippet"]),
                 "",
                 "**Response snippet**",
                 "",
-                "```text",
-                item["response_snippet"],
-                "```",
+                *_fenced_block(item["response_snippet"]),
                 "",
             ])
 
@@ -316,6 +312,14 @@ def _snippet(value: Any, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[: max(0, limit - 3)].rstrip() + "..."
+
+
+def _fenced_block(value: Any, language: str = "text") -> list[str]:
+    """Return a Markdown fence longer than any backtick run in the payload."""
+    text = str(value or "")
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return [f"{fence}{language}", text, fence]
 
 
 def _redact(text: str) -> str:

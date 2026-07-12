@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-from .attest import _sample_evidence, load_report
+from .attest import _fenced_block, _sample_evidence, load_report
 
 
 ReviewVerdict = Literal["fail", "error", "all"]
@@ -81,21 +81,15 @@ def render_review_markdown(records: list[ReviewRecord]) -> str:
             "",
             "### Question",
             "",
-            "```text",
-            record.question_snippet,
-            "```",
+            *_fenced_block(record.question_snippet),
             "",
             "### Expected",
             "",
-            "```text",
-            record.expected_snippet,
-            "```",
+            *_fenced_block(record.expected_snippet),
             "",
             "### Response",
             "",
-            "```text",
-            record.response_snippet,
-            "```",
+            *_fenced_block(record.response_snippet),
             "",
         ])
     return "\n".join(lines)

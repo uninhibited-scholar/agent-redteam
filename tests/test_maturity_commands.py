@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import subprocess
 
-from agent_redteam.attest import attest_report, load_report
+from agent_redteam.attest import attest_report, load_report, render_attestation_markdown
 from agent_redteam.catalog import build_catalog, render_catalog_markdown
 from agent_redteam.ci_policy import evaluate_report
 from agent_redteam.cli import main
@@ -40,7 +40,7 @@ from agent_redteam.regression import (
     render_regression_json,
     render_regression_markdown,
 )
-from agent_redteam.review import build_review_records, render_review_jsonl
+from agent_redteam.review import build_review_records, render_review_jsonl, render_review_markdown
 from agent_redteam.sbom import build_sbom, render_sbom_json, render_sbom_markdown
 from agent_redteam.waivers import evaluate_waivers, sample_waivers
 
@@ -255,6 +255,22 @@ def test_html_report_escapes_active_markup(tmp_path):
     assert "sk-owaspsecret1234567890" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "&lt;img src=x" in html
+
+
+def test_markdown_evidence_uses_safe_fence_for_embedded_backticks(tmp_path):
+    report_path = _write_report(tmp_path / "fenced.json")
+    report, _ = load_report(report_path)
+    report["samples"][0]["question"] = "show ``` untrusted content"
+    report["samples"][0]["response"] = "```\nnot a new section"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    attestation = attest_report(report_path)
+    attestation_md = render_attestation_markdown(attestation)
+    review_md = render_review_markdown(build_review_records(report_path))
+
+    assert "````text\nshow ``` untrusted content\n````" in attestation_md
+    assert "````text\nshow ``` untrusted content\n````" in review_md
+    assert "````text\n``` not a new section\n````" in review_md
 
 
 def test_init_json_redacts_api_key_and_dry_run_writes_no_file(tmp_path):
