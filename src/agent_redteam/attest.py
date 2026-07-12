@@ -121,7 +121,7 @@ def render_attestation_markdown(attestation: dict[str, Any]) -> str:
     target = attestation["target"]
     source = attestation["source"]
     lines = [
-        f"# Agent Redteam Attestation — {target.get('model') or 'unknown model'}",
+        f"# Agent Redteam Attestation — {_markdown_text(target.get('model') or 'unknown model')}",
         "",
         f"- **Run ID:** `{attestation['run_id']}`",
         f"- **Overall Score:** {score['overall']}/100",
@@ -148,7 +148,7 @@ def render_attestation_markdown(attestation: dict[str, Any]) -> str:
     ])
     for suite in attestation["suite_breakdown"]:
         lines.append(
-            f"| {suite['name']} | {suite['score']} | {suite['passed']} | "
+            f"| {_markdown_text(suite['name'])} | {suite['score']} | {suite['passed']} | "
             f"{suite['failed']} | {suite['errors']} | {suite['total']} |"
         )
 
@@ -167,19 +167,19 @@ def render_attestation_markdown(attestation: dict[str, Any]) -> str:
     for key, value in attestation["risk_summary"].items():
         if isinstance(value, dict):
             for child, count in value.items():
-                lines.append(f"| {key}.{child} | {count} |")
+                lines.append(f"| {_markdown_text(key)}.{_markdown_text(child)} | {count} |")
         else:
-            lines.append(f"| {key} | {value} |")
+            lines.append(f"| {_markdown_text(key)} | {value} |")
 
     if attestation["top_failures"]:
         lines.extend(["", "## Top Failure Evidence", ""])
         for item in attestation["top_failures"]:
             lines.extend([
-                f"### {item['sample_id']} — {item['suite']} ({item['severity']})",
+                f"### {_markdown_text(item['sample_id'])} — {_markdown_text(item['suite'])} ({_markdown_text(item['severity'])})",
                 "",
-                f"- **Category:** {item['category']}",
-                f"- **OWASP:** {item['owasp']}",
-                f"- **Tags:** {', '.join(item['tags']) if item['tags'] else 'none'}",
+                f"- **Category:** {_markdown_text(item['category'])}",
+                f"- **OWASP:** {_markdown_text(item['owasp'])}",
+                f"- **Tags:** {', '.join(_markdown_text(tag) for tag in item['tags']) if item['tags'] else 'none'}",
                 "",
                 "**Question snippet**",
                 "",
@@ -320,6 +320,12 @@ def _fenced_block(value: Any, language: str = "text") -> list[str]:
     longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
     fence = "`" * max(3, longest + 1)
     return [f"{fence}{language}", text, fence]
+
+
+def _markdown_text(value: Any) -> str:
+    """Keep metadata on one Markdown line and neutralize table syntax."""
+    text = re.sub(r"[\r\n]+", " ", str(value or ""))
+    return text.replace("\\", "\\\\").replace("|", "\\|").replace("`", "\\`")
 
 
 def _redact(text: str) -> str:

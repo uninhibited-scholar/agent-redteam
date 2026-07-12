@@ -273,6 +273,26 @@ def test_markdown_evidence_uses_safe_fence_for_embedded_backticks(tmp_path):
     assert "````text\n``` not a new section\n````" in review_md
 
 
+def test_markdown_metadata_cannot_break_headings_or_tables(tmp_path):
+    report_path = _write_report(tmp_path / "metadata.md.json")
+    report, _ = load_report(report_path)
+    sample = report["samples"][0]
+    sample["suite"] = "suite|column\n## injected heading"
+    sample["sample_id"] = "sample`id"
+    sample["category"] = "category|value"
+    sample["tags"] = ["tag|value", "tag`value"]
+    report["suites"][0]["name"] = "suite|column\n## injected suite"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    attestation_md = render_attestation_markdown(attest_report(report_path))
+    review_md = render_review_markdown(build_review_records(report_path))
+
+    assert "\n## injected heading" not in attestation_md
+    assert "\n## injected suite" not in attestation_md
+    assert "suite\\|column ## injected heading" in review_md
+    assert "tag\\|value" in review_md
+
+
 def test_init_json_redacts_api_key_and_dry_run_writes_no_file(tmp_path):
     config_path = tmp_path / "config"
     result = initialize_project(

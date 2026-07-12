@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-from .attest import _fenced_block, _sample_evidence, load_report
+from .attest import _fenced_block, _markdown_text, _sample_evidence, load_report
 
 
 ReviewVerdict = Literal["fail", "error", "all"]
@@ -68,16 +68,16 @@ def render_review_markdown(records: list[ReviewRecord]) -> str:
     ]
     for idx, record in enumerate(records, 1):
         lines.extend([
-            f"## {idx}. {record.sample_id} — {record.suite}",
+            f"## {idx}. {_markdown_text(record.sample_id)} — {_markdown_text(record.suite)}",
             "",
-            f"- **Review status:** `{record.review_status}`",
-            f"- **Reviewer:** `{record.reviewer}`",
-            f"- **Notes:** {record.notes or '_none_'}",
-            f"- **Model verdict:** `{record.model_verdict}`",
-            f"- **Severity:** `{record.severity}`",
-            f"- **OWASP:** `{record.owasp}`",
-            f"- **Category:** `{record.category}`",
-            f"- **Tags:** {', '.join(record.tags) if record.tags else 'none'}",
+            f"- **Review status:** `{_markdown_text(record.review_status)}`",
+            f"- **Reviewer:** `{_markdown_text(record.reviewer)}`",
+            f"- **Notes:** {_markdown_text(record.notes) if record.notes else '_none_'}",
+            f"- **Model verdict:** `{_markdown_text(record.model_verdict)}`",
+            f"- **Severity:** `{_markdown_text(record.severity)}`",
+            f"- **OWASP:** `{_markdown_text(record.owasp)}`",
+            f"- **Category:** `{_markdown_text(record.category)}`",
+            f"- **Tags:** {', '.join(_markdown_text(tag) for tag in record.tags) if record.tags else 'none'}",
             "",
             "### Question",
             "",
