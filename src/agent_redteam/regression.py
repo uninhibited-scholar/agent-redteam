@@ -279,7 +279,12 @@ def _reports_comparable(
     baseline_samples: list[dict[str, Any]],
     current_samples: list[dict[str, Any]],
 ) -> bool:
-    return _total_samples(baseline, baseline_samples) == _total_samples(current, current_samples) and _suite_names(baseline) == _suite_names(current)
+    same_shape = (
+        _total_samples(baseline, baseline_samples) == _total_samples(current, current_samples)
+        and _suite_names(baseline) == _suite_names(current)
+    )
+    same_benchmark = _benchmark_profiles_comparable(baseline, current)
+    return same_shape and same_benchmark
 
 
 def _comparability_detail(
@@ -293,13 +298,58 @@ def _comparability_detail(
     baseline_suites = sorted(_suite_names(baseline))
     current_suites = sorted(_suite_names(current))
     if baseline_total == current_total and baseline_suites == current_suites:
-        return f"same total_samples ({baseline_total}) and suite set"
-    parts = []
-    if baseline_total != current_total:
-        parts.append(f"total_samples {baseline_total} vs {current_total}")
-    if baseline_suites != current_suites:
-        parts.append(f"suites {', '.join(baseline_suites) or 'none'} vs {', '.join(current_suites) or 'none'}")
-    return "; ".join(parts)
+        shape_detail = f"same total_samples ({baseline_total}) and suite set"
+    else:
+        parts = []
+        if baseline_total != current_total:
+            parts.append(f"total_samples {baseline_total} vs {current_total}")
+        if baseline_suites != current_suites:
+            parts.append(f"suites {', '.join(baseline_suites) or 'none'} vs {', '.join(current_suites) or 'none'}")
+        shape_detail = "; ".join(parts)
+
+    benchmark_detail = _benchmark_comparability_detail(baseline, current)
+    return f"{shape_detail}; {benchmark_detail}" if benchmark_detail else shape_detail
+
+
+_BENCHMARK_FINGERPRINTS = (
+    "profile_sha256",
+    "selection_sha256",
+    "selection_content_sha256",
+)
+
+
+def _benchmark_profiles_comparable(baseline: dict[str, Any], current: dict[str, Any]) -> bool:
+    baseline_profile = baseline.get("benchmark_profile")
+    current_profile = current.get("benchmark_profile")
+    if not isinstance(baseline_profile, dict) and not isinstance(current_profile, dict):
+        return True
+    if not isinstance(baseline_profile, dict) or not isinstance(current_profile, dict):
+        return False
+    if any(key not in baseline_profile or key not in current_profile for key in _BENCHMARK_FINGERPRINTS):
+        return False
+    return all(baseline_profile[key] == current_profile[key] for key in _BENCHMARK_FINGERPRINTS)
+
+
+def _benchmark_comparability_detail(baseline: dict[str, Any], current: dict[str, Any]) -> str:
+    baseline_profile = baseline.get("benchmark_profile")
+    current_profile = current.get("benchmark_profile")
+    if not isinstance(baseline_profile, dict) and not isinstance(current_profile, dict):
+        return "no benchmark profile metadata"
+    if not isinstance(baseline_profile, dict) or not isinstance(current_profile, dict):
+        return "one report has benchmark profile metadata and the other does not"
+    missing = [
+        key for key in _BENCHMARK_FINGERPRINTS
+        if key not in baseline_profile or key not in current_profile
+    ]
+    if missing:
+        return f"benchmark profile fingerprints missing: {', '.join(missing)}"
+    mismatched = [
+        key for key in _BENCHMARK_FINGERPRINTS
+        if baseline_profile[key] != current_profile[key]
+    ]
+    if mismatched:
+        return f"benchmark fingerprints differ: {', '.join(mismatched)}"
+    return "benchmark profile and selected sample content fingerprints match"
 
 
 def _total_samples(report: dict[str, Any], samples: list[dict[str, Any]]) -> int:

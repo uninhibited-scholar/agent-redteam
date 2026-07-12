@@ -219,6 +219,8 @@ agent-redteam regress baseline.json current.json --format markdown --output regr
 新增或升级到 `critical` / `high` 的失败默认零容忍，因为这代表具体安全风险变坏。
 同一个 `(suite, sample_id)` 从 `high` 升级到 `critical` 也会被视为回归。
 如果两个报告的样本总数或 suite 集合不同，`regress` 会失败并提示报告不可比。
+如果报告包含 benchmark profile，双方还必须拥有一致的 profile、sample ID 集合和样本正文指纹；
+缺少或不一致的指纹同样会阻断比较。
 
 ## `ci` waivers
 

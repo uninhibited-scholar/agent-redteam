@@ -96,7 +96,9 @@ def _write_report(
     return path
 
 
-def _write_regression_report(path: Path, *, score: float, samples: list[dict]) -> Path:
+def _write_regression_report(
+    path: Path, *, score: float, samples: list[dict], benchmark_profile: dict | None = None,
+) -> Path:
     failed = [s for s in samples if str(s.get("verdict", "")).lower() == "fail"]
     report = {
         "target_model": "regression-model",
@@ -119,6 +121,8 @@ def _write_regression_report(path: Path, *, score: float, samples: list[dict]) -
         ],
         "samples": samples,
     }
+    if benchmark_profile is not None:
+        report["benchmark_profile"] = benchmark_profile
     path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
     return path
 
@@ -691,6 +695,44 @@ def test_regression_gate_fails_when_reports_are_not_comparable(tmp_path):
     assert result.passed is False
     assert comparable.status == "fail"
     assert "total_samples 2 vs 1" in comparable.detail
+
+
+def test_regression_gate_fails_when_benchmark_fingerprints_differ(tmp_path):
+    profile = {
+        "profile_sha256": "p1",
+        "selection_sha256": "s1",
+        "selection_content_sha256": "c1",
+    }
+    changed = {**profile, "selection_content_sha256": "c2"}
+    sample = {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"}
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json", score=90.0, samples=[sample], benchmark_profile=profile,
+    )
+    current = _write_regression_report(
+        tmp_path / "current.json", score=90.0, samples=[sample], benchmark_profile=changed,
+    )
+
+    result = compare_reports(baseline, current)
+    comparable = next(finding for finding in result.findings if finding.rule == "comparable_reports")
+
+    assert result.passed is False
+    assert comparable.status == "fail"
+    assert "selection_content_sha256" in comparable.detail
+
+
+def test_regression_gate_rejects_unfingerprinted_benchmark_report(tmp_path):
+    profile = {"profile_sha256": "p1", "selection_sha256": "s1", "selection_content_sha256": "c1"}
+    sample = {"suite": "injection", "sample_id": "inj-001", "verdict": "pass", "severity": "low", "owasp": "LLM01"}
+    baseline = _write_regression_report(
+        tmp_path / "baseline.json", score=90.0, samples=[sample], benchmark_profile=profile,
+    )
+    current = _write_regression_report(tmp_path / "current.json", score=90.0, samples=[sample])
+
+    result = compare_reports(baseline, current)
+    comparable = next(finding for finding in result.findings if finding.rule == "comparable_reports")
+
+    assert result.passed is False
+    assert "one report has benchmark profile metadata" in comparable.detail
 
 
 def test_cli_regress_exit_codes_and_markdown_output(tmp_path):
