@@ -69,8 +69,9 @@ def attest_report(path: str | Path, options: AttestationOptions | None = None) -
     raw_sha = hashlib.sha256(raw).hexdigest()
     canonical_sha = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
     run_id = _run_id(report, raw_sha)
+    benchmark = _benchmark_provenance(report)
 
-    return {
+    attestation = {
         "schema": "agent-redteam-attestation/v1",
         "run_id": run_id,
         "generated_at": _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
@@ -89,6 +90,7 @@ def attest_report(path: str | Path, options: AttestationOptions | None = None) -
             "started_at": report.get("started_at", ""),
             "finished_at": report.get("finished_at", ""),
         },
+        "benchmark": benchmark,
         "score": {
             "overall": report.get("overall_score", 0),
             "total_samples": report.get("total_samples", len(samples)),
@@ -107,6 +109,7 @@ def attest_report(path: str | Path, options: AttestationOptions | None = None) -
             "Response snippets are redacted and truncated for safer publication.",
         ],
     }
+    return attestation
 
 
 def render_attestation_json(attestation: dict[str, Any]) -> str:
@@ -127,12 +130,22 @@ def render_attestation_markdown(attestation: dict[str, Any]) -> str:
         f"- **Finished:** {target.get('finished_at') or 'unknown'}",
         f"- **Raw SHA-256:** `{source['raw_sha256']}`",
         f"- **Canonical SHA-256:** `{source['canonical_sha256']}`",
+    ]
+    benchmark = attestation.get("benchmark")
+    if benchmark:
+        lines.extend([
+            f"- **Benchmark Profile:** `{benchmark.get('name') or 'unknown'}`",
+            f"- **Profile SHA-256:** `{benchmark['profile_sha256']}`",
+            f"- **Selection SHA-256:** `{benchmark['selection_sha256']}`",
+            f"- **Selection Content SHA-256:** `{benchmark['selection_content_sha256']}`",
+        ])
+    lines.extend([
         "",
         "## Suite Breakdown",
         "",
         "| Suite | Score | Passed | Failed | Errors | Total |",
         "|-------|------:|-------:|-------:|-------:|------:|",
-    ]
+    ])
     for suite in attestation["suite_breakdown"]:
         lines.append(
             f"| {suite['name']} | {suite['score']} | {suite['passed']} | "
@@ -259,6 +272,7 @@ def _canonical_public_report(report: dict[str, Any]) -> dict[str, Any]:
         "total_passed": report.get("total_passed", 0),
         "total_failed": report.get("total_failed", 0),
         "suites": report.get("suites", []),
+        "benchmark": _benchmark_provenance(report),
         "sample_verdicts": [
             {
                 "suite": s.get("suite", ""),
@@ -269,6 +283,24 @@ def _canonical_public_report(report: dict[str, Any]) -> dict[str, Any]:
             }
             for s in _as_list(report.get("samples"))
         ],
+    }
+
+
+def _benchmark_provenance(report: dict[str, Any]) -> dict[str, Any] | None:
+    """Expose only stable benchmark identity fields in publication artifacts."""
+    profile = report.get("benchmark_profile")
+    if not isinstance(profile, dict):
+        return None
+    required = ("profile_sha256", "selection_sha256", "selection_content_sha256")
+    if any(not isinstance(profile.get(key), str) or len(profile[key]) != 64 for key in required):
+        return None
+    return {
+        "schema": _redact(str(profile.get("schema", ""))),
+        "name": _redact(str(profile.get("name", ""))),
+        "profile_sha256": profile["profile_sha256"],
+        "selection_sha256": profile["selection_sha256"],
+        "selection_content_sha256": profile["selection_content_sha256"],
+        "selected_sample_count": profile.get("selected_sample_count", 0),
     }
 
 

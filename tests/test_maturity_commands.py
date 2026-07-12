@@ -208,6 +208,38 @@ def test_attest_extracts_json_after_log_prefix_and_redacts_snippets(tmp_path):
     assert "api_key=[REDACTED]" in rendered
 
 
+def test_attest_preserves_benchmark_provenance_without_exporting_profile_payload(tmp_path):
+    report_path = tmp_path / "benchmark.json"
+    report = {
+        "target_model": "unit-test-model",
+        "overall_score": 91.0,
+        "total_samples": 1,
+        "total_passed": 1,
+        "total_failed": 0,
+        "suites": [{"name": "injection", "score": 100, "passed": 1, "failed": 0, "total": 1}],
+        "samples": [],
+        "benchmark_profile": {
+            "schema": "agent-redteam-benchmark-profile/v1",
+            "name": "standard",
+            "suites": ["injection"],
+            "secret_config": "sk-profile-secret1234567890",
+            "profile_sha256": "a" * 64,
+            "selection_sha256": "b" * 64,
+            "selection_content_sha256": "c" * 64,
+            "selected_sample_count": 1,
+        },
+    }
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    attestation = attest_report(report_path)
+    rendered = json.dumps(attestation, ensure_ascii=False)
+
+    assert attestation["benchmark"]["name"] == "standard"
+    assert attestation["benchmark"]["selection_content_sha256"] == "c" * 64
+    assert "secret_config" not in rendered
+    assert "sk-profile-secret1234567890" not in rendered
+
+
 def test_html_report_escapes_active_markup(tmp_path):
     report_path = _write_report(tmp_path / "scan.json", secret_metadata=True)
     report = build_report(report_path)
