@@ -101,6 +101,11 @@ agent-redteam benchmark --profile standard --model gpt-4o --dry-run --format jso
 profile 元数据会写入标准 scan report 的 `benchmark_profile` 字段。`--dry-run` 完全离线，
 不会验证模型或 API key，也不会发送网络请求。
 
+报告还会记录 `profile_sha256`、`selection_sha256` 和
+`selection_content_sha256`：前者锁定 benchmark 配置，第二个锁定选中的 sample ID，
+第三个锁定选中样本的完整内容。跨版本比较时三者应保持一致；如果样本正文或 gold
+标签被修改，即使 sample ID 没变，内容哈希也会变化。
+
 ## `list`
 
 列出内置攻击套件与样本 catalog（不调用模型或扫描引擎）。

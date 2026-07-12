@@ -313,7 +313,13 @@ def _cmd_list(args) -> int:
 
 
 def _cmd_benchmark(args) -> int:
-    from .benchmark import load_profile, select_sample_ids, selection_hash
+    from .benchmark import (
+        load_profile,
+        profile_hash,
+        select_sample_ids,
+        selection_content_hash,
+        selection_hash,
+    )
 
     try:
         profile = load_profile(args.profile)
@@ -322,9 +328,12 @@ def _cmd_benchmark(args) -> int:
         print(f"ERROR: invalid benchmark profile: {exc}")
         return 2
 
+    profile_digest = profile_hash(profile)
     profile = dict(profile)
     profile["selected_sample_count"] = sum(len(ids) for ids in selected.values())
     profile["selection_sha256"] = selection_hash(selected)
+    profile["profile_sha256"] = profile_digest
+    profile["selection_content_sha256"] = selection_content_hash(profile, selected)
     scan_args = argparse.Namespace(
         model=args.model,
         base_url=args.base_url,

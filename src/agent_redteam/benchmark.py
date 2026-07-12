@@ -38,7 +38,32 @@ def select_sample_ids(profile: dict[str, Any]) -> dict[str, list[str]]:
 
 
 def selection_hash(selected: dict[str, list[str]]) -> str:
-    payload = json.dumps(selected, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return _hash_json(selected)
+
+
+def profile_hash(profile: dict[str, Any]) -> str:
+    """Hash the benchmark definition before runtime metadata is added."""
+    return _hash_json(profile)
+
+
+def selection_content_hash(profile: dict[str, Any], selected: dict[str, list[str]]) -> str:
+    """Hash the exact selected sample payloads, not just their IDs."""
+    from .suites import ALL_SUITES
+
+    registry = {suite.name: suite for suite in (suite_class() for suite_class in ALL_SUITES)}
+    payload: list[dict[str, Any]] = []
+    for name in profile["suites"]:
+        suite = registry[name]
+        by_id = {str(sample.get("id", "")): sample for sample in suite.load_samples()}
+        for sample_id in selected.get(name, []):
+            if sample_id not in by_id:
+                raise ValueError(f"selected sample {name}/{sample_id} is missing")
+            payload.append({"suite": name, "sample": by_id[sample_id]})
+    return _hash_json(payload)
+
+
+def _hash_json(value: Any) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return sha256(payload.encode("utf-8")).hexdigest()
 
 

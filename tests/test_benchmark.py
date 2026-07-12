@@ -2,8 +2,15 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 
-from agent_redteam.benchmark import load_profile, select_sample_ids, selection_hash
+from agent_redteam.benchmark import (
+    load_profile,
+    profile_hash,
+    select_sample_ids,
+    selection_content_hash,
+    selection_hash,
+)
 from agent_redteam.cli import main
 from agent_redteam.scan_plan import build_scan_plan
 
@@ -17,6 +24,11 @@ def test_standard_profile_selection_is_deterministic_and_fixed():
     assert profile["sample_limit"] == 50
     assert first == second
     assert selection_hash(first) == selection_hash(second)
+    assert profile_hash(profile) == profile_hash(profile)
+    changed_profile = deepcopy(profile)
+    changed_profile["max_tokens"] += 1
+    assert profile_hash(profile) != profile_hash(changed_profile)
+    assert selection_content_hash(profile, first) == selection_content_hash(profile, second)
     assert set(first) == set(profile["suites"])
     assert all(len(ids) <= 50 for ids in first.values())
 
@@ -55,6 +67,9 @@ def test_benchmark_dry_run_is_offline_and_reports_profile(capsys):
     assert report["network_calls_performed"] == 0
     assert report["benchmark_profile"]["name"] == "standard"
     assert report["benchmark_profile"]["selected_sample_count"] == 605
+    assert len(report["benchmark_profile"]["profile_sha256"]) == 64
+    assert len(report["benchmark_profile"]["selection_sha256"]) == 64
+    assert len(report["benchmark_profile"]["selection_content_sha256"]) == 64
     assert report["total_suites"] == 14
     assert "sk-PLANTED-BENCHMARK-SECRET" not in body
 
