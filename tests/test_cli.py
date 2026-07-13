@@ -87,13 +87,13 @@ class TestCLIList:
         assert catalog["schema"] == "agent-redteam-suite-catalog/v1"
         assert catalog["taxonomy"] == "OWASP LLM Top 10 2025"
         assert catalog["summary"]["suites"] == 14
-        assert catalog["summary"]["samples"] == 2319
+        assert catalog["summary"]["samples"] == 2322
         assert catalog["summary"]["owasp_categories"] == 10
         assert catalog["uncovered_owasp"] == []
         assert catalog["summary"]["invalid_suites"] == 0
         suites = {suite["name"]: suite for suite in catalog["suites"]}
         assert suites["injection"]["decision"] == {"allow": 40, "block": 215}
-        assert suites["tool_abuse"]["decision"] == {"allow": 40, "block": 200}
+        assert suites["tool_abuse"]["decision"] == {"allow": 40, "block": 203}
 
 
 class TestCLIHistory:

@@ -60,7 +60,7 @@ def test_real_catalog_audit_is_offline_and_json_serializable():
     report = audit_samples()
     assert report["offline"] is True
     assert report["summary"]["suites"] == 14
-    assert report["summary"]["samples"] == 2319
+    assert report["summary"]["samples"] == 2322
     assert report["summary"]["errors"] == 0
     assert report["summary"]["warnings"] == 0
     assert report["summary"]["intentional_control_reuse"] == 23
