@@ -66,7 +66,7 @@ def test_benchmark_dry_run_is_offline_and_reports_profile(capsys):
     report = json.loads(body)
     assert report["network_calls_performed"] == 0
     assert report["benchmark_profile"]["name"] == "standard"
-    assert report["benchmark_profile"]["selected_sample_count"] == 605
+    assert report["benchmark_profile"]["selected_sample_count"] == 610
     assert len(report["benchmark_profile"]["profile_sha256"]) == 64
     assert len(report["benchmark_profile"]["selection_sha256"]) == 64
     assert len(report["benchmark_profile"]["selection_content_sha256"]) == 64

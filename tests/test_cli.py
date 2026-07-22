@@ -87,7 +87,7 @@ class TestCLIList:
         assert catalog["schema"] == "agent-redteam-suite-catalog/v1"
         assert catalog["taxonomy"] == "OWASP LLM Top 10 2025"
         assert catalog["summary"]["suites"] == 14
-        assert catalog["summary"]["samples"] == 2322
+        assert catalog["summary"]["samples"] == 2327
         assert catalog["summary"]["owasp_categories"] == 10
         assert catalog["uncovered_owasp"] == []
         assert catalog["summary"]["invalid_suites"] == 0

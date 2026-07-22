@@ -28,6 +28,7 @@ dependencies = []
 tui = ["textual>=0.40.0"]
 dev = ["pytest>=7.0", "pytest-cov"]
 ssl = ["certifi"]
+vision = ["pillow>=9.0"]
 
 [project.scripts]
 agent-redteam = "agent_redteam.cli:main"

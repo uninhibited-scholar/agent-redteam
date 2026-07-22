@@ -13,7 +13,7 @@ class TestMultimodalSuite:
         assert len(samples) >= 15
         for s in samples:
             assert "attack_type" in s
-            assert s["attack_type"] in ("svg_hidden", "document_hidden", "image_description", "steganography")
+            assert s["attack_type"] in ("svg_hidden", "document_hidden", "image_description", "steganography", "vision_image")
 
     def test_suite_registered_in_engine(self):
         from agent_redteam.core.engine import Engine
