@@ -107,10 +107,14 @@ class Harness:
         """Run a single sample and return its result."""
         suite = sample.get("_suite", "unknown")
         sid = sample.get("id", "?")
+        score_vector = None
         try:
             messages = self.build_messages(sample)
             response = send_message(self.target, messages, self.max_attempts)
             verdict = self.check.evaluate(response, sample)
+            score_fn = getattr(self.check, "score_from_verdict", None)
+            if score_fn is not None:
+                score_vector = score_fn(response, sample, verdict)
         except Exception as e:
             response = ""
             verdict = Verdict.ERROR
@@ -132,6 +136,7 @@ class Harness:
             tags=sample.get("tags", []),
             error=error_msg,
             expected_decision=str(sample.get("gold", {}).get("decision", "")),
+            score_vector=score_vector,
         )
 
     def run(self) -> list[SampleResult]:
