@@ -118,6 +118,75 @@ def render_sample_audit_json(report: dict[str, Any]) -> str:
     return json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def audit_cell_balance(
+    suite_classes: Iterable[type] | None = None,
+    *,
+    difficulties: tuple[str, ...] = _DIFFICULTIES,
+    expected_k: int | None = None,
+) -> dict[str, Any]:
+    """Strict (suite × difficulty) balance check for controlled experiments.
+
+    Unlike the heuristic ``audit_samples`` (which only *warns* when one tier
+    dominates), this asserts every listed difficulty tier holds the *same*
+    number of samples in every suite — and equals ``expected_k`` when given.
+    Any imbalance is an ``error`` so a controlled run can fail fast before
+    burning API budget on data that cannot be compared across dimensions.
+
+    Returns a report with ``balanced: bool``; ``cells`` maps suite → per-tier
+    counts. Only the difficulties in ``difficulties`` are considered.
+    """
+    if suite_classes is None:
+        from .suites import ALL_SUITES
+        suite_classes = ALL_SUITES
+
+    cells: dict[str, dict[str, int]] = {}
+    findings: list[dict[str, Any]] = []
+
+    for suite_class in suite_classes:
+        suite = suite_class()
+        name = str(getattr(suite, "name", ""))
+        try:
+            samples = suite.load_samples()
+        except Exception as exc:
+            findings.append(_finding("load_error", "error", name, [], f"could not load samples: {exc}"))
+            continue
+
+        counts = Counter(
+            str(s.get("difficulty", "")).strip().lower()
+            for s in samples if isinstance(s, dict)
+        )
+        row = {tier: counts.get(tier, 0) for tier in difficulties}
+        cells[name] = row
+
+        present = set(row.values())
+        if len(present) != 1:
+            findings.append(_finding(
+                "cell_balance", "error", name, [],
+                f"unequal cell sizes across {list(difficulties)}: {row}",
+            ))
+        elif 0 in present:
+            findings.append(_finding(
+                "cell_balance", "error", name, [],
+                f"empty difficulty tier(s) in {list(difficulties)}: {row}",
+            ))
+        elif expected_k is not None and present != {expected_k}:
+            findings.append(_finding(
+                "cell_balance", "error", name, [],
+                f"cell size {present.pop()} != expected_k {expected_k}: {row}",
+            ))
+
+    errors = sum(1 for f in findings if f["status"] == "error")
+    return {
+        "schema": "agent-redteam-cell-balance/v1",
+        "offline": True,
+        "difficulties": list(difficulties),
+        "expected_k": expected_k,
+        "balanced": errors == 0,
+        "cells": dict(sorted(cells.items())),
+        "findings": findings,
+    }
+
+
 def _audit_suite(
     name: str,
     suite: Any,
