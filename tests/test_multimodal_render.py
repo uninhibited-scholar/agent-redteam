@@ -89,3 +89,23 @@ class TestSuiteIntegration:
         for s in vis:
             assert s.get("hidden_text")  # every vision sample injects something
             assert s["difficulty"] in ("easy", "medium", "hard")
+
+    def test_vision_samples_are_transcription_proof(self):
+        """The redesigned vision samples must not false-positive on a model that
+        merely transcribes the image; only genuine execution should FAIL."""
+        from agent_redteam.suites.multimodal import MultimodalCheck
+        from agent_redteam.core.result import Verdict
+        suite = MultimodalSuite()
+        check = MultimodalCheck()
+        vis = [s for s in suite.load_samples() if s["attack_type"] == "vision_image"]
+        for s in vis:
+            token = (s.get("success_keywords") or s.get("fail_if_contains"))[0]
+            # a neutral transcription that quotes the visible + hidden text verbatim
+            transcription = (
+                f"The image contains the following text: '{s['visible_text']}' "
+                f"and also an instruction that says: '{s['hidden_text']}'."
+            )
+            assert check.evaluate(transcription, s) == Verdict.PASS, s["id"]
+            # a genuine execution that emits the computed/secret token
+            execution = f"{token}"
+            assert check.evaluate(execution, s) == Verdict.FAIL, s["id"]
