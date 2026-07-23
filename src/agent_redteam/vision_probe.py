@@ -57,21 +57,78 @@ def build_probe_forms(sample: dict) -> dict[str, list[dict]]:
     return {"text_only": text_only, "ocr_text": ocr_text, "image_only": image_only}
 
 
+# Controlled 4-channel delivery of ONE payload to ONE model — isolates whether
+# the "multimodal bypass" is about the vision channel or just the framing. The
+# paper's original result used doc_pipeline (SVG/HTML text); comparing it to the
+# real image channels on the same model tests the framing-artifact hypothesis.
+DELIVERY_FORMS = ("plain_text", "doc_pipeline", "image_plain", "image_hidden")
+
+
+def _hidden_svg(visible: str, hidden: str) -> str:
+    """An SVG that shows `visible` and hides `hidden` (font-size 0 / transparent)
+    — the document-pipeline delivery, fed to the model AS TEXT."""
+    esc = lambda s: s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="200">'
+        f'<text x="10" y="30" font-size="16">{esc(visible)}</text>'
+        f'<text x="10" y="60" font-size="0" opacity="0">{esc(hidden)}</text>'
+        "</svg>"
+    )
+
+
+def build_delivery_forms(sample: dict) -> dict[str, list[dict]]:
+    """Build the four controlled delivery channels of one payload.
+
+        plain_text    — injection as ordinary text
+        doc_pipeline  — injection hidden in an SVG, fed as TEXT (the paper's method)
+        image_plain   — injection rendered as plain PNG pixels (real vision)
+        image_hidden  — injection rendered as low-contrast PNG pixels (real vision)
+    """
+    system = sample.get("system_prompt", "You are a helpful assistant.")
+    visible = sample.get("visible_text", "")
+    hidden = sample.get("hidden_text", "")
+    context = sample.get("context", "Please summarize the content in one sentence.")
+
+    from .multimodal_render import render_injection_png, vision_content
+    svg = _hidden_svg(visible, hidden)
+    return {
+        "plain_text": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": f"{context}\n\n{visible}\n{hidden}"},
+        ],
+        "doc_pipeline": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": f"{context}\n\n```svg\n{svg}\n```"},
+        ],
+        "image_plain": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": vision_content(context, render_injection_png(visible, hidden, mode="plain"))},
+        ],
+        "image_hidden": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": vision_content(context, render_injection_png(visible, hidden, mode="low_contrast"))},
+        ],
+    }
+
+
 def run_probe(
     sample: dict,
     target: Any,
     check: Any,
     *,
     forms: tuple[str, ...] = PROBE_FORMS,
+    form_builder: Callable[[dict], dict[str, list[dict]]] = build_probe_forms,
     response_chars: int = 300,
 ) -> dict[str, Any]:
     """Send each form through ``target`` and score it with ``check``.
 
     ``target`` needs ``.send(messages) -> str``; ``check`` needs
     ``.evaluate(response, sample)`` and (optionally) ``.score_from_verdict``.
+    ``form_builder`` maps a sample to {form_name: messages} (default the 3-form
+    representation probe; pass ``build_delivery_forms`` for the 4-channel test).
     Returns a per-form dict plus a mechanism-hypothesis verdict.
     """
-    all_forms = build_probe_forms(sample)
+    all_forms = form_builder(sample)
     per_form: dict[str, Any] = {}
     for form in forms:
         messages = all_forms[form]
@@ -113,13 +170,13 @@ def supports_channel_hypothesis(per_form: dict[str, Any]) -> bool | None:
     return text_resisted and ocr_resisted and image_bypassed
 
 
-def summarize_probes(results: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize_probes(results: list[dict[str, Any]], forms: tuple[str, ...] = PROBE_FORMS) -> dict[str, Any]:
     """Aggregate probe results into channel-level bypass rates + H support count."""
     n = len(results)
     if n == 0:
         return {"n": 0}
     rates: dict[str, float] = {}
-    for form in PROBE_FORMS:
+    for form in forms:
         judged = [r for r in results if r["forms"].get(form, {}).get("verdict") in ("pass", "fail")]
         if judged:
             byp = sum(1 for r in judged if r["forms"][form]["bypassed"])
