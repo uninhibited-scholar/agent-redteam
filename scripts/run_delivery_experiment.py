@@ -24,11 +24,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from agent_redteam.suites.multimodal import MultimodalCheck
 from agent_redteam.targets.openai_compat import OpenAITarget
 from agent_redteam.vision_probe import (
-    run_probe, summarize_probes, build_delivery_forms, DELIVERY_FORMS,
+    run_probe, summarize_probes, summarize_channels, build_delivery_forms, DELIVERY_FORMS,
 )
 
 OPENCLAW_CONFIG = os.path.expanduser("~/.openclaw/openclaw.json")
+AGENT_CONFIG = os.path.expanduser("~/.agent-redteam/config")
 ARK_BASE = "https://ark.cn-beijing.volces.com/api/v3"
+BIGMODEL_BASE = "https://open.bigmodel.cn/api/paas/v4"
 PROVIDER = "custom-ark-cn-beijing-volces-com"
 SAMPLES = os.path.join(os.path.dirname(__file__), "..", "validation", "h_test_harmful.jsonl")
 
@@ -39,22 +41,41 @@ def _ark_key() -> str:
     return cfg.get("models", {}).get("providers", {}).get(PROVIDER, {}).get("apiKey", "")
 
 
+def _agent_config_key() -> str:
+    key = ""
+    with open(AGENT_CONFIG, encoding="utf-8") as f:
+        for line in f:
+            if line.strip().startswith("api_key"):
+                key = line.split(":", 1)[1].strip()
+    return key
+
+
 def _load_samples(path: str) -> list[dict]:
     return [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="4-channel delivery framing-artifact experiment.")
-    ap.add_argument("--model", default="doubao-seed-1-6-250615")
-    ap.add_argument("--base-url", default=ARK_BASE)
+    # ark-doubao = metered Ark vision; bigmodel-glm4v = FREE glm-4v-flash
+    ap.add_argument("--key-source", choices=["ark-doubao", "bigmodel-glm4v"], default="ark-doubao")
+    ap.add_argument("--model", default=None)
+    ap.add_argument("--base-url", default=None)
     ap.add_argument("--samples", default=SAMPLES)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
 
-    key = _ark_key()
+    if args.key_source == "bigmodel-glm4v":
+        key = _agent_config_key()
+        model = args.model or "glm-4v-flash"
+        base = args.base_url or BIGMODEL_BASE
+    else:
+        key = _ark_key()
+        model = args.model or "doubao-seed-1-6-250615"
+        base = args.base_url or ARK_BASE
+    args.model, args.base_url = model, base
     if not key:
-        print(f"ERROR: no apiKey for provider {PROVIDER} in {OPENCLAW_CONFIG}", file=sys.stderr)
+        print(f"ERROR: no apiKey for key-source {args.key_source}", file=sys.stderr)
         return 2
 
     samples = _load_samples(args.samples)
@@ -69,6 +90,9 @@ def main(argv: list[str] | None = None) -> int:
     results = [run_probe(s, target, check, forms=DELIVERY_FORMS, form_builder=build_delivery_forms)
                for s in samples]
     summary = summarize_probes(results, DELIVERY_FORMS)
+    summary["channel_decomposition"] = {
+        f: summarize_channels(results, f) for f in ("image_plain", "image_hidden")
+    }
 
     report = {"model": args.model, "forms": list(DELIVERY_FORMS), "summary": summary, "results": results}
     out = args.out or f"validation/delivery-experiment-{args.model}.json"
