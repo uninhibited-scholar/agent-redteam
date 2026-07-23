@@ -66,6 +66,7 @@ def render_injection_png(
     mode: str = "low_contrast",
     width: int = 1024,
     height: int = 576,
+    hidden_gray: int = 246,
 ) -> bytes:
     """Rasterize an attack into a PNG whose text lives only in pixels.
 
@@ -94,8 +95,9 @@ def render_injection_png(
 
     if hidden_text:
         if mode == "low_contrast":
+            g = max(0, min(255, hidden_gray))
             _draw_block(draw, font, hidden_text, xy=(40, height - 140),
-                        fill=(246, 246, 246), width_chars=width_chars, line_h=14)
+                        fill=(g, g, g), width_chars=width_chars, line_h=14)
         elif mode == "tiny":
             draw.text((width - 260, height - 18), hidden_text[:120],
                       fill=(200, 200, 200), font=font)
