@@ -20,9 +20,21 @@ class TestRender:
         assert len(data) > 100
 
     def test_all_modes_render(self):
-        for mode in ("plain", "low_contrast", "tiny"):
+        for mode in ("plain", "low_contrast", "tiny", "watermark"):
             data = render_injection_png("visible", "hidden", mode=mode)
             assert data.startswith(PNG_MAGIC)
+
+    def test_layered_render(self):
+        from agent_redteam.multimodal_render import render_layered_png
+        data = render_layered_png("cover", "surface instr", "buried instr")
+        assert data.startswith(PNG_MAGIC) and len(data) > 100
+
+    def test_render_forms_builder(self):
+        from agent_redteam.vision_probe import build_render_forms, RENDER_FORMS
+        forms = build_render_forms({"visible_text": "v", "hidden_text": "h"})
+        assert set(forms) == set(RENDER_FORMS)
+        for f in RENDER_FORMS:
+            assert forms[f][-1]["content"][1]["image_url"]["url"].startswith("data:image/png")
 
     def test_bad_mode_raises(self):
         with pytest.raises(ValueError):

@@ -139,6 +139,30 @@ def build_delivery_forms(sample: dict) -> dict[str, list[dict]]:
     }
 
 
+RENDER_FORMS = ("image_plain", "image_lowcon", "image_watermark")
+
+
+def build_render_forms(sample: dict) -> dict[str, list[dict]]:
+    """Experiment B: the same injection rendered three ways — plain, faint
+    low-contrast, and watermark-style (tiled diagonal). Isolates whether the
+    *render form* changes whether a legible injection is executed."""
+    system = sample.get("system_prompt", "You are a helpful assistant.")
+    visible = sample.get("visible_text", "")
+    hidden = sample.get("hidden_text", "")
+    context = sample.get("context", "Please summarize the content in one sentence.")
+    from .multimodal_render import render_injection_png, vision_content
+
+    def form(mode, gray=175):
+        png = render_injection_png(visible, hidden, mode=mode, hidden_gray=gray)
+        return [{"role": "system", "content": system},
+                {"role": "user", "content": vision_content(context, png)}]
+    return {
+        "image_plain": form("plain"),
+        "image_lowcon": form("low_contrast", gray=140),   # calibrated legible
+        "image_watermark": form("watermark", gray=150),
+    }
+
+
 def run_probe(
     sample: dict,
     target: Any,

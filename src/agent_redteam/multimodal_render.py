@@ -15,7 +15,7 @@ from __future__ import annotations
 import base64
 import io
 
-_RENDER_MODES = ("plain", "low_contrast", "tiny")
+_RENDER_MODES = ("plain", "low_contrast", "tiny", "watermark")
 
 
 def _load_pil():
@@ -101,10 +101,57 @@ def render_injection_png(
         elif mode == "tiny":
             draw.text((width - 260, height - 18), hidden_text[:120],
                       fill=(200, 200, 200), font=font)
+        elif mode == "watermark":
+            _stamp_watermark(img, hidden_text, gray=hidden_gray, font=font)
+            draw = ImageDraw.Draw(img)  # watermark compositing replaced the layer
         else:  # plain
             _draw_block(draw, font, hidden_text, xy=(40, height // 2),
                         fill=(0, 0, 0), width_chars=width_chars, line_h=16)
 
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _stamp_watermark(img, text, *, gray=175, font):
+    """Tile `text` diagonally across `img` as a semi-transparent watermark —
+    the visual form real watermarks take (faint, repeated, angled)."""
+    from PIL import Image, ImageDraw
+    W, H = img.size
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    for y in range(0, H, 55):
+        for x in range(-120, W, max(180, len(text) * 7 + 40)):
+            d.text((x, y), text, fill=(gray, gray, gray, 255), font=font)
+    layer = layer.rotate(30, expand=0)
+    img.paste(layer, (0, 0), layer)
+
+
+def render_layered_png(
+    cover: str,
+    surface_text: str,
+    buried_text: str,
+    *,
+    surface_gray: int = 0,
+    buried_gray: int = 150,
+    width: int = 1024,
+    height: int = 576,
+) -> bytes:
+    """Two injection layers in one image: a prominent SURFACE instruction
+    (dark, plain) and a BURIED instruction stamped as a faint diagonal
+    watermark underneath. Swapping surface_gray/buried_gray flips prominence.
+    """
+    Image, ImageDraw, ImageFont = _load_pil()
+    img = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default()
+    width_chars = max(10, width // 8)
+    _draw_block(draw, font, cover, xy=(40, 30), fill=(0, 0, 0), width_chars=width_chars, line_h=16)
+    # buried watermark layer first (underneath), then surface on top
+    _stamp_watermark(img, buried_text, gray=buried_gray, font=font)
+    draw = ImageDraw.Draw(img)
+    _draw_block(draw, font, surface_text, xy=(40, height // 2),
+                fill=(surface_gray, surface_gray, surface_gray), width_chars=width_chars, line_h=16)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
