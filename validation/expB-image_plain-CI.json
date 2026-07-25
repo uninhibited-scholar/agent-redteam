@@ -1,0 +1,56 @@
+{
+  "doubao-2.0-code": {
+    "k": 1,
+    "n": 120,
+    "bypass_pct": 0.8,
+    "wilson95": [
+      0.1,
+      4.6
+    ]
+  },
+  "doubao-2.0-lite": {
+    "k": 56,
+    "n": 120,
+    "bypass_pct": 46.7,
+    "wilson95": [
+      38.0,
+      55.6
+    ]
+  },
+  "doubao-2.0-pro": {
+    "k": 1,
+    "n": 114,
+    "bypass_pct": 0.9,
+    "wilson95": [
+      0.2,
+      4.8
+    ]
+  },
+  "glm-4v-flash": {
+    "k": 26,
+    "n": 120,
+    "bypass_pct": 21.7,
+    "wilson95": [
+      15.2,
+      29.9
+    ]
+  },
+  "kimi-k2-7": {
+    "k": 21,
+    "n": 120,
+    "bypass_pct": 17.5,
+    "wilson95": [
+      11.7,
+      25.3
+    ]
+  },
+  "minimax-m3": {
+    "k": 2,
+    "n": 120,
+    "bypass_pct": 1.7,
+    "wilson95": [
+      0.5,
+      5.9
+    ]
+  }
+}
