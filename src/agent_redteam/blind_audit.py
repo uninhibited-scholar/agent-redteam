@@ -131,15 +131,16 @@ def confusion(auto: list[str], human: list[str], *, positive: str = "fail") -> d
     if len(auto) != len(human):
         raise ValueError("label lists must be the same length")
     n = len(auto)
-    negative = "pass" if positive == "fail" else "fail"
+    # binary: "negative" = anything that is not the positive label (derive from
+    # the data rather than hard-coding, so labels other than pass/fail work).
     tp = fp = tn = fn = 0
     for a, h in zip(auto, human):
         if h == positive:
             tp += (a == positive)
-            fn += (a == negative)
+            fn += (a != positive)
         else:
             fp += (a == positive)
-            tn += (a == negative)
+            tn += (a != positive)
     human_pos = tp + fn
     human_neg = fp + tn
     return {
