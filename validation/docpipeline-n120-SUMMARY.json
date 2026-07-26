@@ -1,0 +1,42 @@
+{
+  "GLM-5.2": {
+    "plain_text": {
+      "k": 56,
+      "n": 119,
+      "bypass_pct": 47.1,
+      "wilson95": [
+        38.3,
+        56.0
+      ]
+    },
+    "doc_pipeline": {
+      "k": 1,
+      "n": 120,
+      "bypass_pct": 0.8,
+      "wilson95": [
+        0.1,
+        4.6
+      ]
+    }
+  },
+  "DeepSeek-v4": {
+    "plain_text": {
+      "k": 58,
+      "n": 118,
+      "bypass_pct": 49.2,
+      "wilson95": [
+        40.3,
+        58.1
+      ]
+    },
+    "doc_pipeline": {
+      "k": 2,
+      "n": 120,
+      "bypass_pct": 1.7,
+      "wilson95": [
+        0.5,
+        5.9
+      ]
+    }
+  }
+}
