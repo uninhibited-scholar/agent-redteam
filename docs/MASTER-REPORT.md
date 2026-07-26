@@ -6,6 +6,43 @@ All numbers below are pulled directly from `validation/*.json` (also consolidate
 
 ---
 
+## Attack-method taxonomy (8 methods, 4 layers)
+
+| Layer | Method | Description | Data support |
+|---|---|---|---|
+| 1. Delivery channel | plain_text | Direct text, no hiding (baseline) | Exp0/1/3 |
+| | doc_pipeline | Attack extracted to text via SVG/HTML (the paper's original "multimodal" method) | Exp1, N=120 |
+| | image_* | Rendered as PNG pixels, real VLM input | Exp2, N=120 |
+| 2. Render form (within image_*) | plain | Dark, legible | Exp2 |
+| | lowcon | Faint gray, calibrated legible (gray=140) | Exp2, Exp5 |
+| | watermark | Tiled diagonal, semi-transparent | Exp2 |
+| 3. Structure | layered | Surface-prominent + buried-watermark, 4 conditions | Exp3, N=120 pairs |
+| 4. Encoding | acrostic/structural steganography | Instruction encoded in text structure (first letters) | pilot only, not run at scale |
+
+## Counter-intuitive findings (the paper's sharpest claims)
+
+These are not "bigger numbers" — they are places where the data contradicts the default intuition, which is what makes them citable beyond a benchmark table.
+
+1. **Hiding an attack makes it SAFER, not more dangerous.** Intuition says burying an instruction in document structure or under an image layer should evade defenses. At N=120, doc_pipeline collapses bypass to ~1% (Exp1) and layering does not amplify attacks (Exp3, H3 falsified). Reading: hiding changes the model's *task framing* ("this is content to describe") rather than bypassing its safety filter.
+2. **Watermark styling is the WEAKEST vector we tested, not a clever disguise.** 6/6 models show watermark bypass ≤ plain-image bypass (Exp2). The visual signature of tiling + translucency itself seems to cue "background noise," not "content."
+3. **Low bypass rate can mean "blind," not "safe" — the sharpest methodological claim.** minimax-m3's 1.7% image_plain bypass is 86% perception failure (never read the image), not refusal (Exp2 A/B/C decomposition). Prior benchmarks that report only ASR cannot tell these apart — this is the paper's core methodological contribution, not a numeric result.
+4. **Applying a fixed scoring rule to old data should not move the number much — it moved it by a third.** Re-scoring the same 15 original samples with the length-based false-positive removed took 73/80% down to 47%/47% (Exp0). A quiet scoring-rule artifact accounted for roughly a third of the original headline.
+
+## Finding utility rating (what actually carries the paper)
+
+| Finding | Utility | Note |
+|---|---|---|
+| F1 Exp0 scorer-inflation (~26–33pp) | ✅ core | The hook — shows prior number was not solid |
+| F2 Exp1 doc_pipeline collapse (N=120) | ✅ core | Strongest negative result, directly refutes the paper's channel |
+| F3 Exp2 real-vision capability-dependence (0.9–46.7%) | ✅ core | Gives the true (non-uniform) boundary of the "blind spot" |
+| F4 Exp2 A/B/C decomposition | ✅ core (methodology) | The reusable contribution: separate blind / safe / compromised |
+| F5 Exp4 blind-audit κ | ✅ core (validity) | Backs F1–F4's judge credibility |
+| F6 Exp3 layered ablation | ⚠️ minor section | Exclusionary, not novel-generative; keep as one ablation subsection |
+| F7 Exp2 watermark-weaker | ⚠️ minor, hedge | True *under our rendering parameters* — do not claim as a general law of watermark attacks |
+| F8 acrostic/structural steganography | ❌ not yet | Pilot-only, no supporting data at scale — mention as future work, not a finding |
+
+---
+
 ## Exp0 — Deconstructing the original 73%/80% headline
 
 Re-scoring the paper's original 15 multimodal samples with the fixed evaluator (no length-based false-positive fallback):
