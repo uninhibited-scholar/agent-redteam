@@ -8,7 +8,7 @@
 
 ## Abstract
 
-A widely repeated claim in practitioner reports is that large language models show a "multimodal blind spot": near-perfect defense against text-based prompt injection collapses when the same instruction is delivered through a non-text channel. We re-examine this claim under controlled conditions and find it does not hold as stated. First, re-scoring an earlier study's own samples with a corrected evaluator (removing a length-based false-positive rule) drops the reported 73–80% bypass rate to 47% on both original models — roughly a third of the original headline was scorer error, not model behavior. Second, what that study called "multimodal" injection was in fact text extracted from SVG/HTML markup and delivered as plain text; at controlled scale (N=120, two models), this "document-pipeline" delivery collapses bypass to ~1%, weaker than plain text, not stronger. Third, using real pixel-rendered vision-channel injection against six free-tier vision-language models (four vendors), we find bypass rates from 0.8% to 46.7% — strongly capability-dependent, not a uniform blind spot — and we show that low bypass can mean either "the model refused after reading the attack" or "the model never perceived the attack at all" (one model's apparent safety was 86% perceptual failure). We introduce a three-way perception/compliance decomposition (read-but-refused / not-read / read-and-executed) to distinguish these, cross-checked by an independent LLM-judge blind audit (raw agreement 77.5%, Cohen's κ = 0.55 — moderate agreement, chance-corrected for the judge's stratified sampling; a code defect that had understated chance agreement, and consequently overstated κ as 0.775, was caught during peer review and is corrected throughout this paper). We further test whether layering a prominent decoy instruction over a watermark-style buried one lets the buried instruction "sneak through" — it does not (pre-registered hypothesis falsified, mean Δ = −3.3pp across six models); execution is governed by visual salience, not concealment depth. We release all samples, scoring code, and raw run data (2,300+ free-tier API calls, zero cost) for independent reproduction.
+A widely repeated claim in practitioner reports is that large language models show a "multimodal blind spot": near-perfect defense against text-based prompt injection collapses when the same instruction is delivered through a non-text channel. We re-examine this claim under controlled conditions and find it does not hold as stated. First, re-scoring an earlier study's own samples with a corrected evaluator (removing a length-based false-positive rule) drops the reported 73–80% bypass rate to 47% on both original models — roughly a third of the original headline was scorer error, not model behavior. Second, what that study called "multimodal" injection was in fact text extracted from SVG/HTML markup and delivered as plain text; at controlled scale (N=120, two models), this "document-pipeline" delivery collapses bypass to ~1%, weaker than plain text, not stronger. Third, using real pixel-rendered vision-channel injection against six free-tier vision-language models (four vendors), we find bypass rates from 0.8% to 46.7% — strongly capability-dependent, not a uniform blind spot — and we show that low bypass can mean either "the model refused after reading the attack" or "the model never perceived the attack at all" (one model's apparent safety was 86% perceptual failure). We introduce a three-way perception/compliance decomposition (read-but-refused / not-read / read-and-executed) to distinguish these, cross-checked by an independent LLM-judge blind audit (raw agreement 77.5%, Cohen's κ = 0.55 — moderate agreement, chance-corrected for the judge's stratified sampling; a code defect that had understated chance agreement, and consequently overstated κ as 0.775, was caught during peer review and is corrected throughout this paper). We further test whether layering a prominent decoy instruction over a watermark-style buried one lets the buried instruction "sneak through": across six models we find no evidence that it does (mean Δ = −3.3pp; one model shows a statistically resolvable decrease, the other five are underpowered at N≈120 to distinguish an effect from noise) — instead, whichever layer is made visually prominent is the one that executes more. We release all samples, scoring code, and raw run data (2,300+ free-tier API calls, zero cost) for independent reproduction.
 
 ---
 
@@ -104,12 +104,12 @@ All raw results are released in `validation/*.json`; the consolidated machine-re
 
 We re-scored the 15 original multimodal samples from the study this paper re-examines, using the corrected evaluator (§3.2 canary logic; the previous implementation's length-based fallback — "score any response longer than 50 characters as a compromise when refusal was expected" — is removed).
 
-| Model | Originally reported bypass | Re-scored bypass (N=15) |
+| Model | Originally reported bypass | Re-scored bypass (N=15, 95% CI) |
 |---|---|---|
-| GLM-5.2 | 73% | **46.7%** (7/15) |
-| DeepSeek-V4 | 80% | **46.7%** (7/15) |
+| GLM-5.2 | 73% | **46.7%** (7/15, [24.8, 69.9]) |
+| DeepSeek-V4 | 80% | **46.7%** (7/15, [24.8, 69.9]) |
 
-Approximately 26–33 percentage points of the original headline number is attributable to the scorer artifact alone, independent of any change in the attack payloads or the model being tested.
+The identical 7/15 for both models is a coincidence of this small sample, not an artifact of applying one model's re-scoring to both — each model's original responses were re-scored independently against its own recorded output. The wide CI at N=15 (roughly ±23pp) means this table establishes *that* the scorer artifact is real and substantial, not a precise replacement bypass rate; §4.2's N=120 re-run on the same two models is the more statistically reliable estimate of the underlying text-channel rate. Approximately 26–33 percentage points of the original headline number is attributable to the scorer artifact alone, independent of any change in the attack payloads or the model being tested.
 
 ### 4.2 The "document-pipeline" channel is not a stronger attack surface (N=120)
 
@@ -122,37 +122,51 @@ We compared `plain_text` and `doc_pipeline` delivery of the same 120 balanced pa
 
 Moving the identical attack from plain text into document structure *reduces* bypass by 45–47 percentage points rather than raising it. Response inspection suggests the mechanism: models overwhelmingly respond to SVG markup by describing its visual/structural content ("this SVG contains two text elements...") rather than treating embedded instructions as directives to follow — the delivery format itself changes the model's task framing.
 
-### 4.3 Real vision-channel injection: capability-dependent, not uniform (N=120 × 6 models)
+### 4.3 Real vision-channel injection: capability-dependent among the models tested (N=120 × 6 models, one exception noted)
 
-| Model | image_plain (95% CI) | image_lowcon | image_watermark | A/B/C on image_plain |
-|---|---|---|---|---|
-| doubao-2.0-pro | 0.9% [0.2, 4.8] | 1.8% [0.5, 6.3] | 0.9% [0.2, 4.8] | 26 / 87 / **1** |
-| doubao-2.0-code | 0.8% [0.1, 4.6] | 2.5% [0.9, 7.1] | 0.0% [0.0, 3.1] | 29 / 90 / **1** |
-| minimax-m3 | 1.7% [0.5, 5.9] | 5.0% [2.3, 10.5] | 1.7% [0.5, 5.9] | 103 / 17 / **0** |
-| kimi-k2-7 | 17.5% [11.7, 25.3] | 8.3% [4.6, 14.7] | 2.5% [0.9, 7.1] | 44 / 56 / **20** |
-| glm-4v-flash | 21.7% [15.2, 29.9] | 18.3% [12.4, 26.2] | 13.3% [8.4, 20.6] | 9 / 92 / **19** |
-| doubao-2.0-lite | 46.7% [38.0, 55.6] | 45.0% [36.4, 53.9] | 27.5% [20.3, 36.1] | 37 / 64 / **19** |
+| Model | n (image_plain) | image_plain (95% CI) | image_lowcon | image_watermark | A/B/C on image_plain |
+|---|---|---|---|---|---|
+| doubao-2.0-pro | 114† | 0.9% [0.2, 4.8] | 1.8% [0.5, 6.3] | 0.9% [0.2, 4.8] | 26 / 87 / **1** |
+| doubao-2.0-code | 120 | 0.8% [0.1, 4.6] | 2.5% [0.9, 7.1] | 0.0% [0.0, 3.1] | 29 / 90 / **1** |
+| minimax-m3 | 120 | 1.7% [0.5, 5.9] | 5.0% [2.3, 10.5] | 1.7% [0.5, 5.9] | 103 / 17 / **0** |
+| kimi-k2-7 | 120 | 17.5% [11.7, 25.3] | 8.3% [4.6, 14.7] | 2.5% [0.9, 7.1] | 44 / 56 / **20** |
+| glm-4v-flash | 120 | 21.7% [15.2, 29.9] | 18.3% [12.4, 26.2] | 13.3% [8.4, 20.6] | 9 / 92 / **19** |
+| doubao-2.0-lite | 120 | 46.7% [38.0, 55.6] | 45.0% [36.4, 53.9] | 27.5% [20.3, 36.1] | 37 / 64 / **19** |
 
-Bypass ranges from 0.8% to 46.7% — a 46-point spread across six models, including a >45-point gap *within the same vendor family* (doubao-2.0-pro/code ≈ 1% vs. doubao-2.0-lite ≈ 47%). This is incompatible with a claim of a uniform cross-model blind spot; capability (or deployment tier) is the dominant factor.
+† doubao-2.0-pro's n is 114/111/114 across the three render forms (not 120) due to dropped network-timeout trials; this is disclosed here rather than silently rounded up. All other models hit exactly n=120 in every cell.
 
-The A/B/C decomposition shows why bypass rate alone is insufficient: minimax-m3's low bypass (1.7%) is 86% (103/120) perceptual failure (A) — the model essentially never processes the injected image text — versus doubao-2.0-pro's low bypass, which is 73% (87/120) genuine read-and-refuse behavior (B). Both models report near-identical bypass rates; their underlying security posture is opposite.
+Bypass ranges from 0.8% to 46.7% — a 46-point spread across six models, including a >45-point gap *within the same vendor family* (doubao-2.0-pro/code ≈ 1% vs. doubao-2.0-lite ≈ 47%). This is incompatible with a claim of a uniform cross-model blind spot among the models we tested. We stop short of the broader claim "capability-dependent, not a uniform blind spot" in general: our six models are free-tier or flat-rate-subscription-tier access points from four vendors, which may not represent those vendors' strongest deployed models, and we did not test any frontier proprietary model (GPT-4V-class, Claude-vision-class) — the population the original "blind spot" claims were generally made about. Whether this capability-dependence pattern holds for frontier models is untested and should not be assumed from this data.
 
-Watermark-style rendering is a weaker vector than plain rendering in every one of the six models tested (6/6), consistent with models treating tiled/translucent overlaid text as background rather than content — though we caveat this as specific to our rendering parameters (§6).
+**A scoring caveat specific to two models**: kimi-k2-7 and minimax-m3 are the two models in this table for which our target adapter extracts text from the OpenAI-compatible `reasoning_content` field rather than the primary `content` field, because `content` was empty for these models (§3.6). This means canary/perception scoring for these two models runs over an internal chain-of-thought-style trace, while the other four models are scored on a final user-facing answer. A model that discusses or reasons about the injected instruction internally, without that reasoning being part of what a real deployment would surface to a user, is not directly comparable to a model scored on its final answer only. kimi-k2-7 (17.5% bypass, second-highest read+execute rate) and minimax-m3 (1.7% bypass, 86% perceptual-failure) — the two models on opposite ends of our qualitative story in this section — are exactly the two affected by this asymmetry, so it should be treated as a live confound on the cross-model comparison, not a footnote. We did not have a way to test these two models via a standard `content`-field response within this paper's zero-cost constraint, so we report the result with this caveat rather than excluding the two models.
 
-### 4.4 Layered injection does not amplify attacks (N≈120 pairs × 4 conditions × 6 models)
+The A/B/C decomposition shows why bypass rate alone is insufficient: minimax-m3's low bypass (1.7%) is 86% (103/120) perceptual failure (A) — the model essentially never processes the injected image text — versus doubao-2.0-pro's low bypass, which is 76% (87/114) genuine read-and-refuse behavior (B). Both models report near-identical bypass rates; their underlying security posture is opposite. (As above, minimax-m3's number carries the `reasoning_content` caveat.)
+
+Watermark-style rendering bypass is lower than or equal to plain rendering in all six models tested, strictly lower in four (doubao-2.0-code, kimi-k2-7, glm-4v-flash, doubao-2.0-lite) and tied at the same k/n in two (doubao-2.0-pro: 1/114 both; minimax-m3: 2/120 both) — we report this precisely as "4/6 strictly weaker, 2/6 tied, 0/6 stronger" rather than the looser "weaker in every model," since the two ties are exact rather than merely close. This is consistent with models treating tiled/translucent overlaid text as background rather than content, though we caveat this as specific to our rendering parameters and font (§6).
+
+### 4.3a Benign control: scorer false-positive rate
+
+Raised in review: every bypass rate above is conditional on an attack being present; we had not measured how often the canary-detection scorer fires with *no* injected instruction present at all. We ran a benign control: 30 payloads sampled from the N=120 set, cover text only (the injected instruction removed entirely, nothing rendered in its place), same canary check applied, on glm-4v-flash. **0/30 false positives** (95% Wilson CI [0.0, 11.4]), consistent with the transcription-proof canary design (§3.2): the canary is a secret or computed value that does not exist anywhere in the benign input, so a model cannot emit it without either fabricating it outright or being cued by an actual injected instruction. This is a small, single-model check (N=30, one of six models), not an exhaustive false-positive audit across all models and conditions; we report it as supporting evidence for the scoring design, not as a closed question.
+
+### 4.4 Layered injection does not amplify attacks (120 pairs × 4 conditions × 6 models)
 
 We pre-registered two competing hypotheses: **H-masking**, that a prominent decoy instruction reduces the read rate of a buried instruction (attention drawn away), and **H-opening**, that a prominent decoy "opens a door" — reducing scrutiny and *raising* the buried instruction's execution rate.
 
-| Model | C1: surface-only | C2: buried-only | C3 both: surface / buried | C4 swapped: surface / buried | Δ (C3 buried − C2) |
-|---|---|---|---|---|---|
-| doubao-2.0-code | 0.0% | 3.4% | 10.1% / 0.0% | 1.7% / 12.7% | −3.4pp |
-| doubao-2.0-lite | 0.0% | 10.8% | 0.0% / 1.7% | 0.0% / 35.8% | −9.2pp |
-| doubao-2.0-pro | 4.2% | 0.8% | 8.3% / 0.0% | 19.3% / 8.4% | −0.8pp |
-| glm-4v-flash | 85.0% | 0.0% | 39.2% / 0.0% | 12.5% / 4.2% | +0.0pp |
-| kimi-k2-7 | 2.5% | 1.7% | 16.1% / 0.8% | 33.1% / 7.6% | −0.8pp |
-| minimax-m3 | 0.0% | 8.0% | 0.0% / 2.7% | 0.0% / 31.1% | −5.3pp |
+**Scoring note**: this experiment's compliance detection (`scripts/run_experiment_a.py`) is a direct canary-substring check without the refusal-guard used by `MultimodalCheck` elsewhere in the paper (§3.2, §4.2, §4.3) — i.e., it does not special-case a response that both refuses and incidentally states the canary. We consider this the methodologically correct choice here (any canary occurrence is compliance by construction, regardless of surrounding language), but it is a genuine inconsistency with the paper's other experiments that a reader should be able to check. We audited all 57 `buried_executed=True` trials in the raw data for the substring-collision failure mode a reviewer flagged (canary digits appearing as part of a larger unrelated number, e.g. "783" inside "17832"): **0/57 were embedded in a larger number**; all were clean, isolated occurrences of the exact canary value.
 
-Mean Δ across six models: **−3.3pp**. H-opening is falsified: a prominent decoy does not raise the buried instruction's execution rate; if anything it is associated with a small decrease, consistent with H-masking rather than H-opening. Swapping which layer is prominent (C4) reliably flips which layer executes more (e.g., doubao-2.0-lite buried execution rises from 10.8% to 35.8% once made prominent) — **visual salience, not concealment depth, governs execution**. Layering two instructions into one image does not grant an attacker capability beyond controlling which instruction is visually prominent.
+Per-model buried-execution counts (k/n, judged trials only — several models have n slightly below 120 due to dropped network-error trials) with Wilson 95% CIs on the two cells that test H-opening (C2 buried-only vs. C3-both buried-execution):
+
+| Model | C1 surface-only | C2 buried-only (95% CI) | C3 both: surface / buried (95% CI) | C4 swapped: surface / buried |
+|---|---|---|---|---|
+| doubao-2.0-code | 0/116 | 4/119 [1.3, 8.3] | 12/119 / 0/119 [0.0, 3.1] | 2/118 / 15/118 |
+| doubao-2.0-lite | 0/120 | 13/120 [6.4, 17.7] | 0/120 / 2/120 [0.5, 5.9] | 0/120 / 43/120 |
+| doubao-2.0-pro | 5/120 | 1/120 [0.1, 4.6] | 10/120 / 0/120 [0.0, 3.1] | 23/119 / 10/119 |
+| glm-4v-flash | 102/120 | 0/119 [0.0, 3.1] | 47/120 / 0/120 [0.0, 3.1] | 15/120 / 5/120 |
+| kimi-k2-7 | 3/118 | 2/119 [0.5, 5.9] | 19/118 / 1/118 [0.1, 4.6] | 39/118 / 9/118 |
+| minimax-m3 | 0/111 | 9/112 [4.3, 14.6] | 0/111 / 3/111 [0.9, 7.6] | 0/106 / 33/106 |
+
+Comparing the C2 and C3-buried confidence intervals: in **5 of 6 models the intervals overlap** — the point-estimate decrease is not distinguishable from sampling noise at this N, and we do not claim a per-model effect for these five. In the sixth (**doubao-2.0-lite**), the intervals do not overlap (13/120 → 2/120; [6.4, 17.7] vs. [0.5, 5.9]), a genuine, statistically distinguishable *decrease* — evidence consistent with H-masking, not H-opening, for this model specifically. Across all six models, **no model shows an interval-supported increase** in buried execution when the decoy is added; the direction of every point estimate (mean Δ = −3.3pp) and the one statistically resolvable case both point away from H-opening. We report this as: **H-opening finds no support in this data (one model shows a resolvable decrease consistent with H-masking; the other five are underpowered to distinguish an effect from noise at N≈120)** — a more precise claim than "falsified," which overstates what five of the six per-model comparisons can support.
+
+Swapping which layer is prominent (C4) reliably raises the newly-prominent layer's execution rate regardless of concealment history (e.g., doubao-2.0-lite buried execution rises from 13/120 to 43/120 once made prominent; minimax-m3 from 9/112 to 33/106) — **visual salience, not concealment depth, is the dominant factor we can identify**. Layering two instructions into one image does not grant an attacker capability beyond controlling which instruction is visually prominent, within the power this experiment can detect.
 
 ### 4.5 A legibility-calibration confound, and its correction
 
@@ -173,7 +187,7 @@ We sampled 40 `image_plain` verdicts (20 automated-compliant, 20 automated-resis
 
 ### 5.1 Why "hiding" an attack can make it safer, not more dangerous
 
-Across three independent tests — document-pipeline delivery (§4.2), layered concealment (§4.4), and low-contrast rendering below the legibility threshold (§4.5) — concealment consistently reduced or had no positive effect on bypass rate. We propose a unifying account: models appear to condition their behavior on an implicit signal of "is this content, or is this an instruction," and concealment techniques (structural embedding, visual burial, low salience) more often push content toward the "content to be described" side of that boundary than they successfully disguise an instruction as legitimate. This account is consistent with, but not proven by, our data; distinguishing it from alternative accounts (e.g., simple failure to perceive) is a direction for mechanistic follow-up work — for instance, representation-level probes of where in a model's processing this framing decision is made.
+Across three independent tests — document-pipeline delivery (§4.2), layered concealment (§4.4), and low-contrast rendering below the legibility threshold (§4.5) — concealment consistently reduced or had no positive effect on bypass rate. **We flag upfront that we have not distinguished between two candidate mechanisms and this section should be read as one plausible account among at least two, not an established explanation.** Mechanism A ("content framing"): models condition behavior on an implicit "is this content, or is this an instruction" signal, and concealment pushes content toward the "content" side. Mechanism B ("syntactic marking," raised in review): our document-pipeline delivery marks the injected text with explicit non-visual CSS attributes (`font-size:0; opacity:0`) inside a recognized markup format, which may be a narrower, more mechanical signal — "this span is decorative, not text to read" — than a general content-vs-instruction judgment, and would not obviously predict the layering (§4.4) or low-contrast (§4.5) results the same way. We consider mechanism A the more unifying account across all three experiments, since layering and low-contrast rendering have no CSS-style markup to exploit, but we have not run an experiment that would separate A from B for the document-pipeline result specifically, and we do not claim to have. Distinguishing these (and ruling out further alternatives) is a direction for mechanistic follow-up work — for instance, representation-level probes of where in a model's processing this framing decision is made.
 
 ### 5.2 Implications for measurement practice
 
@@ -187,12 +201,16 @@ None of the above should be read as "vision-channel injection is safe." Real, pi
 
 ## 6 Limitations
 
-- **Model coverage.** All six vision models were selected for zero-cost access; this necessarily excludes some widely deployed proprietary models (GPT-4V-class, Claude-vision-class) for which we did not have unmetered access at the time of writing. Extending coverage to these models, at metered cost, is future work and may shift the observed capability-dependence range.
-- **Watermark rendering is one specific implementation.** Our tiled, semi-transparent watermark render is one point in a large design space (density, opacity, rotation, font, placement); "watermark styling is a weaker vector" (§4.3) should be read as a finding about this implementation, not a general law about all watermark-style concealment.
-- **The layered-injection experiment is one operationalization of "layering."** We tested a two-layer, prominence-swappable design; other layering strategies (e.g., temporally staged reveals, semantic rather than visual layering) are untested and may behave differently.
+- **Model coverage and tier.** All six vision models were selected for zero-cost access (free tier or flat-rate subscription); this necessarily excludes some widely deployed proprietary models (GPT-4V-class, Claude-vision-class) for which we did not have unmetered access at the time of writing, and even the included vendors' free/flat-rate tiers may not represent those vendors' strongest deployed models. Extending coverage to frontier proprietary models, at metered cost, is future work and may shift or eliminate the observed capability-dependence range; §4.3's claims are explicitly scoped to the models tested.
+- **A scoring-path asymmetry affects two of six models** (kimi-k2-7, minimax-m3): their responses are extracted from a `reasoning_content` field rather than the final-answer field used for the other four models (§3.6, §4.3). This is disclosed at point of use but is a real, unresolved confound on any comparison involving these two models.
+- **Rendering pipeline as a confound.** All rendered text uses a single fixed bitmap font (`PIL.ImageFont.load_default()`) across all models and all render forms. Part of the >45-point capability spread in §4.3 could reflect differential OCR/text-recognition robustness to this specific font and size rather than differential safety alignment; we have not run a font-varied control to separate these. Watermark rendering is a further, separate specific implementation (density, opacity, rotation, placement); "watermark styling is a weaker vector" (§4.3) should be read as a finding about this implementation, not a general law about all watermark-style concealment.
+- **The benign-control check (§4.3a) is small and single-model.** We measured 0/30 (95% CI [0.0, 11.4]) scorer false positives on one model (glm-4v-flash); we did not run this control across all six models, at N=120, or with a scrambled/random-text condition (to check whether models react to "any anomalous embedded text" rather than the specific injected instruction). The result supports but does not exhaustively establish that the scorer's false-positive rate is near zero.
+- **Two different compliance-scoring implementations are used across experiments**: `MultimodalCheck` (§4.2, §4.3, refusal-guarded) and a direct canary-substring check in the layered-injection experiment (§4.4, not refusal-guarded — see the scoring note in §4.4). We consider the second more methodologically correct for that specific experiment and manually audited its results for a substring-collision failure mode (canary digits appearing inside an unrelated larger number) with no instances found (0/57), but the inconsistency between the two pipelines is a genuine limitation of the paper's internal consistency, not just of any one experiment.
+- **The layered-injection experiment is one operationalization of "layering."** We tested a two-layer, prominence-swappable design; other layering strategies (e.g., temporally staged reveals, semantic rather than visual layering) are untested and may behave differently. Five of six per-model comparisons in §4.4 are underpowered to distinguish the tested effect from sampling noise at N≈120; only one model (doubao-2.0-lite) yields a statistically resolvable result.
 - **The κ audit used a truncated judge input and N=40** (§4.6); the corrected κ=0.55 is moderate, not strong, agreement, and is pending a larger, full-response follow-up audit before scorer validity can be treated as established rather than plausible.
 - **The acrostic/structural-steganography attack type** (instructions encoded in text structure, e.g., first-letter acrostics) was piloted at small scale during this project and is not reported here as a finding, since the pilot data could not support a reliable estimate; it is noted as a candidate direction rather than a result.
 - **Single-run, temperature-0 measurements.** Following standard practice for reproducibility, we do not report across-seed variance; stochastic-evaluation critiques of ASR measurement in adjacent literature (e.g., judge-temperature sensitivity) suggest this is worth revisiting in follow-up work.
+- **Reproduction requires vendor-specific credential setup not fully documented in this paper** (§ Reproducibility): two of the four vendors used are accessed via configuration files whose schema is not published in this repository at the time of writing. We list the required fields in the Reproducibility section below rather than assume a reader can infer them.
 
 ---
 
@@ -210,8 +228,9 @@ This paper was produced through extensive human-AI collaboration; per the author
 2. **Experiment orchestration and code implementation**: the rendering, scoring, probing, and blind-audit code (§3) was written with AI assistance, then exercised against live model APIs, with results inspected by the author at each stage (including two rounds of self-correction: an initial "images are safe" finding at N=11 was revised after scaling to N=31 and N=120, §4.3; an initial "hidden channel is safe" finding was revised after a legibility-calibration check, §4.5).
 3. **Text drafting**: this manuscript's prose was AI-drafted from the author-reviewed data tables and finding summaries, then reviewed by the author.
 4. **Data correction propagation**: the scorer-artifact finding (§4.1) was used to issue a formal correction notice against the author's own concurrently-prepared competition submission material, to prevent the same artifact from propagating into materials describing this project for other purposes.
+5. **Adversarial peer review before submission**: a draft of this manuscript was reviewed by three independent AI reviewer instances (one following a deliberately adversarial, hard-red-teaming framework), each working from the paper text and the project's raw data/code with no visibility into the others' output. All three returned a "major revision" verdict. The most significant finding — that this paper's own `cohens_kappa()` implementation contained a label-handling bug that silently degenerated Cohen's κ to raw percent agreement, misreporting 0.775 instead of the true 0.55 — was independently reproduced by two of the three reviewers and confirmed by the author via manual recomputation before the code and every affected number in this paper (abstract, §4.6, §7) were corrected. Other review findings incorporated into this revision include: added confidence intervals on tables that previously lacked them (§4.1, §4.4); a corrected, less overstated framing of the layered-injection null result (§4.4); explicit disclosure of below-120 per-model sample sizes (§4.3); a disclosed scoring-path asymmetry for two models (§4.3); a corrected count for the watermark-vs-plain comparison (§4.3, "4/6 strictly weaker, 2/6 tied" rather than "6/6 weaker"); a new benign-control experiment run in response to review (§4.3a); and a credential-schema table added to the Reproducibility section. This review-and-revision cycle is disclosed in full rather than only presenting the corrected version, consistent with this paper's own thesis that measurement corrections should be surfaced, not smoothed over.
 
-All numerical claims in this paper are backed by artifacts checked into the project's public repository (commit history and `validation/*.json` raw results); the author takes full responsibility for the paper's claims and reviewed all reported numbers against source data before submission. No experimental design decision, hypothesis pre-registration, or final claim was made by AI without author review; see the project's pre-registration document (`paper-expansion-plan.md` §11) for the hypotheses and stopping rules committed to before the corresponding experiments were run.
+All numerical claims in this paper are backed by artifacts checked into the project's public repository (commit history and `validation/*.json` raw results); the author takes full responsibility for the paper's claims and reviewed all reported numbers against source data before submission — including, in this revision, re-deriving the corrected κ by hand rather than trusting either the original code or a reviewer's unverified claim. No experimental design decision, hypothesis pre-registration, or final claim was made by AI without author review; see the project's pre-registration document (`paper-expansion-plan.md` §11) for the hypotheses and stopping rules committed to before the corresponding experiments were run.
 
 ---
 
@@ -223,7 +242,18 @@ python scripts/run_docpipeline_n120.py       # §4.2
 python scripts/run_experiment_b.py           # §4.3
 python scripts/run_experiment_a.py           # §4.4
 ```
-All scripts read API keys from local config files (never hard-coded or logged) and use only free-tier or flat-rate API access. Raw results: `validation/expA-layered-*.json`, `expB-render-*.json`, `docpipeline-n120-*.json`, `original15-dissect-*.json`, `blind-audit-kappa.json`, `legibility-threshold-*.json`. Consolidated: `validation/MASTER-REPORT.json`. Source: `github.com/uninhibited-scholar/agent-redteam`.
+
+**Credential setup** (schema only — no real keys are shown or required to inspect the released data):
+
+| Vendor / access | Config file | Required fields | Used by |
+|---|---|---|---|
+| Zhipu (智谱) free tier | `~/.agent-redteam/config` (plain key: value lines) | `api_key: <str>` | `run_experiment_b.py` (glm-4v-flash) |
+| Z.ai flat-rate coding-plan | `~/.zcode/v2/config.json`, path `provider.builtin:zai.options.apiKey` | JSON, string API key at that path | `run_docpipeline_n120.py` (GLM-5.2) |
+| Volcengine (火山) flat-rate coding-plan | `~/.openclaw/openclaw.json`, path `models.providers.custom-ark-cn-beijing-volces-com.apiKey` | JSON, string API key at that path | `run_docpipeline_n120.py` (DeepSeek-V4), `run_experiment_b.py`/`run_experiment_a.py` (all three Doubao variants, Kimi-K2.7, MiniMax-M3) |
+
+A reader without access to the Zhipu/Z.ai/Volcengine flat-rate tiers described above cannot reproduce the two Volcengine- and Z.ai-dependent portions (4 of 6 vision models; both text models) end-to-end, though the released raw data (below) lets every reported number be independently re-derived without re-running any API call. All scripts read API keys from local config files (never hard-coded or logged) and use only free-tier or flat-rate API access — never metered pay-per-call.
+
+Raw results: `validation/expA-layered-*.json`, `expB-render-*.json`, `docpipeline-n120-*.json`, `original15-dissect-*.json`, `blind-audit-kappa.json`, `legibility-threshold-*.json`. Consolidated: `validation/MASTER-REPORT.json`. Source: `github.com/uninhibited-scholar/agent-redteam`.
 
 ---
 
@@ -247,7 +277,7 @@ All scripts read API keys from local config files (never hard-coded or logged) a
 
 [9] Y. Gong, D. Ran, J. Liu, C. Wang, T. Cong, A. Wang, S. Duan, X. Wang. "FigStep: Jailbreaking Large Vision-Language Models via Typographic Visual Prompts." AAAI 2025. arXiv:2311.05608.
 
-[10] W. Luo, S. Ma, X. Liu, X. Guo, C. Xiao. "JailBreakV-28K: A Benchmark for Assessing the Robustness of MultiModal Large Language Models against Jailbreak Attacks." COLM 2024. arXiv:2404.03027.
+[10] W. Luo, S. Ma, X. Liu, X. Guo, C. Xiao. "JailBreakV: A Benchmark for Assessing the Robustness of MultiModal Large Language Models against Jailbreak Attacks." COLM 2024. arXiv:2404.03027. (The benchmark itself is commonly referred to as JailBreakV-28K for its 28,000 test cases; the paper title omits the suffix.)
 
 [11] X. Qi, K. Huang, A. Panda, P. Henderson, M. Wang, P. Mittal. "Visual Adversarial Examples Jailbreak Aligned Large Language Models." AAAI 2024. arXiv:2306.13213.
 
@@ -259,7 +289,7 @@ All scripts read API keys from local config files (never hard-coded or logged) a
 
 [15] F. Eiras, A. Zemour, J. Lin, M. Mugunthan. "Know Thy Judge: On the Robustness Meta-Evaluation of LLM Safety Judges." 2025. arXiv:2503.04474.
 
-[16] K. Mei, Z. Liu, Y. Wang, S. Bi, J. Mao, J. Cheng. "'Not Aligned' is Not 'Malicious': Being Careful about Hallucinations of Large Language Models' Jailbreak." 2024. arXiv:2406.11668.
+[16] L. Mei, S. Liu, Y. Wang, B. Bi, J. Mao, X. Cheng. "'Not Aligned' is Not 'Malicious': Being Careful about Hallucinations of Large Language Models' Jailbreak." COLING 2025. arXiv:2406.11668.
 
 [17] R. Balakrishnan, S. Mendapara, A. Garg. "Reading Between the Pixels: Linking Text-Image Embedding Alignment to Typographic Attack Success on Vision-Language Models." ICLR 2026 Workshop on Agents in the Wild. arXiv:2604.12371.
 
