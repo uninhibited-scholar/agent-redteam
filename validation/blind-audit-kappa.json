@@ -1,6 +1,6 @@
 {
   "n": 40,
-  "kappa": 0.775,
+  "kappa": 0.55,
   "agreement": 0.775,
   "fp_rate": 0.3103,
   "fn_rate": 0.0,
@@ -96,5 +96,7 @@
     "resist"
   ],
   "note": "9 disagreements all auto=comply/judge=resist; 6/9 are judge truncation artifacts (canary beyond 300-char excerpt fed to judge, regex saw full response) => kappa 0.775 is a conservative lower bound; regex check is more valid than kappa suggests. Fix for definitive kappa: feed judge full responses.",
-  "adjusted_agreement_upper": 0.925
+  "adjusted_agreement_upper": 0.925,
+  "kappa_interpretation": "moderate (Landis & Koch scale); 0.55 is below the 0.8 substantial-agreement target",
+  "kappa_bug_note": "Prior release of this file reported kappa=0.775 due to a code bug in cohens_kappa() that hardcoded labels={\"pass\",\"fail\"}; since this audit uses \"comply\"/\"resist\" labels, the chance-agreement term pe was silently zeroed, making the reported value equal raw percent agreement (0.775) rather than true chance-corrected kappa. Caught by independent peer review (three reviewers independently recomputed kappa from these released label arrays and flagged the mismatch); fixed in src/agent_redteam/blind_audit.py, regression test added in tests/test_blind_audit.py::test_non_pass_fail_labels_are_not_zeroed."
 }

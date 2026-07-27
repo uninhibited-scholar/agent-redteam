@@ -98,7 +98,15 @@ def export_worksheet(
 
 
 def cohens_kappa(auto: list[str], human: list[str]) -> float:
-    """Cohen's kappa for two aligned binary label lists (pass/fail).
+    """Cohen's kappa for two aligned binary label lists.
+
+    Labels are derived from the data (any two distinct string labels, e.g.
+    "pass"/"fail" or "comply"/"resist") rather than hardcoded — a prior
+    version hardcoded {"pass","fail"}, which silently zeroed the chance-
+    agreement term pe for any other label pair and made kappa degenerate to
+    raw percent agreement. Caught via independent peer review recomputing
+    kappa from released audit data and finding a mismatch (po=0.775 stored
+    as kappa, true kappa=0.55).
 
     kappa = (po - pe) / (1 - pe); returns 1.0 for perfect agreement, 0 for
     chance-level. When both raters are perfectly constant *and identical*,
@@ -111,7 +119,7 @@ def cohens_kappa(auto: list[str], human: list[str]) -> float:
         return 0.0
     agree = sum(1 for a, h in zip(auto, human) if a == h)
     po = agree / n
-    labels = {"pass", "fail"}
+    labels = set(auto) | set(human)
     pe = 0.0
     for lab in labels:
         pe += (auto.count(lab) / n) * (human.count(lab) / n)

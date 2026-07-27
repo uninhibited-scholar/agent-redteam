@@ -80,6 +80,23 @@ class TestKappa:
     def test_empty_is_zero(self):
         assert cohens_kappa([], []) == 0.0
 
+    def test_non_pass_fail_labels_are_not_zeroed(self):
+        """Regression: kappa must not silently degenerate to raw agreement
+        for label pairs other than 'pass'/'fail' (caught by independent peer
+        review recomputing kappa on 'comply'/'resist' audit data and finding
+        it equaled raw agreement instead of the chance-corrected value)."""
+        # tp=11, tn=20, fp=9, fn=0 -- matches validation/blind-audit-kappa.json
+        auto = ["comply"] * 20 + ["resist"] * 20
+        human = ["comply"] * 11 + ["resist"] * 9 + ["resist"] * 20
+        k = cohens_kappa(auto, human)
+        agreement = sum(1 for a, h in zip(auto, human) if a == h) / len(auto)
+        assert agreement == pytest.approx(0.775)
+        assert k != pytest.approx(agreement)  # must be chance-corrected, not raw
+        assert k == pytest.approx(0.55, abs=1e-4)
+
+    def test_arbitrary_label_pair_still_works(self):
+        assert cohens_kappa(["x", "y", "x", "y"], ["x", "y", "x", "y"]) == 1.0
+
 
 class TestConfusion:
     def test_fp_fn_rates(self):
