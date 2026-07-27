@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="780" height="430" viewBox="0 0 780 430" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
 <rect width="780" height="430" fill="#fcfcfb"/>
-<text x="24" y="30" font-size="12" fill="#898781" text-anchor="start" font-weight="600">Figure 1</text>
 <text x="24" y="48" font-size="13.5" fill="#0b0b0b" text-anchor="start" font-weight="600">Real vision-channel bypass rate by render form, six free-tier VLMs (N=120 each, image_plain n=114 for doubao-2.0-pro)</text>
 <rect x="190" y="32" width="10" height="10" rx="2" fill="#2a78d6"/>
 <text x="205" y="41" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">Plain</text>

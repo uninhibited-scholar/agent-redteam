@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="780" height="430" viewBox="0 0 780 430" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
 <rect width="780" height="430" fill="#fcfcfb"/>
-<text x="24" y="30" font-size="12" fill="#898781" text-anchor="start" font-weight="600">Figure 2</text>
 <text x="24" y="48" font-size="13.5" fill="#0b0b0b" text-anchor="start" font-weight="600">Perception / compliance decomposition on image_plain — bypass rate alone cannot distinguish these</text>
 <rect x="190" y="32" width="10" height="10" rx="2" fill="#fab219"/>
 <text x="205" y="41" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">A — not read (blind)</text>
