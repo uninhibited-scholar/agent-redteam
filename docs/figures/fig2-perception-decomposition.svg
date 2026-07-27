@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="430" viewBox="0 0 780 430" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+<rect width="780" height="430" fill="#fcfcfb"/>
+<text x="24" y="30" font-size="12" fill="#898781" text-anchor="start" font-weight="600">Figure 2</text>
+<text x="24" y="48" font-size="13.5" fill="#0b0b0b" text-anchor="start" font-weight="600">Perception / compliance decomposition on image_plain — bypass rate alone cannot distinguish these</text>
+<rect x="190" y="32" width="10" height="10" rx="2" fill="#fab219"/>
+<text x="205" y="41" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">A — not read (blind)</text>
+<rect x="352.0" y="32" width="10" height="10" rx="2" fill="#0ca30c"/>
+<text x="367.0" y="41" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">B — read, refused (safe)</text>
+<rect x="538.4" y="32" width="10" height="10" rx="2" fill="#d03b3b"/>
+<text x="553.4" y="41" font-size="11.5" fill="#52514e" text-anchor="start" font-weight="400">C — read, executed (compromised)</text>
+<line x1="190.0" y1="56" x2="190.0" y2="390" stroke="#e1e0d9" stroke-width="1"/>
+<text x="190.0" y="408" font-size="10.5" fill="#898781" text-anchor="middle" font-weight="400">0%</text>
+<line x1="322.5" y1="56" x2="322.5" y2="390" stroke="#e1e0d9" stroke-width="1"/>
+<text x="322.5" y="408" font-size="10.5" fill="#898781" text-anchor="middle" font-weight="400">25%</text>
+<line x1="455.0" y1="56" x2="455.0" y2="390" stroke="#e1e0d9" stroke-width="1"/>
+<text x="455.0" y="408" font-size="10.5" fill="#898781" text-anchor="middle" font-weight="400">50%</text>
+<line x1="587.5" y1="56" x2="587.5" y2="390" stroke="#e1e0d9" stroke-width="1"/>
+<text x="587.5" y="408" font-size="10.5" fill="#898781" text-anchor="middle" font-weight="400">75%</text>
+<line x1="720.0" y1="56" x2="720.0" y2="390" stroke="#e1e0d9" stroke-width="1"/>
+<text x="720.0" y="408" font-size="10.5" fill="#898781" text-anchor="middle" font-weight="400">100%</text>
+<line x1="190" y1="390" x2="190" y2="56" stroke="#c3c2b7" stroke-width="1"/>
+<text x="178" y="87.83333333333333" font-size="12.5" fill="#0b0b0b" text-anchor="end" font-weight="400">doubao-2.0-pro</text>
+<rect x="190.0" y="72.8" width="118.9" height="22" fill="#fab219"/>
+<text x="250.43859649122805" y="87.83333333333333" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">26</text>
+<rect x="310.9" y="72.8" width="402.5" height="22" fill="#0ca30c"/>
+<text x="513.1140350877192" y="87.83333333333333" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">87</text>
+<rect x="715.4" y="72.8" width="2.6" height="22" fill="#d03b3b"/>
+<line x1="4" y1="111.66666666666666" x2="720" y2="111.66666666666666" stroke="#e1e0d9" stroke-width="1"/>
+<text x="178" y="143.5" font-size="12.5" fill="#0b0b0b" text-anchor="end" font-weight="400">doubao-2.0-code</text>
+<rect x="190.0" y="128.5" width="126.1" height="22" fill="#fab219"/>
+<text x="254.04166666666669" y="143.5" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">29</text>
+<rect x="318.1" y="128.5" width="395.5" height="22" fill="#0ca30c"/>
+<text x="516.8333333333334" y="143.5" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">90</text>
+<rect x="715.6" y="128.5" width="2.4" height="22" fill="#d03b3b"/>
+<line x1="4" y1="167.33333333333331" x2="720" y2="167.33333333333331" stroke="#e1e0d9" stroke-width="1"/>
+<text x="178" y="199.16666666666666" font-size="12.5" fill="#0b0b0b" text-anchor="end" font-weight="400">minimax-m3</text>
+<rect x="190.0" y="184.2" width="452.9" height="22" fill="#fab219"/>
+<text x="417.4583333333333" y="199.16666666666666" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">103</text>
+<rect x="644.9" y="184.2" width="73.1" height="22" fill="#0ca30c"/>
+<text x="682.4583333333333" y="199.16666666666666" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">17</text>
+<line x1="4" y1="222.99999999999997" x2="720" y2="222.99999999999997" stroke="#e1e0d9" stroke-width="1"/>
+<text x="178" y="254.83333333333334" font-size="12.5" fill="#0b0b0b" text-anchor="end" font-weight="400">kimi-k2-7</text>
+<rect x="190.0" y="239.8" width="192.3" height="22" fill="#fab219"/>
+<text x="287.16666666666663" y="254.83333333333334" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">44</text>
+<rect x="384.3" y="239.8" width="245.3" height="22" fill="#0ca30c"/>
+<text x="508.0" y="254.83333333333334" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">56</text>
+<rect x="631.7" y="239.8" width="86.3" height="22" fill="#d03b3b"/>
+<text x="675.8333333333333" y="254.83333333333334" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">20</text>
+<line x1="4" y1="278.6666666666667" x2="720" y2="278.6666666666667" stroke="#e1e0d9" stroke-width="1"/>
+<text x="178" y="310.49999999999994" font-size="12.5" fill="#0b0b0b" text-anchor="end" font-weight="400">glm-4v-flash</text>
+<rect x="190.0" y="295.5" width="37.8" height="22" fill="#fab219"/>
+<text x="209.875" y="310.49999999999994" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">9</text>
+<rect x="229.8" y="295.5" width="404.3" height="22" fill="#0ca30c"/>
+<text x="432.9166666666667" y="310.49999999999994" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">92</text>
+<rect x="636.1" y="295.5" width="81.9" height="22" fill="#d03b3b"/>
+<text x="678.0416666666667" y="310.49999999999994" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">19</text>
+<line x1="4" y1="334.3333333333333" x2="720" y2="334.3333333333333" stroke="#e1e0d9" stroke-width="1"/>
+<text x="178" y="366.16666666666663" font-size="12.5" fill="#0b0b0b" text-anchor="end" font-weight="400">doubao-2.0-lite</text>
+<rect x="190.0" y="351.2" width="161.4" height="22" fill="#fab219"/>
+<text x="271.70833333333337" y="366.16666666666663" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">37</text>
+<rect x="353.4" y="351.2" width="280.7" height="22" fill="#0ca30c"/>
+<text x="494.75" y="366.16666666666663" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">64</text>
+<rect x="636.1" y="351.2" width="81.9" height="22" fill="#d03b3b"/>
+<text x="678.0416666666667" y="366.16666666666663" font-size="10.5" fill="#fcfcfb" text-anchor="middle" font-weight="600">19</text>
+</svg>
