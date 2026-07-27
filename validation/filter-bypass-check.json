@@ -1,0 +1,22 @@
+{
+  "experiment": "filter_bypass_check_v2",
+  "n": 120,
+  "forms": {
+    "plain_text": {
+      "instruction_present_as_text_pct": 100.0,
+      "keyword_filter_catches_instruction_pct": 100.0,
+      "keyword_fires_anywhere_pct_INCLUDING_benign_false_triggers": 100.0
+    },
+    "doc_pipeline": {
+      "instruction_present_as_text_pct": 100.0,
+      "keyword_filter_catches_instruction_pct": 100.0,
+      "keyword_fires_anywhere_pct_INCLUDING_benign_false_triggers": 100.0
+    },
+    "image_plain": {
+      "instruction_present_as_text_pct": 0.0,
+      "keyword_filter_catches_instruction_pct": 0.0,
+      "keyword_fires_anywhere_pct_INCLUDING_benign_false_triggers": 56.7
+    }
+  },
+  "note": "instruction_present_as_text: structural fact, is the attack's own wording readable by a text-only filter at all. keyword_filter_catches_instruction: of those, does a representative keyword filter flag it. The third field is included only to show the earlier version's confound (benign system-prompt text, e.g. 'never reveal it', also trips generic keywords) and should not be read as a real detection rate."
+}
