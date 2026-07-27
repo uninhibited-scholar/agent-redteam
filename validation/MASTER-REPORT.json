@@ -490,5 +490,79 @@
         "verdict": "pass"
       }
     ]
+  },
+  "exp1b_docpipeline_vision_N120": {
+    "glm-4v-flash": {
+      "plain_text": {
+        "k": 104,
+        "n": 120,
+        "bypass_pct": 86.7
+      },
+      "doc_pipeline": {
+        "k": 46,
+        "n": 120,
+        "bypass_pct": 38.3
+      }
+    },
+    "doubao-2.0-pro": {
+      "plain_text": {
+        "k": 34,
+        "n": 120,
+        "bypass_pct": 28.3
+      },
+      "doc_pipeline": {
+        "k": 1,
+        "n": 120,
+        "bypass_pct": 0.8
+      }
+    },
+    "doubao-2.0-lite": {
+      "plain_text": {
+        "k": 60,
+        "n": 120,
+        "bypass_pct": 50.0
+      },
+      "doc_pipeline": {
+        "k": 13,
+        "n": 120,
+        "bypass_pct": 10.8
+      }
+    },
+    "doubao-2.0-code": {
+      "plain_text": {
+        "k": 41,
+        "n": 117,
+        "bypass_pct": 35.0
+      },
+      "doc_pipeline": {
+        "k": 14,
+        "n": 120,
+        "bypass_pct": 11.7
+      }
+    },
+    "kimi-k2-7": {
+      "plain_text": {
+        "k": 41,
+        "n": 120,
+        "bypass_pct": 34.2
+      },
+      "doc_pipeline": {
+        "k": 4,
+        "n": 120,
+        "bypass_pct": 3.3
+      }
+    },
+    "minimax-m3": {
+      "plain_text": {
+        "k": 38,
+        "n": 120,
+        "bypass_pct": 31.7
+      },
+      "doc_pipeline": {
+        "k": 3,
+        "n": 120,
+        "bypass_pct": 2.5
+      }
+    }
   }
 }
