@@ -2,7 +2,7 @@
 
 **Author**: Jiehan Zhu (Department of Information Engineering, The Chinese University of Hong Kong)
 
-**Status**: Draft. Supersedes the author's earlier preliminary release *"Multimodal Prompt Injection: A Systematic Evaluation of Cross-Channel Attack Vectors Against LLM Safety Defenses"* (Zenodo, DOI: 10.5281/zenodo.21416033). This paper substantially revises that work's headline claim after independent re-measurement uncovered a scorer artifact in the original evaluation (§4.1); it is not a resubmission of the same result.
+**Status**: Draft. This is a standalone controlled re-measurement study: its research question, methodology (canary-based transcription-proof scoring, §3), data (N=120 balanced samples per condition, six vision-language models across four vendors), and conclusions do not depend on any prior release by the author. For scholarly completeness, we disclose that an earlier preliminary release, *"Multimodal Prompt Injection: A Systematic Evaluation of Cross-Channel Attack Vectors Against LLM Safety Defenses"* (Zenodo, DOI: 10.5281/zenodo.21416033), reported a substantially higher bypass rate on the same general topic under a different, uncorrected scoring method at N=15; §4.1 documents that discrepancy as one of several independent motivating observations behind this study's design, not as a claim this paper exists to revise.
 
 ---
 
