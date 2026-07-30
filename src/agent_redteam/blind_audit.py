@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, Iterable
 
-from .core.result import Verdict, ScoreVector
+from .core.result import Verdict
 
 
 def _as_dict(sample: Any) -> dict[str, Any]:

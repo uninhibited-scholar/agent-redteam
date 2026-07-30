@@ -12,7 +12,7 @@ import re
 from typing import Any, Iterable
 
 from .core.result import Verdict
-from .taxonomy import OWASP_2025_RISKS, PROJECT_SPECIFIC
+from .taxonomy import OWASP_2025_RISKS
 
 
 DEFAULT_MIN_OWASP_SAMPLES = 20

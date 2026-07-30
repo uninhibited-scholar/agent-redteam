@@ -20,7 +20,7 @@ Usage:
     print(f"Found {results.bypass_count} bypasses in {results.rounds} rounds")
 """
 from __future__ import annotations
-import random, time, json
+import random, time
 from typing import Callable
 from .mutate import STRATEGIES, mutate_sample
 from .core.result import Verdict

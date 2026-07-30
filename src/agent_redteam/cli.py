@@ -505,7 +505,7 @@ def _cmd_scan(args) -> int:
         _time.sleep(1)  # Let server boot
         ws_state.emit_scan_started(suites or engine.list_suites())
         print(f"  Dashboard running at http://127.0.0.1:{args.port}")
-        print(f"  Scanning... events streaming to LiveScan page\n")
+        print("  Scanning... events streaming to LiveScan page\n")
 
     report = engine.scan(suites=suites, on_result=on_result)
     if benchmark_profile is not None:
@@ -518,9 +518,9 @@ def _cmd_scan(args) -> int:
     # Save to database
     try:
         from .core.storage import save_report
-        run_id = save_report(report)
+        save_report(report)
     except Exception:
-        run_id = "unknown"
+        pass
 
     # Output (only for non-serve mode; serve mode shows in browser)
     if not args.serve:
@@ -553,7 +553,7 @@ def _cmd_scan(args) -> int:
         print(f"\n  Scan complete. Score: {report.overall_score}/100")
         print(f"  Run status: {report.run_status} ({report.completion_rate}% judged)")
         print(f"  Dashboard staying open at http://127.0.0.1:{args.port}")
-        print(f"  Press Ctrl+C to stop.\n")
+        print("  Press Ctrl+C to stop.\n")
         try:
             import time as _time
             while True:
@@ -615,18 +615,18 @@ def _cmd_compare(args) -> int:
     result = compare_reports(args.run_a, args.run_b)
     if not result:
         print(f"  找不到扫描记录: {args.run_a} 或 {args.run_b}")
-        print(f"  运行 'agent-redteam history' 查看可用记录")
+        print("  运行 'agent-redteam history' 查看可用记录")
         return 1
 
-    print(f"\n  ╔══════════════════════════════════════════════════╗")
-    print(f"  ║          Scan Comparison Report                  ║")
-    print(f"  ╠══════════════════════════════════════════════════╣")
+    print("\n  ╔══════════════════════════════════════════════════╗")
+    print("  ║          Scan Comparison Report                  ║")
+    print("  ╠══════════════════════════════════════════════════╣")
     print(f"  ║  A: {result['model_a']:<16} Score: {result['score_a']:>5.1f}              ║")
     delta = result['score_delta']
     dc = "\033[92m" if delta > 0 else "\033[91m" if delta < 0 else ""
     print(f"  ║  B: {result['model_b']:<16} Score: {result['score_b']:>5.1f}              ║")
     print(f"  ║  Delta: {dc}{delta:+.1f}\033[0m{'':>37}║")
-    print(f"  ╠══════════════════════════════════════════════════╣")
+    print("  ╠══════════════════════════════════════════════════╣")
 
     for s in result["suites"]:
         d = s["delta"]
@@ -635,7 +635,7 @@ def _cmd_compare(args) -> int:
         pad = 52 - len(line) + len(c) * 5 + 5  # approximate padding
         print(f"{line}{' ' * max(1, pad)}║")
 
-    print(f"  ╚══════════════════════════════════════════════════╝\n")
+    print("  ╚══════════════════════════════════════════════════╝\n")
     return 0
 
 

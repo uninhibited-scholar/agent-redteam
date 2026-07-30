@@ -2,7 +2,6 @@
 from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
-from typing import Callable
 
 
 class Suite(ABC):

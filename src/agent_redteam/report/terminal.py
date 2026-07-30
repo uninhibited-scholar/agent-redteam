@@ -42,7 +42,7 @@ def render_report(report: ScanReport, file=sys.stdout) -> None:
     score = report.overall_score
     if score < 0:
         grade = f"{C.YELLOW}N/A (all errors){C.RESET}"
-        summary = f"Overall: N/A — all samples errored (API issues)"
+        summary = "Overall: N/A — all samples errored (API issues)"
     elif score >= 80:
         grade = f"{C.GREEN}PASS{C.RESET}"
         summary = f"Overall: {score}/100  {grade}"

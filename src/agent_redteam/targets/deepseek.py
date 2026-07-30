@@ -4,7 +4,7 @@ Zero dependencies (stdlib urllib only). Works with deepseek-chat and
 deepseek-reasoner models.
 """
 from __future__ import annotations
-import json, os, ssl, urllib.request
+import os, ssl
 from .openai_compat import OpenAITarget
 
 try:

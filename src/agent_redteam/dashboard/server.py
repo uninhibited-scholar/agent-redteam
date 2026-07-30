@@ -4,9 +4,7 @@ Uses Python stdlib only — custom minimal WS frame parser (no websockets lib).
 Supports the basic text frame protocol (RFC 6455) for sending JSON events.
 """
 from __future__ import annotations
-import base64, hashlib, json, os, struct, threading
-from socketserver import ThreadingMixIn
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import base64, hashlib, json, struct, threading
 
 
 class WebSocketClient:

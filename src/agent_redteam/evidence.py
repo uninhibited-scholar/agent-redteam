@@ -56,7 +56,7 @@ def build_evidence_index(root: str | Path, options: EvidenceOptions | None = Non
 
     return {
         "schema": "agent-redteam-evidence-index/v1",
-        "generated_at": _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace(
+        "generated_at": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace(
             "+00:00", "Z"
         ),
         "generator": {

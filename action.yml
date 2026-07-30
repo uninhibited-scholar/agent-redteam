@@ -78,13 +78,13 @@ runs:
   using: "composite"
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: "3.12"
 
     - name: Install agent-redteam
       shell: bash
-      run: pip install agent-redteam
+      run: pip install "${{ github.action_path }}"
 
     - name: Run security scan
       id: scan

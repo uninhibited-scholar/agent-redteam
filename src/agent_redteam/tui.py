@@ -11,14 +11,12 @@ Usage:
     agent-redteam scan --tui --model ... --key ...
 """
 from __future__ import annotations
-import asyncio, sys, threading, time
-from datetime import datetime
-from typing import Optional
+import asyncio, sys
 
 try:
     from textual.app import App, ComposeResult
-    from textual.containers import Container, Horizontal, VerticalScroll
-    from textual.widgets import Header, Footer, Label, ProgressBar, RichLog, Static
+    from textual.containers import Container, VerticalScroll
+    from textual.widgets import Header, Footer, Label, RichLog, Static
     from textual.reactive import reactive
     from textual.binding import Binding
     TEXTUAL_AVAILABLE = True
@@ -36,8 +34,7 @@ except ImportError:
         def __init__(self, *a, **kw): pass
 
 from .core.engine import Engine
-from .core.result import ScanReport, SampleResult, Verdict
-from .report.terminal import render_report
+from .core.result import SampleResult, Verdict
 
 
 # Color scheme (SOC dark)
@@ -220,7 +217,7 @@ class RedteamTUI(App):
                 yield Static(f"[bold {THEME['primary']}]═══ Attack Telemetry ═══[/]",
                              id="tel-header")
                 yield TelemetryStream(id="telemetry", markup=True)
-        yield Static(f"[dim]Ready. Press any key or wait for scan...[/]", id="status-bar")
+        yield Static("[dim]Ready. Press any key or wait for scan...[/]", id="status-bar")
         yield Footer()
 
     def on_mount(self) -> None:

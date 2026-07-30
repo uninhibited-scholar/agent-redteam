@@ -74,7 +74,7 @@ def attest_report(path: str | Path, options: AttestationOptions | None = None) -
     attestation = {
         "schema": "agent-redteam-attestation/v1",
         "run_id": run_id,
-        "generated_at": _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "generated_at": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "generator": {
             "name": "agent-redteam",
             "version": __version__,

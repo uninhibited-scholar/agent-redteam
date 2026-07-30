@@ -147,7 +147,7 @@ def _lint_waivers(
         findings.append(LintFinding("waivers.load", "fail", _redact(str(exc))))
         return
     findings.append(LintFinding("waivers.load", "pass", f"loaded {len(waivers)} waiver(s)"))
-    today_value = today or _dt.datetime.now(_dt.UTC).date()
+    today_value = today or _dt.datetime.now(_dt.timezone.utc).date()
     latest_allowed = today_value + _dt.timedelta(days=max_waiver_days)
     seen: set[tuple[str, str]] = set()
     invalid = 0

@@ -79,7 +79,6 @@ def _base64_wrap(text: str, rng: random.Random) -> str:
 
 def _url_encode(text: str, rng: random.Random) -> str:
     """Percent-encode portions of the text — bypasses naive keyword filters."""
-    import urllib.parse
     # Encode ~40% of characters
     chars = []
     for ch in text:

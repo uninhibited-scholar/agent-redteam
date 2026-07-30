@@ -12,7 +12,6 @@ that simulates multimodal input. The check uses the same refusal/poisoning
 detection as the injection suite.
 """
 from __future__ import annotations
-import json
 from ..base import Suite
 from ...checks.refusal import is_refusal, is_safe_deflection
 from ...core.result import Verdict

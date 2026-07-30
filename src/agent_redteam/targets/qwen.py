@@ -4,7 +4,7 @@ Zero dependencies (stdlib urllib only). Works with qwen-turbo, qwen-plus,
 qwen-max, and qwen-long models.
 """
 from __future__ import annotations
-import json, os, ssl, urllib.request
+import os
 from .openai_compat import OpenAITarget
 
 

@@ -62,7 +62,7 @@ def render_markdown(report: ScanReport) -> str:
                 "",
                 f"**Expected:** {s.expected}",
                 "",
-                f"**Response:**",
+                "**Response:**",
                 "```",
                 s.response[:500],
                 "```",

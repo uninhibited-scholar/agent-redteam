@@ -9,10 +9,6 @@
 name: Security Scan
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 # Required permissions for SARIF upload + PR comments
@@ -24,13 +20,16 @@ permissions:
 
 jobs:
   redteam-scan:
+    # Keep the example dormant until a real model credential and an explicit
+    # repository variable are configured. This prevents accidental paid calls.
+    if: ${{ vars.ENABLE_LIVE_SECURITY_SCAN == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run agent-redteam scan
         id: scan
-        uses: uninhibited-scholar/agent-redteam@v0.3.0
+        uses: ./
         with:
           model: gpt-4o
           target: openai

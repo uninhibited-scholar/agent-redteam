@@ -33,7 +33,7 @@ def build_sbom(root: str | Path | None = None, *, include_dev: bool = True) -> d
         "serialNumber": f"urn:uuid:agent-redteam-{__version__}",
         "version": 1,
         "metadata": {
-            "timestamp": _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "timestamp": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "tool": {"name": "agent-redteam", "version": __version__},
             "component": subject,
         },

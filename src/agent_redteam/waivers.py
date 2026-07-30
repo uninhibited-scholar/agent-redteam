@@ -87,7 +87,7 @@ def evaluate_waivers(
     waivers = load_waivers(waiver_path)
     if not waivers:
         return WaiverEvaluation(active=[], expired=[], invalid=[], unused=[])
-    today_value = today or _dt.datetime.now(_dt.UTC).date()
+    today_value = today or _dt.datetime.now(_dt.timezone.utc).date()
     failing_keys = {
         (str(sample.get("suite", "")), str(sample.get("sample_id", "")))
         for sample in samples
@@ -119,7 +119,7 @@ def evaluate_waivers(
 
 
 def sample_waivers() -> str:
-    example_expiry = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
+    example_expiry = (_dt.datetime.now(_dt.timezone.utc).date() + _dt.timedelta(days=30)).isoformat()
     return json.dumps(
         {
             "waivers": [

@@ -39,7 +39,7 @@ def build_catalog(suite_classes: Iterable[type] | None = None) -> dict:
         decision: Counter[str] = Counter()
         try:
             samples = suite.load_samples()
-        except Exception as exc:
+        except Exception:
             suites.append({
                 "name": name,
                 "owasp": expected_owasp,

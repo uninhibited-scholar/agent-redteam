@@ -27,7 +27,7 @@ from .settings_api import load_settings, merge_settings
 from ..core.result import ScanReport, SampleResult
 from ..core.config import has_api_key  # imported at module scope so it can be patched in tests
 from .server import (
-    TelemetryBroadcaster, WebSocketClient,
+    TelemetryBroadcaster,
     perform_ws_handshake, handle_ws_connection,
 )
 
@@ -646,7 +646,6 @@ def serve_dashboard(
     except OSError as e:
         if "Address already in use" in str(e):
             print(f"  Port {port} in use, trying to reuse...")
-            import socket
             # Set SO_REUSEADDR and retry
             ThreadedHTTPServer.allow_reuse_address = True
             server = ThreadedHTTPServer((host, port), DashboardHandler)
@@ -656,7 +655,7 @@ def serve_dashboard(
 
     print(f"\n  ⬡ Agent Redteam Dashboard running at {url}")
     print(f"  WebSocket telemetry at ws://{host}:{port}/ws")
-    print(f"  Press Ctrl+C to stop.\n")
+    print("  Press Ctrl+C to stop.\n")
 
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
