@@ -2,7 +2,7 @@
 
 > **这是进行中的长期项目，不是已完成的项目。**
 > 本文档记录演进历程与当前状态，供后续会话续接。项目仍在活跃开发中。
-> 最近更新：2026-07-07
+> 最近更新：2026-08-01（新增「论文/比赛侧认知」一节，见文末）
 
 ---
 
@@ -24,7 +24,7 @@ Textual TUI → React+TypeScript Web Dashboard。零依赖 Python 核心（仅�
 WebSocket 实时遥测，SQLite 持久化，检查点/恢复。
 
 - **仓库**：https://github.com/uninhibited-scholar/agent-redteam
-- **路径**：`~/Desktop/agent-redteam`
+- **路径**：`~/GitHub/agent-redteam`（注意：`~/Desktop/agent-redteam` 现已只剩 `docs/`，不是代码仓库；代码主拷贝在 `~/GitHub/agent-redteam`）
 - **GitHub 邮箱**：`238404526+uninhibited-scholar@users.noreply.github.com`
   （全局 git config 已设为此值；`.hk` 邮箱会被 GitHub 隐私保护拒绝 push）
 
@@ -246,4 +246,46 @@ agent-redteam scan --target zai --model GLM-5.2 --limit 30
 写任务书（含 props 签名 + 目标行数 + 设计语言约束），让它生成独立文件，
 但**接入工作自己做**——因为 Claude 不会主动把组件连到真实 API。
 验收时：查引用计数（`grep -rl "ComponentName" src/`）+ 严格 tsc + 实际渲染。
+
+---
+
+## 论文 / 比赛侧认知（2026-08-01 新增 —— 接手 agent 必读）
+
+**项目现在有两条并行的工作线，之前只在工程侧记录，这里补齐论文/比赛侧，两边口径必须一致。**
+
+### GOAI 大赛（赛道三 · 开放探索赛题）
+
+- **官网**：https://www.goaihz.com/tracks?track=ai4s （赛程数字以官网为准，新闻源版本不一）
+- **赛程**：初赛 7.16–**8.16**（交问题定义文档 4 页）→ 8.24 公布复赛名单（**Top 40**）→ 复赛 8.25–**9.3**（交完整三件套：可运行环境 + 运行日志 + 参照系/README）→ 9.10 公布决赛名单（**Top 20**）→ 9.22 现场路演。
+- **关键**：初赛只交 4 页问题定义；复赛要真能 `pip install` 跑通 + 一行复现。负结果在评分标准里是**加分项**（"探索过程与研究信号 35%"）。
+
+### 论文口径（已校正，唯一有效口径）
+
+**核心校正：旧论文的 "73% 多模态绕过 / 防御 26.7 分" 已被证伪，正式校正口径如下，全项目必须统一：**
+
+| 数字 | 旧值（已废止） | 校正值（唯一有效） | 证据 |
+|---|---|---|---|
+| 多模态/视觉通道绕过率 | 73% / 26.7 | **46.7%**（且该通道实为文档管道文本注入，非视觉通道） | `validation/original15-dissect-*.json` + `docpipeline-n120-*.json` |
+| 视觉通道跨模型范围 | — | **0.8%–46.7%**（强能力依赖，非均匀盲区） | `validation/expB-render-*.json` |
+| Judge κ | 0.775（错误，实为 raw agreement） | **κ = 0.55**（moderate） | `validation/blind-audit-kappa.json`（手算 p_o=0.775, p_e=0.500 → κ=0.55） |
+
+**唯一正式论文**：`docs/paper-vision-channel-remeasurement.md`（+ `.tex`/`.pdf`）。它包含校正后的完整研究（N=120、6 模型、A/B/C 拆解、κ 盲审、分层注入负结果、legibility 校正）。
+
+**已废止但保留的旧论文/推文**（顶部已加 SUPERSEDED 头注，正文未改，不得当当前结论引用）：
+- `docs/paper-multimodal-injection.{md,tex}` — 英文旧论文
+- `docs/paper-multimodal-injection-cn.md` — 中文旧论文
+- `docs/article-multimodal-zhihu-juejin.md` / `article-multimodal-wechat.md` — 推广文
+
+**已修正口径的非论文文件**：
+- `docs/MASTER-REPORT.md` — Exp4 的 κ 已于 2026-08-01 从 0.775 修正为 0.55（含 bug 说明）
+- `README.md` / `README_CN.md` — 已是 47% 口径
+
+**⚠️ 给接手 agent 的硬规则**：本项目对外任何材料里，**只能出现 47% / κ=0.55 这一套数字**。73% / 26.7 / 0.775 只允许出现在"废止头注 / 校正说明 / §4.1 discrepancy"这类**有意保留**的位置。引用任何数字前，先确认它是否在 `validation/*.json` 里有原始数据支撑。
+
+### 两份本地拷贝的状态（注意）
+
+- `~/GitHub/agent-redteam`（本目录）— **代码主拷贝**，但本地落后 GitHub 远程若干 commit，且有未提交改动（2026-08-01 的论文口径对齐改动尚未 commit）。
+- `~/git/agent-redteam` — 另一份较旧的干净拷贝（7/11），不要误用。
+- `~/Desktop/agent-redteam` — **只有 `docs/`，无代码、非 git 仓库**。问题定义文档（初赛提交件）在这份的 `docs/` 下。
+
 

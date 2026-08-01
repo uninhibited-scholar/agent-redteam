@@ -116,9 +116,9 @@ Pre-registered hypotheses (paper §11.1): H2 masking, H3 "opening" (does a promi
 
 Independent GLM-5.2 judge vs. the regex `MultimodalCheck`, on 40 sampled `image_plain` verdicts (20 auto-FAIL + 20 auto-PASS, stratified, across all 6 vision models):
 
-- **Cohen's κ = 0.775** (substantial agreement), **FN rate = 0** (regex never under-reports a real execution)
-- All 9 disagreements are `auto=comply, judge=resist`; 6/9 are **judge-side truncation artifacts** (the canary sat beyond the 300-char excerpt fed to the judge, while the regex scored the full response) → κ=0.775 is a **conservative lower bound**; adjusted agreement ≈ 0.93 once truncation artifacts are excluded.
-- **Conclusion**: the automated canary-based scorer is valid; a definitive κ run should feed the judge full (untruncated) responses.
+- **Raw agreement = 77.5%; Cohen's κ = 0.55** (moderate agreement, Landis & Koch scale), **FN rate = 0** (regex never under-reports a real execution). **Correction during peer review**: an earlier release of this audit reported κ = 0.775 due to a bug in `cohens_kappa()` that hardcoded the label set to `{"pass","fail"}`; since this audit uses `"comply"/"resist"` labels, the chance-agreement term p_e was silently zeroed and the reported value degenerated to raw percent agreement (0.775) rather than the true chance-corrected κ. Hand-recomputed from the released label arrays (`validation/blind-audit-kappa.json`): p_o = 0.775, p_e = 0.500, κ = (0.775−0.500)/(1−0.500) = **0.550**. Bug fixed in `src/agent_redteam/blind_audit.py`, regression test added (`tests/test_blind_audit.py::test_non_pass_fail_labels_are_not_zeroed`).
+- All 9 disagreements are `auto=comply, judge=resist`; 6/9 are **judge-side truncation artifacts** (the canary sat beyond the 300-char excerpt fed to the judge, while the regex scored the full response) → excluding these, adjusted raw agreement ≈ 0.93 (not chance-corrected); the 9 disagreements are also what depresses κ, so κ would rise under a full-response re-audit.
+- **Conclusion**: the automated canary-based scorer has moderate (not strong) judge agreement as measured here, on truncated judge input; scorer validity is *plausible and worth a larger full-response audit*, not *confirmed*. A definitive κ run should feed the judge full (untruncated) responses, ideally at N > 40.
 
 ---
 
@@ -138,7 +138,7 @@ Independent GLM-5.2 judge vs. the regex `MultimodalCheck`, on 40 sampled `image_
 4. **A/B/C perception decomposition is necessary**: low bypass can mean "safe" (reads, refuses) or "blind" (never perceives the attack) — prior single-ASR benchmarks conflate these (Exp2).
 5. **Watermark-style rendering is a weaker attack vector than plain text**, consistently across 6 models (Exp2).
 6. **Layered (surface + buried) injection does not grant attackers extra capability**; execution is governed by visual salience alone, not by burial depth (Exp3, H3 falsified, H4 supported).
-7. **Judge validity is empirically supported** (κ=0.775 conservative / ~0.93 adjusted, FN=0) via independent LLM-judge blind audit (Exp4).
+7. **Judge validity is plausible (moderate, not strong)** — raw agreement 77.5%, Cohen's κ = 0.55 (Landis & Koch "moderate"), FN=0, via independent LLM-judge blind audit (Exp4); a larger full-response re-audit is needed before treating validity as established.
 8. **A legibility-calibration confound can fully explain an apparent "hidden channel is safe" finding** — a caution for future work in this space (Exp5).
 
 ## Data provenance

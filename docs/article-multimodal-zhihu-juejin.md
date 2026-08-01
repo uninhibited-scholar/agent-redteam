@@ -1,5 +1,9 @@
 # GLM-5.2 安全防御的四个维度：从 100 分到 26.7 分，攻击每换一种形式防御就崩一层
 
+> ⚠️ **已废止（SUPERSEDED）— 2026-08-01。** 本文的核心数字（多模态注入 **26.7/100、73% 绕过**）已被受控再测量**校正**：用校正后的评分器重评，绕过率降至 **46.7%**，且该"多模态"通道实为**文档管道文本注入**而非视觉通道。校正后的完整研究见 **[`paper-vision-channel-remeasurement.md`](./paper-vision-channel-remeasurement.md)**。
+>
+> 本推文原样保留，不再作为当前结论发布；如需转述本项目的多模态结论，**请以新论文为准**。
+
 > 本文所有数据来自真实 API 调用（Z.ai 端点），可复现。测试工具 agent-redteam 已开源：[GitHub](https://github.com/uninhibited-scholar/agent-redteam) | `pip install agent-redteam`
 
 ---

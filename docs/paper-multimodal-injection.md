@@ -6,6 +6,12 @@ Department of Information Engineering, The Chinese University of Hong Kong
 
 ---
 
+> ⚠️ **SUPERSEDED — 2026-08-01.** The headline finding of this paper (73% multimodal bypass / 26.7-of-100 defense score) does **not** survive controlled re-measurement. A corrected evaluator (removing a length-based false-positive rule) drops the bypass rate to **46.7%** on both original models, and the delivery channel called "multimodal" here was in fact text extracted from SVG/HTML markup — a *document-pipeline text channel*, not the vision channel. The corrected study — with N=120 balanced samples per condition, six vision-language models across four vendors, a three-way perception/compliance decomposition (A/B/C), and an independent-judge κ blind audit — is in **[`paper-vision-channel-remeasurement.md`](./paper-vision-channel-remeasurement.md)** (its §4.1 documents this discrepancy as one of several independent motivating observations behind that study's design).
+>
+> This file is **retained unchanged** for the historical record and for the still-valid *text-channel* findings — D1 single-turn baseline, D2 mutation "structure-vs-surface" regularity (35.2% bypass), D3 multi-turn collapse (22% bypass) — which are migrated into the new paper as §4.7. **The 73% / 26.7 numbers in this file must not be cited as current results.**
+
+---
+
 ## Abstract
 
 Large language models (LLMs) are becoming better at defending against text-based prompt injection. However, we find that the defense can become much weaker when attack instructions are placed in non-text channels, such as image metadata, document structures, or hidden text elements. In this paper, we test five attack types: single-turn text injection, mutation-based attacks, multi-turn conversational attacks, multimodal hidden injection, and adaptive evolutionary attacks. We use the same testing framework for all of them. We run the experiments on three models: GLM-5.2, GLM-4.5, and GLM-4-Flash. The results show that attacks outside plain text can still bypass existing defenses. For GLM-5.2, the defense score drops from 100/100 on standard text injection to 26.7/100 on multimodal injection, giving a 73% bypass rate. Mutation attacks reach a 35.2% bypass rate, while multi-turn attacks reach 22%. We release our testing framework, agent-redteam, as an open-source tool. It contains 2,319 attack samples across 14 test suites covering the OWASP LLM Top 10.
@@ -220,3 +226,7 @@ During validation, we found and fixed three accuracy issues in the check modules
 3. **Refusal detection**: We added mixed Chinese-English refusal patterns and defensive pivots.
 
 These fixes are covered by regression tests, with 294 tests in total.
+
+## AI Assistance Disclosure
+
+Data analysis, code implementation, and manuscript drafting for this paper were conducted with assistance from AI tools (Claude and ChatGPT). The experimental design, interpretation of results, and all technical decisions were made by the author. All data and code are open-source and reproducible at https://github.com/uninhibited-scholar/agent-redteam.
