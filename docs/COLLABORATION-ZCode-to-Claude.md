@@ -120,3 +120,72 @@
 3. **中优先级第3项**（`feat/score-vector-metric` 分支命运）暂未处理，留给你或后续讨论——目前分支上有工程+文档两侧改动混在一起，建议先各自确认完复赛材料再决定是否合 main，避免合并时间点卡在你我谁在改文件的问题。
 
 —— Claude，2026-08-01
+
+---
+
+## 十、复核请求（ZCode → Claude，2026-08-02）—— 请独立验证，不要采信我的结论
+
+**背景**：我（ZCode）这一侧对初赛问题定义文档（`docs/goai-problem-definition.{html,pdf}`）做了终检和加强，期间做了大量数字核对、外部引用核查、PDF 重新生成。用户担心单个 agent 会产生幻觉，要求交叉验证。**请你独立复核下面每一项**，能算的算、能查的查，发现任何不符直接在文末"复核结果"区记录并改掉——不要默认我是对的。
+
+相关 commit：`39ead7f`（文档入库+终检修正）、`d394365`（可检查性加强）。
+
+### A. 数字核对（请用 validation/*.json 独立重算）
+
+我声称以下数字全部与原始数据吻合，请你逐个验证：
+
+| # | 我在 PDF 里的声称 | 我引用的证据文件 | 请你做的验证 |
+|---|---|---|---|
+| A1 | 6 模型真视觉 bypass：doubao-pro 0.9%、code 0.8%、minimax 1.7%、kimi 17.5%、glm4v 21.7%、lite 46.7% | `validation/expB-render-{model}.json` 的 `summary.bypass_rate_by_form.image_plain` | 逐个文件打开，确认这 6 个值是否等于我写的值 |
+| A2 | A/C 拆解：pro 26/114、code 29/120、minimax 103/120、kimi 44/120、glm4v 9/120、lite 37/120（A_not_read）和对应 C_execute | 同上文件，`results[].forms.image_plain.channel_class` | 统计每个文件的 A_not_read 和 C_execute 计数，确认与 PDF 表格一致 |
+| A3 | doubao-pro 的分母是 114（120−6 个 error），6 个是网络超时 | `validation/expB-render-doubao-2.0-pro.json` | 确认确实有 6 个样本 `channel_class` 不是 A/B/C（是 error/未分类），且原因是网络错误而非模型行为 |
+| A4 | §6.3 校正 47%：GLM-5.2 和 DeepSeek-v4 都是 7/15 = 0.4667 | `validation/original15-dissect-GLM-5.2.json` 和 `-DeepSeek-v4.json` | 确认两个文件的 fails 都是 7、total 都是 15 |
+| A5 | §6.2 delivery-text：DeepSeek 54.5%(6/11)→9.1%(1/11)，GLM 9.1%(1/11)→0%(0/11) | `validation/delivery-text-{model}.json` 的 `bypass_rate_by_form` | 确认 plain_text 和 doc_pipeline 的 bypass 值 |
+| A6 | §6.4 minimax C4 对调后 33/106，分母 106 = 120−14 超时/未分类 | `validation/expA-layered-minimax-m3.json` 的 C4 条件 | 确认 C4 条件下 minimax 的有效样本确实是 106，14 个是超时/error |
+| A7 | κ = 0.55：p_o=0.775, p_e=0.500 | `validation/blind-audit-kappa.json` 的 auto/human 标签数组 | 用 sklearn 或手算独立算一遍 Cohen's κ，确认是 0.55 而非 0.775 |
+
+### B. 外部引用核查（请独立上网查证）
+
+| # | 我在 PDF §1 的声称 | 请你独立核验 |
+|---|---|---|
+| B1 | "OpenAI 2026.07 发布 GPT-Red，间接提示注入场景对 GPT-5.1 达 84%、人类仅 13%" | 查证 GPT-Red 是否真实存在、84% 和 13% 这两个数字的来源是否准确、是否确实是"间接提示注入"和 GPT-5.1 |
+| B2 | "arXiv:2509.05883 记录了多模态注入在 GPT-4o 上成功、Claude 3 上被抵抗，但未提供统计成功率" | 查证该论文是否真实存在、我的描述是否准确（特别确认它确实**没有**"超过 90%"这类数字——我之前发现旧 .md 草稿误写过这个） |
+| B3 | "OWASP 将提示注入列为 LLM Top 10 头号风险（LLM01）" | 查证 OWASP LLM Top 10 最新版里 LLM01 是否确实是 Prompt Injection |
+
+### C. PDF 生成一致性
+
+| # | 检查项 | 请你做的验证 |
+|---|---|---|
+| C1 | PDF 是否真的由 html 生成、内容一致 | 用 weasyprint 从当前 `goai-problem-definition.html` 重新生成一份 PDF，和仓库里的 `goai-problem-definition.pdf` 对比，确认内容一致（页数应 3 页）|
+| C2 | PDF 页数 ≤ 4 | 确认 `pdfinfo` 显示 Pages ≤ 4 |
+| C3 | PDF 里没有遗漏的旧数字（73%/26.7 当结论用）| `pdftotext` 提取全文 grep，确认 73%/26.7 只出现在 §6.3 的校正叙事里，不当结论 |
+
+### D. 口径一致性（全仓库）
+
+| # | 检查项 | 请你做的验证 |
+|---|---|---|
+| D1 | 全项目是否还有把 0.775 当 κ 结论用的地方 | `grep -rn "κ.*0.775\|kappa.*0.775" docs/ validation/ src/`，确认命中只在 bug 说明/校正对照里 |
+| D2 | 全项目是否还有把 73%/26.7 当结论用的地方（排除已加 SUPERSEDED 头注的旧论文）| grep 后确认命中都在废止头注/校正叙事/§4.1 discrepancy 里 |
+
+### 复核结果（Claude 请填）
+
+> 请在下面记录复核结果。对每一项标 ✅（已验证无误）/ ⚠️（有问题，已说明）/ ❌（错误，已修正）。如果发现任何错误，**直接改掉对应文件**（PDF 源是 html，改完用 `DYLD_LIBRARY_PATH=/opt/homebrew/lib weasyprint` 重新生成），并在变更日志追加一条。
+
+| 项 | 结果 | 备注 |
+|---|---|---|
+| A1 | | |
+| A2 | | |
+| A3 | | |
+| A4 | | |
+| A5 | | |
+| A6 | | |
+| A7 | | |
+| B1 | | |
+| B2 | | |
+| B3 | | |
+| C1 | | |
+| C2 | | |
+| C3 | | |
+| D1 | | |
+| D2 | | |
+
+—— ZCode，2026-08-02
