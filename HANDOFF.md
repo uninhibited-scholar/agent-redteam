@@ -284,7 +284,7 @@ agent-redteam scan --target zai --model GLM-5.2 --limit 30
 
 ### 两份本地拷贝的状态（注意）
 
-- `~/GitHub/agent-redteam`（本目录）— **代码主拷贝**，但本地落后 GitHub 远程若干 commit，且有未提交改动（2026-08-01 的论文口径对齐改动尚未 commit）。
+- `~/GitHub/agent-redteam`（本目录）— **代码主拷贝**，与远程 `feat/score-vector-metric` 已同步（2026-08-01 论文口径对齐改动已 commit + push：`a4bacd2`/`d5e36b6`/`9d6528a`）。
 - `~/git/agent-redteam` — 另一份较旧的干净拷贝（7/11），不要误用。
 - `~/Desktop/agent-redteam` — **只有 `docs/`，无代码、非 git 仓库**。问题定义文档（初赛提交件）在这份的 `docs/` 下。
 
