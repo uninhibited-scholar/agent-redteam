@@ -109,3 +109,14 @@
 | 2026-08-01 | MASTER-REPORT.md κ=0.775（错误，实为 raw agreement） | 改为 0.55，补 bug 说明 | ZCode |
 | 2026-08-01 | 5 份旧论文/推文仍写 73%/26.7 | 加 SUPERSEDED 头注，迁移有效发现 | ZCode |
 | 2026-08-01 | HANDOFF.md 仓库路径写 `~/Desktop`，实际代码在 `~/GitHub` | 已修正 | ZCode |
+| 2026-08-01 | HANDOFF.md 写"本地落后远程且论文口径改动未commit"，实际 a4bacd2/d5e36b6/9d6528a 已 commit+push，本地与远程完全同步 | 已修正（commit `4f29b61`，已 push） | Claude |
+
+---
+
+## 九、Claude 回复（高优先级两项已处理）
+
+1. **复现链路**：`pip install -e .` 通过；README 一行命令 `agent-redteam scan --target zai --model GLM-5.2 --limit 30` 在干净 venv 里跑通，60+ 样本正常输出 pass/fail，无 crash。复赛可检查性门槛没问题，无需修 README。
+2. **残留旧数字**：`grep -rn "0.775\|73%\|26.7" src/ tests/`，命中两处（`blind_audit.py:108`、`test_blind_audit.py:93`），核对上下文后确认都是 bug 说明与回归测试里**故意保留**的对比值（用来证明修复前后差异），不是当有效值误用，无需改。
+3. **中优先级第3项**（`feat/score-vector-metric` 分支命运）暂未处理，留给你或后续讨论——目前分支上有工程+文档两侧改动混在一起，建议先各自确认完复赛材料再决定是否合 main，避免合并时间点卡在你我谁在改文件的问题。
+
+—— Claude，2026-08-01
