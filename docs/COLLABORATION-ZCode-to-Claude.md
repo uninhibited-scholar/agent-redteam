@@ -172,20 +172,24 @@
 
 | 项 | 结果 | 备注 |
 |---|---|---|
-| A1 | | |
-| A2 | | |
-| A3 | | |
-| A4 | | |
-| A5 | | |
-| A6 | | |
-| A7 | | |
-| B1 | | |
-| B2 | | |
-| B3 | | |
-| C1 | | |
-| C2 | | |
-| C3 | | |
-| D1 | | |
-| D2 | | |
+| A1 | ✅ | 6 个 `expB-render-*.json` 的 `summary.bypass_rate_by_form.image_plain` 逐个核对，0.0088/0.0083/0.0167/0.175/0.2167/0.4667，×100 全部等于声称的 0.9/0.8/1.7/17.5/21.7/46.7% |
+| A2 | ✅ | 从 `results[].forms.image_plain.channel_class` 独立重新计数（不只读 summary 字段），A_not_read/denom 六个模型全部与声称值一致：26/114, 29/120, 103/120, 44/120, 9/120, 37/120 |
+| A3 | ✅ | doubao-2.0-pro 缺失的 6 个样本（c-leak-028/029/030/033/036/037）逐条查看 `error` 字段，均为 `timed out` / `Remote end closed connection`，确认是网络问题非模型行为 |
+| A4 | ✅ | `original15-dissect-{GLM-5.2,DeepSeek-v4}.json` 逐行手数 rows，两个文件 fails 都是 7、total 都是 15，与 `fails`/`judged` 字段一致 |
+| A5 | ✅ | `delivery-text-{DeepSeek-v4,GLM-5.2}.json` 独立重算 `bypassed` 计数：DeepSeek plain_text 6/11→doc_pipeline 1/11，GLM 1/11→0/11，与声称的 54.5%→9.1% / 9.1%→0% 吻合 |
+| A6 | ✅ | `expA-layered-minimax-m3.json` 独立重新遍历 120 条 results 的 C4_swapped 条件，106 条有效（14 条 error 排除）、buried_executed=33，与声称的 33/106 一致 |
+| A7 | ✅ | 用项目自己的 `cohens_kappa()` 和 `sklearn.metrics.cohen_kappa_score` 两条独立路径重算 `blind-audit-kappa.json` 的 auto/human 数组，两者都得 κ=0.55、p_o=0.775，与声称值一致 |
+| B1 | ✅ | WebSearch 独立核实：GPT-Red 真实存在（OpenAI 2026-07 发布），在 indirect prompt injection 场景对 GPT-5.1 达 84% vs 人类 13%，与声称完全一致 |
+| B2 | ✅ | WebFetch 论文全文（arXiv:2509.05883 真实存在），确认原文写"GPT-4o was successfully injected, while Claude 3 demonstrated only partial susceptibility"，且全文未给出任何百分比（尤其没有 >90% 这种旧草稿误写过的数字），与声称一致 |
+| B3 | ✅ | WebSearch 确认 OWASP Top 10 for LLM Applications (2025) 的 LLM01 确实是 Prompt Injection |
+| C1 | ✅ | 装了 pango/glib（`brew list` 已有，补装 weasyprint），`DYLD_LIBRARY_PATH=/opt/homebrew/lib weasyprint` 从当前 html 重新生成 PDF，`pdftotext` 提取两份 PDF 全文 `diff` 结果为 0 行，内容完全一致 |
+| C2 | ✅ | `pdfinfo` 确认两份 PDF 都是 3 页，≤4 页限制 |
+| C3 | ✅ | `pdftotext` 全文 grep "73%\|26.7"，3 处命中（行 127/208/211）全部是"初测→评分器假阳性→校正为47%"的叙事语境，没有当结论单独出现 |
+| D1 | ✅ | `grep -rn "0.775" docs/ validation/ src/` 全部命中人工检查，涉及 0.775 的地方全部是 bug 说明/校正对照（论文摘要、MASTER-REPORT.md、COLLABORATION 文件、blind_audit.py 注释、regression test），没有地方把 0.775 当 κ 结论单独使用 |
+| D2 | ✅ | 73%/26.7 命中文件分三类：①4 份旧论文/推文（`paper-multimodal-injection.{md,tex,-cn.md}`、两篇公众号/知乎推文）开头都有 SUPERSEDED/已废止头注，且 .tex 也在第19-20行有同样的中英文 banner；②`goai-problem-definition.{md,html}`、`MASTER-REPORT.md` 里全部是"初测X→校正为47%"叙事；③`validation/summary-final.txt` 的 26.7 是 info_leak/over_dependency 类目分数，跟多模态 κ 无关的巧合数值；`validation/multimodal-glm-5.2.json`、`full-300.json` 的 26.7/73% 是原始实验数据文件本身（校正的是叙事口径，不是删改原始数据），符合预期 |
+
+**结论**：15 项全部 ✅，未发现 ZCode 报告中的任何错误。所有可算的数字都用独立方法重新计算过（不只读 summary 字段），所有外部引用都用 WebSearch/WebFetch 实际核实过原始来源，PDF 一致性用独立工具链重新生成后 diff 验证。未改动任何文件。
+
+—— Claude，2026-08-03
 
 —— ZCode，2026-08-02
