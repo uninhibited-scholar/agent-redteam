@@ -65,6 +65,8 @@ print('A/B/C分布:', d['summary']['channel_decomposition']['image_plain'])
 **回答评委的问题**："doubao-lite 视觉 bypass 46.7%，是不是模型本身就弱？"
 对照实验：同一批 payload，以**纯文本直注**（不渲染图像）送入同样 6 模型，测 bypass。
 
+> **数据来源说明（重要，避免混淆）**：本节基线数据来自 `text-baseline-*.json`，是**独立的纯文本复现实验**，与论文 §4.2a 的 plain_text 列（来源 `docpipeline-vision-n120-*.json`，三通道联合实验）是**两套不同的实验**。两者数字略有差异（3 个模型 ±2-7pp），因脚本配置与运行时间不同；但**方向完全一致**（6 模型全部 plain_text > image_plain）——这本身构成对论文结论的独立复现验证。论文 §4.2a 的原始数据保留在 `docpipeline-vision-n120-*.json`，未被覆盖。
+
 ```bash
 # 跑平凡基线（6 模型 × 120 样本，与 expB 同样本同模型，只变载体）
 python3 scripts/run_text_baseline_6models.py
