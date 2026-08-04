@@ -31,7 +31,7 @@ def build_release_manifest(
     evidence_path = project_root / evidence_root
     manifest: dict[str, Any] = {
         "schema": "agent-redteam-release-manifest/v1",
-        "generated_at": _dt.datetime.now(_dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "generated_at": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "project": {
             "name": "agent-redteam",
             "version": __version__,

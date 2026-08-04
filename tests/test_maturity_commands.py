@@ -374,7 +374,7 @@ def test_ci_policy_control_floor_fails_closed_and_blocks_one_sided_strategy(tmp_
 def test_ci_policy_applies_active_waivers_to_failure_counts(tmp_path):
     report_path = _write_report(tmp_path / "scan.json", score=85.0, verdict="fail", severity="critical")
     waivers_path = tmp_path / "waivers.json"
-    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
+    expires = (_dt.datetime.now(_dt.timezone.utc).date() + _dt.timedelta(days=30)).isoformat()
     waivers_path.write_text(
         json.dumps(
             {
@@ -469,7 +469,7 @@ def test_ci_policy_fails_on_expired_or_invalid_waivers(tmp_path):
 
 def test_waiver_evaluation_reports_unused_active_waivers(tmp_path):
     waivers_path = tmp_path / "waivers.json"
-    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
+    expires = (_dt.datetime.now(_dt.timezone.utc).date() + _dt.timedelta(days=30)).isoformat()
     waivers_path.write_text(
         json.dumps(
             {
@@ -506,7 +506,7 @@ def test_policy_lint_accepts_valid_policy_and_short_waiver(tmp_path):
         encoding="utf-8",
     )
     waivers_path = tmp_path / "waivers.json"
-    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
+    expires = (_dt.datetime.now(_dt.timezone.utc).date() + _dt.timedelta(days=30)).isoformat()
     waivers_path.write_text(
         json.dumps(
             {
@@ -580,7 +580,7 @@ def test_policy_lint_rejects_bad_policy_and_long_waiver(tmp_path):
 
 def test_policy_lint_warns_on_duplicate_waiver_keys(tmp_path):
     waivers_path = tmp_path / "waivers.json"
-    expires = (_dt.datetime.now(_dt.UTC).date() + _dt.timedelta(days=30)).isoformat()
+    expires = (_dt.datetime.now(_dt.timezone.utc).date() + _dt.timedelta(days=30)).isoformat()
     row = {
         "suite": "injection",
         "sample_id": "inj-001",
