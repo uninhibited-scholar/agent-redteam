@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <rect width="900" height="520" fill="#fcfcfb"/>
+  <text x="40" y="34" font-size="15" font-weight="600" fill="#0b0b0b">问题定义的有效修正：一条被自我诚实检验逐步推翻的假设链</text>
+  <text x="40" y="52" font-size="11.5" fill="#52514e">每一步校正都由受控重跑/独立复核触发，证据留存于 validation/*.json</text>
+
+  <!-- 时间轴主线 -->
+  <line x1="60" y1="290" x2="840" y2="290" stroke="#c3c2b7" stroke-width="1.5"/>
+  <polygon points="840,290 832,286 832,294" fill="#c3c2b7"/>
+  <text x="845" y="294" font-size="10.5" fill="#898781">时间</text>
+
+  <!-- 节点1: 初测假设 (上方,红色=被推翻) -->
+  <circle cx="120" cy="290" r="7" fill="#c0392b"/>
+  <line x1="120" y1="283" x2="120" y2="120" stroke="#e1e0d9" stroke-width="1" stroke-dasharray="3,3"/>
+  <rect x="50" y="78" width="160" height="42" rx="6" fill="#fdecea" stroke="#e74c3c" stroke-width="0.8"/>
+  <text x="130" y="98" font-size="12" font-weight="600" fill="#c0392b" text-anchor="middle">初测假设</text>
+  <text x="130" y="114" font-size="11" fill="#52514e" text-anchor="middle">73% 多模态 bypass</text>
+  <text x="130" y="310" font-size="10" fill="#898781" text-anchor="middle">旧评分器</text>
+  <text x="130" y="324" font-size="10" fill="#898781" text-anchor="middle">(length 规则)</text>
+
+  <!-- 节点2: 发现评分器假阳性 -->
+  <circle cx="290" cy="290" r="7" fill="#d68910"/>
+  <line x1="290" y1="297" x2="290" y2="430" stroke="#e1e0d9" stroke-width="1" stroke-dasharray="3,3"/>
+  <rect x="210" y="430" width="170" height="56" rx="6" fill="#fef5e7" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="295" y="452" font-size="12" font-weight="600" fill="#d68910" text-anchor="middle">⚠ 发现：评分器假阳性</text>
+  <text x="295" y="470" font-size="10.5" fill="#52514e" text-anchor="middle">受控重跑对照（§3.2 第4层参照）</text>
+  <text x="295" y="482" font-size="10.5" fill="#52514e" text-anchor="middle">length 规则把长回复误判为 bypass</text>
+  <text x="295" y="310" font-size="10" fill="#898781" text-anchor="middle">original15-dissect</text>
+
+  <!-- 节点3: 校正 bypass -->
+  <circle cx="450" cy="290" r="7" fill="#2e7d5b"/>
+  <line x1="450" y1="283" x2="450" y2="120" stroke="#e1e0d9" stroke-width="1" stroke-dasharray="3,3"/>
+  <rect x="370" y="78" width="160" height="42" rx="6" fill="#eafaf1" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="450" y="98" font-size="12" font-weight="600" fill="#2e7d5b" text-anchor="middle">校正 bypass</text>
+  <text x="450" y="114" font-size="11" fill="#52514e" text-anchor="middle">73% → 47% (n=15)</text>
+  <text x="450" y="310" font-size="10" fill="#898781" text-anchor="middle">剔除 length 规则</text>
+
+  <!-- 节点4: 发现kappa bug -->
+  <circle cx="610" cy="290" r="7" fill="#d68910"/>
+  <line x1="610" y1="297" x2="610" y2="430" stroke="#e1e0d9" stroke-width="1" stroke-dasharray="3,3"/>
+  <rect x="530" y="430" width="170" height="56" rx="6" fill="#fef5e7" stroke="#f39c12" stroke-width="0.8"/>
+  <text x="615" y="452" font-size="12" font-weight="600" fill="#d68910" text-anchor="middle">⚠ 发现：κ 代码 bug</text>
+  <text x="615" y="470" font-size="10.5" fill="#52514e" text-anchor="middle">手算 p_o / p_e 复核</text>
+  <text x="615" y="482" font-size="10.5" fill="#52514e" text-anchor="middle">标签硬编码致机会校正归零</text>
+  <text x="615" y="310" font-size="10" fill="#898781" text-anchor="middle">blind-audit-kappa</text>
+
+  <!-- 节点5: 校正kappa + 最终 -->
+  <circle cx="770" cy="290" r="7" fill="#2e7d5b"/>
+  <line x1="770" y1="283" x2="770" y2="120" stroke="#e1e0d9" stroke-width="1" stroke-dasharray="3,3"/>
+  <rect x="680" y="78" width="180" height="56" rx="6" fill="#eafaf1" stroke="#27ae60" stroke-width="0.8"/>
+  <text x="770" y="98" font-size="12" font-weight="600" fill="#2e7d5b" text-anchor="middle">校正 κ + 视觉通道重测</text>
+  <text x="770" y="116" font-size="10.5" fill="#52514e" text-anchor="middle">κ 0.775 → 0.55</text>
+  <text x="770" y="129" font-size="10.5" fill="#52514e" text-anchor="middle">视觉 0.8%–46.7% (6 模型)</text>
+  <text x="770" y="310" font-size="10" fill="#898781" text-anchor="middle">+ 回归测试</text>
+
+  <!-- 图例 -->
+  <rect x="50" y="492" width="12" height="12" rx="2" fill="#c0392b"/>
+  <text x="68" y="502" font-size="10.5" fill="#52514e">被推翻的初测假设</text>
+  <rect x="200" y="492" width="12" height="12" rx="2" fill="#d68910"/>
+  <text x="218" y="502" font-size="10.5" fill="#52514e">自我诚实检验发现的问题</text>
+  <rect x="380" y="492" width="12" height="12" rx="2" fill="#2e7d5b"/>
+  <text x="398" y="502" font-size="10.5" fill="#52514e">校正后的有效结论</text>
+
+  <text x="40" y="516" font-size="9.5" fill="#898781">注：每一处校正都由独立参照系触发，原始数据与修复证据均留存可查——"问题定义的有效修正"本身就是本研究的发现信号之一。</text>
+</svg>
