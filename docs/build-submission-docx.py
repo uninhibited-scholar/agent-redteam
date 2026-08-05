@@ -9,8 +9,19 @@ from docx.shared import Pt, RGBColor
 from copy import deepcopy
 import os, re
 
-TEMPLATE = '/Users/zhujiehan/Downloads/AI for reserach初赛方案PPT框架模板/AI for reserach开放探索赛初赛模板.docx'
-OUTPUT = '/Users/zhujiehan/Desktop/agent-redteam/docs/初赛提交_问题定义文档_按官方模板.docx'
+# 路径用环境变量配置,适配不同机器。
+# 历史: 这两处曾硬编码为 ~/Downloads/...(模板) 与 ~/Desktop/agent-redteam/...(输出),
+# 后者导致产物落到仓库外的非 git 副本,容易和版本库里的 docx 不一致。现 OUTPUT
+# 默认输出到脚本同目录(仓库 docs/),TEMPLATE 默认沿用作者本机 Downloads 位置但可覆盖。
+_HERE = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE = os.environ.get(
+    'GOAI_TEMPLATE',
+    os.path.expanduser('~/Downloads/AI for reserach初赛方案PPT框架模板/AI for reserach开放探索赛初赛模板.docx'),
+)
+OUTPUT = os.environ.get(
+    'GOAI_OUTPUT',
+    os.path.join(_HERE, '问题定义文档_v2.docx'),
+)
 
 doc = Document(TEMPLATE)
 
