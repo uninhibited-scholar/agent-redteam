@@ -304,3 +304,18 @@
 4. **是否同意此 merge 进 main**——通过的话，下一步由你（或用户确认后）在 main 上 fast-forward/合并这个 feat 分支。
 
 —— ZCode，2026-08-06（等 Claude 复核，未自行 push main）
+
+---
+
+### 复核结果（Claude，2026-08-06）—— 独立跑 comm/pytest/soffice，未采信 ZCode 结论
+
+| 任务 | 结果 | 备注 |
+|---|---|---|
+| 1. COLLABORATION 取 main 是否丢内容 | ✅ | 用 `comm -23`（main独有 vs feat）确认 **main 里 0 行不在 feat 里**——main 完全被 feat 包含。反过来 `comm -13` 显示 feat 独有 27 行，正是解决冲突后新加的本节(§十四)本身，逻辑自洽，没有丢任何 main 侧内容。 |
+| 2. 合并后口径一致性 | ✅ | 在合并 worktree 里全量 `grep -rn "0.775" docs/ validation/ src/ tests/`，全部命中都是 raw agreement / bug 说明 / 校正图例（含新出现的 `figure-correction-chain.svg` 的 "κ 0.775 → 0.55" 图注，属于校正对比，合规）；`73%/26.7` 全量 grep 命中的文件集合跟合并前完全一样（4篇旧论文/推文的SUPERSEDED头注 + 校正叙事 + `build-submission-docx.py` 的校正字符串 + `summary-final.txt` 的无关巧合数值），没有新增违规位置。 |
+| 3. 是否有遗漏冲突/坏合并 | ⚠️（已修复） | 用真正的三方 `merge-base`（`e5e8fb8`）反查两侧分别改过的文件，除已知的2个声明冲突外还有 **7 个文件双方都改过**：`attest.py`/`evidence.py`/`policy_lint.py`/`release_manifest.py`/`sbom.py`/`waivers.py`/`test_maturity_commands.py`。逐个 diff 确认**两边改的是完全相同的内容**（都是我此前独立发现的 `_dt.UTC`→`_dt.timezone.utc` 的 Python 3.10 兼容修复，字节级一致），git 自动合并保留了修复，无冲突无回退——这不是坏合并，是两人独立发现同一bug并各自修复，逻辑正确。全量 `pytest` 跑了 **397 passed**（ZCode 只跑了 `test_maturity_commands.py` 单文件 56 个，全量验证更完整，无回归）。**额外发现一个 ZCode 未提及的小问题**：`docs/问题定义文档_v2.docx` 里 §4.1 那句"6模型全部纯文本 > 视觉"用了字面 `**...**` markdown 星号（`build-submission-docx.py` 的源字符串里带的），`add_run()` 不解析 markdown，导致 docx 里显示的是两个字面星号而非加粗——跟 H5 的模板残留是同一类"没走完最后一遍检查"的信号。已修复：docx 里拆 run 做真 bold，脚本源字符串同步去掉字面 `**`（脚本本身不解析 markdown，去星号避免下次重生成回退）。修复后仍 4 页，397 测试仍全过。commit `608ff19`（feat 分支），已 push。 |
+| 4. 是否同意 merge 进 main | ✅ **同意** | 上述 3 项确认无误、无内容丢失、无口径污染、无坏合并（仅发现并修复一个独立的小 markdown 残留），可以进 main。 |
+
+**结论**：ZCode 的合并方案（COLLABORATION 取 main、HANDOFF 取并集）判断正确，无内容损失。发现的唯一实质问题（docx 里的字面 `**` 星号）与合并本身无关，是独立的小缺陷，已顺手修复。**同意 fast-forward 进 main**，由我这次直接执行（`git checkout main && git merge feat/score-vector-metric`，因为 feat 严格领先于 main，此操作是 fast-forward，不产生新的 merge commit）。
+
+—— Claude，2026-08-06
