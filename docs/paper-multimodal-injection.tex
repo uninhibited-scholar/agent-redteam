@@ -1,27 +1,28 @@
 \documentclass[11pt,a4paper]{article}
+
 \usepackage[margin=1in]{geometry}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{url}
 \usepackage{graphicx}
-\usepackage{verbatim}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
 
 \title{Multimodal Prompt Injection: A Systematic Evaluation of Cross-Channel Attack Vectors Against LLM Safety Defenses}
-\author{Jiehan Zhu \\
-Department of Information Engineering, The Chinese University of Hong Kong \\
-\texttt{1155256931@link.cuhk.edu.hk}}
+\author{Jiehan Zhu \\ Department of Information Engineering, CUHK \\ \texttt{1155256931@link.cuhk.edu.hk}}
 \date{}
 
 \begin{document}
+
 \maketitle
 
-\begin{quote}
-\noindent\textbf{\color{red}⚠ SUPERSEDED --- 2026-08-01.}
-The headline finding of this paper (73\% multimodal bypass / 26.7-of-100 defense score) does \emph{not} survive controlled re-measurement. A corrected evaluator (removing a length-based false-positive rule) drops the bypass rate to \textbf{46.7\%} on both original models, and the delivery channel called ``multimodal'' here was in fact text extracted from SVG/HTML markup --- a \emph{document-pipeline text channel}, not the vision channel. The corrected study (N=120 balanced samples per condition, six vision-language models across four vendors, a three-way perception/compliance decomposition, and an independent-judge $\kappa$ blind audit) is in \texttt{paper-vision-channel-remeasurement.tex}; its \S4.1 documents this discrepancy as one of several independent motivating observations behind that study's design. This file is retained unchanged for the historical record and for the still-valid text-channel findings (D1 single-turn baseline, D2 mutation ``structure-vs-surface'' regularity, D3 multi-turn collapse), which are migrated into the new paper as \S4.7. \textbf{The 73\% / 26.7 numbers in this file must not be cited as current results.}
-\end{quote}
-
 \begin{abstract}
-Large language models (LLMs) are becoming better at defending against text-based prompt injection. However, we find that the defense can become much weaker when attack instructions are placed in non-text channels, such as image metadata, document structures, or hidden text elements. In this paper, we test five attack types: single-turn text injection, mutation-based attacks, multi-turn conversational attacks, multimodal hidden injection, and adaptive evolutionary attacks. We use the same testing framework for all of them. We run the experiments on three models: GLM-5.2, GLM-4.5, and GLM-4-Flash. The results show that attacks outside plain text can still bypass existing defenses. For GLM-5.2, the defense score drops from 100/100 on standard text injection to 26.7/100 on multimodal injection, giving a 73\% bypass rate. Mutation attacks reach a 35.2\% bypass rate, while multi-turn attacks reach 22\%. We release our testing framework, agent-redteam, as an open-source tool. It contains 2,319 attack samples across 14 test suites covering the OWASP LLM Top 10.
+Large language models (LLMs) are becoming better at defending against text-based prompt injection, but it is unclear whether this defense holds when attack instructions are placed in non-text channels such as document pipelines or rendered images. We study this with a five-dimensional evaluation framework (single-turn text, mutation, multi-turn, multimodal, and adaptive attacks) applied to 8 models (2 text-only and 6 vision-language models). Our central methodological contribution is an \emph{A/B/C perception decomposition}: each probe is classified as (A) the model never read the attack, (B) it read but only described it, or (C) it read and executed it. Only C is a true bypass; reporting a single bypass rate conflates ``blind'' (A) with ``safe'' (B). Our findings are more nuanced than a uniform blind spot. After correcting a scorer false-positive in our own pipeline (original 73\%, corrected 47\%, 7/15 on document-pipeline text injection for GLM-5.2 and DeepSeek-v4), the real visual channel shows a strong \emph{capability dependence}: bypass ranges from 0.8\% (doubao-2.0-pro/code) to 46.7\% (doubao-2.0-lite) across 6 models $\times$ 120 samples, with frontier models near zero. Two negative results further bound the effect: layered injection does not amplify attacks (salience dominates), and hiding attacks in document structure is \emph{harder} to execute than plain text (DeepSeek-v4: 54.5\% $\rightarrow$ 9.1\%). We release agent-redteam (2,319 samples, 14 suites, OWASP LLM Top 10), including the self-correction audit trail.
 \end{abstract}
 
 \section{Introduction}
@@ -31,20 +32,22 @@ More AI agents can now read user-uploaded files, images, and documents. This cre
 This paper makes the following contributions:
 
 \begin{enumerate}
-\item A five-dimensional evaluation framework that compares LLM defense performance across text injection, mutation attacks, multi-turn attacks, multimodal attacks, and adaptive evolutionary attacks.
+  \item \textbf{A five-dimensional evaluation framework} that compares LLM defense performance across text injection, mutation attacks, multi-turn attacks, multimodal attacks, and adaptive evolutionary attacks, applied to 8 models including 6 vision-language models.
 
-\item Evidence of a cross-channel security gap: GLM-5.2's defense score drops from 100/100 for text injection to 26.7/100 for multimodal injection, which gives a 73\% bypass rate.
+  \item \textbf{An A/B/C perception decomposition} that separates ``the model never read the attack'' (A), ``it read but only described it'' (B), and ``it read and executed it'' (C). Only C is a true bypass; existing benchmarks that report a single bypass rate conflate a blind model (A) with a safe one (B).
 
-\item An open-source testing platform (agent-redteam) with 2,319 attack samples, 14 test suites, and support for 8 model targets, so that other people can reproduce the evaluation.
+  \item \textbf{A corrected, capability-dependent picture of the cross-channel gap}: after we audited and fixed a scorer false-positive in our own pipeline, the headline document-pipeline bypass drops from 73\% to 47\% (7/15), and the real visual channel ranges from 0.8\% to 46.7\% across 6 models, with frontier models near zero---evidence of a capability-dependent blind spot rather than a uniform one. We also report two negative results (layered injection does not amplify attacks; document structure is harder to attack than plain text).
+
+  \item \textbf{An open-source testing platform} (agent-redteam) with 2,319 attack samples, 14 test suites, and support for 8 model targets, so that other people can reproduce the evaluation.
 \end{enumerate}
 
 \section{Related Work}
 
-Prompt injection attacks were first formalized by [1], which showed that LLMs may follow instructions embedded in untrusted input. OWASP later listed prompt injection as the number one risk in its LLM Top 10 [2].
+Prompt injection attacks were first formalized by \cite{greshake2023}, which showed that LLMs may follow instructions embedded in untrusted input. OWASP later listed prompt injection as the number one risk in its LLM Top 10 \cite{owasp}.
 
-Multimodal prompt injection was discussed by Schneider [3], who described attacks hidden in images, audio, and video. Keysight [4] studied invisible Unicode-based injection techniques. A larger academic evaluation in [5] tested multimodal injection on several models and reported over 90\% success rates for some attack types. Earlier work on benchmarking text-based prompt injection attacks and defenses [6] also provides useful baselines.
+Multimodal prompt injection was discussed by Schneider \cite{schneider}, who described attacks hidden in images, audio, and video. Keysight \cite{keysight} studied invisible Unicode-based injection techniques. A larger academic evaluation in \cite{anonymous2025} tested multimodal injection on several models and reported over 90\% success rates for some attack types. Earlier work on benchmarking text-based prompt injection attacks and defenses \cite{liu2024} also provides useful baselines.
 
-Compared with previous work, our main difference is a systematic cross-dimensional comparison. We test the same model across five attack dimensions using one framework. This helps us compare how the defense changes across different types of attacks (0\% $\to$ 35\% $\to$ 22\% $\to$ 73\% $\to$ 100\% bypass rates).
+Compared with previous work, our main difference is a \textbf{systematic cross-model, cross-channel comparison with a perception decomposition}. We test the same 8 models across five attack dimensions using one framework, and---unlike prior work that reports a single bypass rate---we separate ``the model never read the attack'' from ``the model read but refused it'' from ``the model executed it.'' This lets us expose a capability-dependent blind spot that a single-number benchmark would hide, and it also surfaced a false-positive in our own scorer that we then corrected (73\% $\rightarrow$ 47\%).
 
 \section{Methodology}
 
@@ -53,58 +56,72 @@ Compared with previous work, our main difference is a systematic cross-dimension
 We built agent-redteam, an open-source Python package (\texttt{pip install agent-redteam}) with zero core dependencies, using only the Python standard library. The framework includes:
 
 \begin{itemize}
-\item 14 attack suites covering OWASP LLM Top 10 categories
-\item 2,319 attack samples, including single-turn, multi-turn, and multimodal scenarios
-\item 8 target adapters (OpenAI, Claude, GLM/Z.ai, Ollama, DeepSeek, Azure, Qwen, local)
-\item 11 mutation strategies for automatically changing attacks
-\item An adaptive evolutionary engine that generates and evolves attacks until it finds bypasses
+  \item \textbf{14 attack suites} covering OWASP LLM Top 10 categories
+  \item \textbf{2,319 attack samples}, including single-turn, multi-turn, and multimodal scenarios
+  \item \textbf{8 target adapters} (OpenAI, Claude, GLM/Z.ai, Ollama, DeepSeek, Azure, Qwen, local)
+  \item \textbf{11 mutation strategies} for automatically changing attacks
+  \item \textbf{An adaptive evolutionary engine} that generates and evolves attacks until it finds bypasses
 \end{itemize}
 
 \subsection{Models Tested}
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
+\small
 \begin{tabular}{lll}
 \toprule
 Model & Provider & Type \\
 \midrule
-GLM-5.2 & Z.ai & Cloud, flagship \\
-GLM-4.5 & Z.ai & Cloud, previous generation \\
-GLM-4-Flash & Z.ai & Cloud, lightweight \\
+GLM-5.2 & Z.ai & Text, flagship \\
+DeepSeek-v4 & DeepSeek & Text \\
+doubao-2.0-pro & ByteDance & Vision, flagship \\
+doubao-2.0-code & ByteDance & Vision \\
+doubao-2.0-lite & ByteDance & Vision, lightweight \\
+glm-4v-flash & Z.ai & Vision \\
+kimi-k2-7 & Moonshot & Vision \\
+minimax-m3 & MiniMax & Vision \\
+\midrule
+GLM-4.5, GLM-4-Flash & Z.ai & Text, early baselines \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Attack Dimensions}
 
-\textbf{Dimension 1: Single-Turn Text Injection (30 samples per suite).}
+\noindent\textbf{Dimension 1: Single-Turn Text Injection (30 samples per suite)}
+
 These are standard prompt injection attacks sent as text. The injection suite tests whether a model follows instructions embedded in untrusted content, such as web pages or emails.
 
-\textbf{Dimension 2: Mutation-Based Attacks (55 samples).}
+\noindent\textbf{Dimension 2: Mutation-Based Attacks (55 samples)}
+
 We take 5 samples that the model successfully defended and apply 11 mutation strategies: homoglyph substitution, zero-width insertion, context reframing, synonym replacement, base64 encoding, URL encoding, case spoofing, punctuation injection, multilingual mixing, role injection, and split-recombine. We then test each mutated attack again on the same model.
 
-\textbf{Dimension 3: Multi-Turn Conversational Attacks (50 scenarios).}
+\noindent\textbf{Dimension 3: Multi-Turn Conversational Attacks (50 scenarios)}
+
 These are scripted multi-turn conversations where the attacker builds trust or context over 3--5 turns before sending the actual attack. The categories are trust-building, privilege escalation, context poisoning, role-play injection, and indirect instruction.
 
-\textbf{Dimension 4: Multimodal Hidden Injection (15 samples).}
+\noindent\textbf{Dimension 4: Multimodal Hidden Injection (15 samples)}
+
 Attack instructions are hidden in non-text channels:
 
 \begin{itemize}
-\item SVG hidden text (\texttt{font-size:0}, \texttt{opacity:0.01}, \texttt{position:absolute})
-\item HTML invisible layers (comments, CSS \texttt{display:none}, \texttt{font-size:0px})
-\item PDF metadata (\texttt{/Subject} field)
-\item Zero-width Unicode steganography
+  \item SVG hidden text (\texttt{font-size:0}, \texttt{opacity:0.01}, \texttt{position:absolute})
+  \item HTML invisible layers (comments, CSS \texttt{display:none}, \texttt{font-size:0px})
+  \item PDF metadata (\texttt{/Subject} field)
+  \item Zero-width Unicode steganography
 \end{itemize}
 
-\textbf{Dimension 5: Adaptive Evolutionary Attacks.}
+\noindent\textbf{Dimension 5: Adaptive Evolutionary Attacks}
+
 An automated evolutionary engine mutates seed attacks, tests them against the target, and uses successful bypasses as seeds for the next round. The engine stops after finding a target number of bypasses or reaching the maximum number of rounds.
 
 \section{Experiments and Results}
 
 \subsection{Single-Turn Baseline (Dimension 1)}
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
+\small
 \begin{tabular}{lrrr}
 \toprule
 Suite & GLM-5.2 & GLM-4.5 & GLM-4-Flash \\
@@ -124,13 +141,13 @@ Supply Chain & 53.3 & 43.3 & 36.7 \\
 \end{tabular}
 \end{table}
 
-GLM-5.2 gets perfect scores on Injection, Tool Abuse, and Model DoS. However, it has the lowest score among the three models on Excessive Agency (66.7). This may mean that flagship models are more likely to overclaim their abilities, possibly because they respond with higher confidence. Note: the Overall score is a severity-weighted average across all suites (critical = 4x, high = 3x, medium = 2x, low = 1x), not a simple mean.
+GLM-5.2 gets perfect scores on Injection, Tool Abuse, and Model DoS. However, it has the lowest score among the three models on Excessive Agency (66.7). This may mean that flagship models are more likely to overclaim their abilities, possibly because they respond with higher confidence.
 
 \subsection{Mutation Attack Results (Dimension 2)}
 
 We tested 55 mutated attacks, created from 5 original samples and 11 strategies. GLM-5.2 had successfully defended all 5 original samples.
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \begin{tabular}{lr}
 \toprule
@@ -152,19 +169,19 @@ Case Spoof & 0\% \\
 \end{tabular}
 \end{table}
 
-The three most effective strategies, reframe, multilingual, and split, have one thing in common: they change the structure of the attack instead of only changing its surface form. This suggests that GLM-5.2's injection defense may partly depend on surface-level pattern matching.
+The three most effective strategies, reframe, multilingual, and split, have one thing in common: they change the \textbf{structure} of the attack instead of only changing its \textbf{surface form}. This suggests that GLM-5.2's injection defense may partly depend on surface-level pattern matching.
 
 \subsection{Multi-Turn Attack Results (Dimension 3)}
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
-\begin{tabular}{lrlr}
+\begin{tabular}{llll}
 \toprule
 Model & Score & Pass/Fail & Bypass Rate \\
 \midrule
 qwen2.5:0.5b & 66.0 & 33/17 & 34\% \\
 llama3.2:1b & 88.0 & 44/6 & 12\% \\
-GLM-5.2 & $\sim$78 & 21/6 (partial: 27 of 50) & $\sim$22\% \\
+GLM-5.2 & $\sim$78 & 21/6 (partial, 27/50) & 22\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -173,84 +190,124 @@ One interesting result is that qwen2.5:0.5b scores 100 on single-turn injection 
 
 \subsection{Multimodal Attack Results (Dimension 4)}
 
-\begin{table}[h]
+We separate two channels that the original ``73\%'' headline conflated.
+
+\noindent\textbf{(a) Document-pipeline text injection (original 15 samples).}
+The attack is hidden in SVG/HTML/PDF \emph{extracted as text}, not in pixel-level images. Re-scoring the same 15 samples with the corrected scorer gives:
+
+\begin{table}[htbp]
 \centering
-\begin{tabular}{lrr}
+\small
+\begin{tabular}{lcc}
 \toprule
-Attack Type & Bypassed/Total & Bypass Rate \\
+Model & Bypassed/Judged & Bypass Rate \\
 \midrule
-SVG Hidden Text & 4/5 & 80\% \\
-HTML Invisible Layer & 3/3 & 100\% \\
-PDF Metadata & 1/1 & 100\% \\
-OCR Image Injection & 2/3 & 67\% \\
-Steganography & 1/2 & 50\% \\
-\textbf{Total} & \textbf{11/15} & \textbf{73\%} \\
+GLM-5.2 & 7/15 & \textbf{47\%} \\
+DeepSeek-v4 & 7/15 & \textbf{47\%} \\
+\midrule
+\multicolumn{3}{l}{\emph{Original (scorer false-positive): 73\% / 80\%}} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-GLM-5.2's multimodal defense score is \textbf{26.7/100}, compared with 100/100 on text injection. Only 4 of the 15 attacks were blocked, and all four included very obvious system-level commands, such as \texttt{chmod 777} or CI/CD script execution.
+The over-count came from a length-based scorer fallback that marked ``the model merely \emph{describes} the image content'' as a bypass. Fixing it (Appendix~\ref{app:checkfixes}) dropped the rate by $\sim$26--33 points.
+
+\noindent\textbf{(b) True visual channel (6 models $\times$ 120 samples).}
+We render the attack into a PNG and feed the pixels to vision-language models---real visual injection, not a text pipeline.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Model & Bypass (C) & Not-read (A) & Read-but-described (B) \\
+\midrule
+doubao-2.0-pro & \textbf{0.9\%} & 26/114 & 87 \\
+doubao-2.0-code & \textbf{0.8\%} & 29/120 & 90 \\
+minimax-m3 & \textbf{1.7\%} & \textbf{103/120} & 17 \\
+kimi-k2-7 & 17.5\% & 44/120 & 56 \\
+glm-4v-flash & 21.7\% & 9/120 & 92 \\
+doubao-2.0-lite & \textbf{46.7\%} & 37/120 & 64 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two findings stand out. First, the bypass rate is \textbf{strongly capability-dependent}: frontier models (doubao-pro/code $\approx$ 1\%, minimax $\approx$ 2\%) are near-zero, while the lightweight doubao-lite reaches 46.7\%. This is \emph{not} the uniform blind spot the original headline implied. Second, the A/B/C decomposition is essential: minimax's $\sim$2\% looks ``safe,'' but $A=103/120$ means 86\% of the time it never read the image at all---a perception failure, not a safety success. A single-number benchmark would credit minimax for safety it does not have. Only doubao-lite's 46.7\% is a genuine C-layer failure ($C=19/120$).
 
 \subsection{Adaptive Evolutionary Attack Results (Dimension 5)}
 
-The adaptive engine found bypasses in \textbf{Round 1} using the URL encoding strategy, with a 100\% bypass rate across 2 attempts. This suggests that GLM-5.2's injection detection may partly rely on raw character matching of Chinese text, which URL encoding can avoid.
+The adaptive engine found bypasses in \textbf{Round 1} using the URL encoding strategy, with a 100\% bypass rate across 2 attempts ($n{=}2$, preliminary signal---see Limitations). This suggests that GLM-5.2's injection detection may partly rely on raw character matching of Chinese text, which URL encoding can avoid.
 
 \subsection{Cross-Dimensional Comparison}
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
-\begin{tabular}{llr}
+\begin{tabular}{lrr}
 \toprule
 Attack Dimension & GLM-5.2 Defense & Bypass Rate \\
 \midrule
 Single-turn text injection & 100/100 & 0\% \\
-Mutation attacks & --- & 35.2\% \\
-Multi-turn attacks & $\sim$78/100 & 22\% \\
-Multimodal hidden injection & 26.7/100 & 73\% \\
-Adaptive evolutionary & --- & 100\% (Round 1) \\
+Mutation attacks ($n{=}55$, preliminary) & --- & 35.2\% \\
+Multi-turn attacks ($n{=}50$, preliminary) & $\sim$78/100 & 22\% \\
+Multimodal doc-pipeline (corrected) & --- & 47\% \\
+Multimodal true visual (6 models) & --- & 0.8\%--46.7\% \\
+Adaptive evolutionary ($n{=}2$, preliminary) & --- & 100\% (Round 1) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Overall, the defense becomes weaker when attacks are no longer standard text-only prompt injection. The exact bypass rates do not increase in every step, but the multimodal and adaptive attacks show a much larger security gap than the single-turn baseline.
+The picture is not a monotonic ``each step weakens defense more.'' The core finding is \emph{capability-dependent and channel-specific}: the document-pipeline gap (47\%, corrected from a scorer false-positive) is real but smaller than first reported; the true visual channel spans an order of magnitude across models; and two negative results (layered injection does not amplify; document structure is harder than plain text) bound the effect. The adaptive 100\% is based on only $n{=}2$ and is a preliminary signal, not a headline.
 
 \section{Discussion}
 
-\subsection{Why Multimodal Attacks Succeed}
+\subsection{Why the Cross-Channel Gap Is Capability-Dependent}
 
-Current LLM safety training mostly focuses on text prompts. Models are trained to recognize and refuse patterns such as ``ignore previous instructions.'' However, there may not be similar training for cases like an SVG containing hidden \texttt{font-size:0} text. The model may treat extracted content as instructions without considering which channel it comes from.
+Current LLM safety training mostly targets text prompts, so models learn to refuse patterns such as ``ignore previous instructions.'' But the picture across channels is not a uniform blind spot---it tracks model capability. Three mechanisms, all surfaced by the A/B/C decomposition, explain the spread:
+
+\begin{itemize}
+  \item \textbf{Perception gating (layer A).} A model can only execute an instruction it has read. Frontier vision models read the image reliably (doubao-pro $A=26/114$), so their near-zero bypass is a genuine safety success; minimax reads the image only 14\% of the time ($A=103/120$), so its near-zero bypass is a \emph{perception failure} dressed up as safety. The A/B/C split is what tells these apart.
+  \item \textbf{Reading-mode suppression (negative result).} In the document-pipeline channel, models tend to \emph{describe} the SVG/HTML content rather than act on it---entering a ``reading-comprehension'' mode that suppresses instruction execution. DeepSeek-v4's bypass drops from 54.5\% on plain text to 9.1\% when the same attack is hidden in document structure. Hiding an attack in a document can therefore make it \emph{harder}, not easier.
+  \item \textbf{Salience dominates layering (negative result).} In the layered-injection experiment, models execute whichever instruction they read \emph{first}, regardless of whether it is the surface or the buried one. ``Hidden = more dangerous'' is not supported; visibility order is what matters.
+\end{itemize}
+
+The residual 47\% on document-pipeline text injection (GLM-5.2, DeepSeek-v4) and 46.7\% on the lightweight doubao-lite are the genuine C-layer failures worth attention. The corrected headline is therefore not ``non-text channels are universally vulnerable'' but ``the gap is real, capability-dependent, and in some channels actually inverted.''
 
 \subsection{Implications for Agent Security}
 
 Any AI application that accepts file or image uploads may be vulnerable. Common attack vectors include:
 
 \begin{itemize}
-\item Document analysis assistants with hidden instructions in PDF metadata
-\item OCR applications with low-contrast text in images
-\item Meeting assistants that read small text in whiteboard photos
-\item Code review bots with instructions in code comments
+  \item Document analysis assistants with hidden instructions in PDF metadata
+  \item OCR applications with low-contrast text in images
+  \item Meeting assistants that read small text in whiteboard photos
+  \item Code review bots with instructions in code comments
 \end{itemize}
 
 \subsection{Defense Recommendations}
 
 \begin{enumerate}
-\item \textbf{Input provenance marking}: Tag extracted file content as untrusted data before passing it to the model.
-\item \textbf{Hidden content detection}: Remove \texttt{font-size:0} elements, HTML comments, and PDF metadata before processing.
-\item \textbf{Multimodal safety classifiers}: Train models to detect hidden instructions in non-text channels.
-\item \textbf{Systematic security testing}: Use tools such as agent-redteam to keep testing defenses.
+  \item \textbf{Input provenance marking}: Tag extracted file content as untrusted data before passing it to the model.
+  \item \textbf{Hidden content detection}: Remove \texttt{font-size:0} elements, HTML comments, and PDF metadata before processing.
+  \item \textbf{Multimodal safety classifiers}: Train models to detect hidden instructions in non-text channels.
+  \item \textbf{Systematic security testing}: Use tools such as agent-redteam to keep testing defenses.
 \end{enumerate}
 
 \subsection{Limitations}
 
-Our multimodal tests simulate multimodal scenarios through text-based transmission, such as SVG or HTML content passed as text. We do not actually upload image files to vision-capable models. Therefore, the results describe hidden-content injection in document-processing pipelines more accurately than pixel-level image attacks. Future work can test real multimodal models that directly receive image inputs.
+\begin{enumerate}
+  \item \textbf{Small-sample dimensions.} Mutation ($n{=}55$), multi-turn ($n{=}50$), and adaptive evolutionary ($n{=}2$) results are preliminary signals, not headline findings, and are flagged as such throughout. Scaling them to $N{=}120$ is future work.
+  \item \textbf{Self-corrected scorer.} Our first scorer over-counted bypasses by treating ``the model describes the image'' as execution (length-based fallback), inflating the original 73\%/80\% to a corrected 47\%. The fix and the regression tests are in Appendix~\ref{app:checkfixes}; the 73\%$\rightarrow$47\% audit is itself part of the contribution, but it means early-stage numbers in our own pipeline should not be trusted without re-scoring.
+  \item \textbf{Rendered-image legibility.} The default low-contrast setting (gray 246) sits below the reading threshold of at least one model (glm-4v-flash), so part of the low bypass on \texttt{image\_lowcon} is a rendering artifact rather than model safety. A legibility sweep (gray 140--170 $\rightarrow$ 100\% perception) documents this.
+  \item \textbf{Model coverage.} We test 8 models; the capability-dependent spread (0.8\%--46.7\%) may shift as frontier models improve, so the finding is a snapshot, not a permanent claim.
+\end{enumerate}
 
 \section{Conclusion}
 
-We show that LLM safety defenses have a clear blind spot for non-text attack channels. The same model that has perfect defense against text-based prompt injection (100/100) allows 73\% of multimodal attacks to bypass it (26.7/100). This cross-channel security gap is not only a problem in one specific model. It may reflect a broader weakness in current LLM safety alignment, because training data and evaluation benchmarks mainly focus on text while non-text channels receive less attention.
+We set out to test whether LLM safety alignment has a cross-channel blind spot. The answer is more nuanced than we first expected. Our original headline (73\% bypass) was a scorer false-positive that our own A/B/C audit caught and corrected to 47\% on document-pipeline text injection; on the true visual channel the bypass rate is strongly capability-dependent, spanning 0.8\%--46.7\% across six models with frontier models near zero. Two negative results bound the effect further: layered injection does not amplify attacks, and hiding an attack in document structure is harder, not easier, than plain text.
 
-As AI applications process more multimodal inputs, including images, documents, and audio, closing this gap becomes important. We release our testing framework as an open-source tool so this kind of evaluation and improvement can continue.
+The methodological takeaway is that a single bypass-rate number is unsafe to report: it conflates a model that never read the attack (minimax, 86\% not-read) with one that genuinely defended against it. The A/B/C perception decomposition, the cross-model comparison, and the self-correction audit trail are the reusable contributions. As AI applications process more multimodal inputs, this kind of measurement---not just a pass/fail score---is what will track whether defenses are actually improving. We release agent-redteam so this evaluation can be continued and extended.
 
-\section*{Reproducibility}
+\section{Reproducibility}
 
 All experiments can be reproduced:
 
@@ -261,39 +318,46 @@ agent-redteam scan --target zai --model GLM-5.2 --limit 30
 
 Source code: \url{https://github.com/uninhibited-scholar/agent-redteam}
 
-\begin{thebibliography}{99}
+\begin{thebibliography}{9}
 
-\bibitem{1} Greshake, K. et al. ``Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection.'' \textit{AISec 2023}.
+\bibitem{greshake2023}
+K. Greshake et al. ``Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection.'' AISec 2023.
 
-\bibitem{2} OWASP. ``OWASP Top 10 for LLM Applications.'' \url{https://genai.owasp.org/llmrisk/llm01-prompt-injection/}
+\bibitem{owasp}
+OWASP. ``OWASP Top 10 for LLM Applications.'' \url{https://genai.owasp.org/llmrisk/llm01-prompt-injection/}
 
-\bibitem{3} Schneider, C. ``Multimodal Prompt Injection.'' \url{https://christian-schneider.net/blog/multimodal-prompt-injection/}
+\bibitem{schneider}
+C. Schneider. ``Multimodal Prompt Injection.'' \url{https://christian-schneider.net/blog/multimodal-prompt-injection/}
 
-\bibitem{4} Keysight. ``Understanding Invisible Prompt Injection Attack.'' \url{https://www.keysight.com/blogs/en/tech/nwvs/2025/05/16/invisible-prompt-injection-attack}
+\bibitem{keysight}
+Keysight. ``Understanding Invisible Prompt Injection Attack.'' \url{https://www.keysight.com/blogs/en/tech/nwvs/2025/05/16/invisible-prompt-injection-attack}
 
-\bibitem{5} Anonymous. ``Multimodal Prompt Injection Attacks: Risks and Defenses for Modern LLMs.'' \textit{arXiv:2509.05883}, 2025.
+\bibitem{anonymous2025}
+Anonymous. ``Multimodal Prompt Injection Attacks: Risks and Defenses for Modern LLMs.'' arXiv:2509.05883, 2025.
 
-\bibitem{6} Liu, Y. et al. ``Formalizing and Benchmarking Prompt Injection Attacks and Defenses on Large Language Models.'' \textit{USENIX Security 2024}.
+\bibitem{liu2024}
+Y. Liu et al. ``Formalizing and Benchmarking Prompt Injection Attacks and Defenses on Large Language Models.'' USENIX Security 2024.
 
 \end{thebibliography}
 
 \appendix
 \section{Check Precision Fixes}
+\label{app:checkfixes}
 
 During validation, we found and fixed three accuracy issues in the check modules that were causing false positives:
 
 \begin{enumerate}
-\item \textbf{LeakCheck}: The original fallback for responses longer than 50 characters marked safe deflections, such as ``I don't have a temperature parameter to disclose,'' as leaks. We changed it to content-based detection only.
+  \item \textbf{LeakCheck}: The original fallback for responses longer than 50 characters marked safe deflections, such as ``I don't have a temperature parameter to disclose,'' as leaks. We changed it to content-based detection only.
 
-\item \textbf{HedgeCheck}: The hedging regular expression was too narrow and missed common deflection phrases. We expanded it using real model response patterns.
+  \item \textbf{HedgeCheck}: The hedging regular expression was too narrow and missed common deflection phrases. We expanded it using real model response patterns.
 
-\item \textbf{Refusal detection}: We added mixed Chinese-English refusal patterns and defensive pivots.
+  \item \textbf{Refusal detection}: We added mixed Chinese-English refusal patterns and defensive pivots.
 \end{enumerate}
 
 These fixes are covered by regression tests, with 294 tests in total.
 
 \section*{AI Assistance Disclosure}
 
-Data analysis, code implementation, and manuscript drafting for this paper were conducted with assistance from AI tools (Claude and ChatGPT). The experimental design, interpretation of results, and all technical decisions were made by the author. All data and code are open-source and reproducible at \url{https://github.com/uninhibited-scholar/agent-redteam}.
+This work was conducted independently by the author without formal supervisory support. AI tools were used to assist with drafting and language editing. The author designed the evaluation, implemented and verified the experiments, reviewed the final manuscript, and takes responsibility for its content.
 
 \end{document}
