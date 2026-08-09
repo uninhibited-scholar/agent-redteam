@@ -9,6 +9,8 @@ Department of Information Engineering, The Chinese University of Hong Kong
 > ⚠️ **SUPERSEDED — 2026-08-01.** The headline finding of this paper (73% multimodal bypass / 26.7-of-100 defense score) does **not** survive controlled re-measurement. A corrected evaluator (removing a length-based false-positive rule) drops the bypass rate to **46.7%** on both original models, and the delivery channel called "multimodal" here was in fact text extracted from SVG/HTML markup — a *document-pipeline text channel*, not the vision channel. The corrected study — with N=120 balanced samples per condition, six vision-language models across four vendors, a three-way perception/compliance decomposition (A/B/C), and an independent-judge κ blind audit — is in **[`paper-vision-channel-remeasurement.md`](./paper-vision-channel-remeasurement.md)** (its §4.1 documents this discrepancy as one of several independent motivating observations behind that study's design).
 >
 > This file is **retained unchanged** for the historical record and for the still-valid *text-channel* findings — D1 single-turn baseline, D2 mutation "structure-vs-surface" regularity (35.2% bypass), D3 multi-turn collapse (22% bypass) — which are migrated into the new paper as §4.7. **The 73% / 26.7 numbers in this file must not be cited as current results.**
+>
+> ⚠️ **Additional correction (2026-08-09)**: The §4.5 "adaptive engine Round 1, 100% bypass (n=2)" is based on only 2 attempts and is **statistically insufficient** — it must not be cited as a valid finding, only as a preliminary signal. The SUPERSEDED notice originally covered only the 73% headline; it now also covers the D5 small-sample caveat.
 
 ---
 

@@ -22,7 +22,7 @@
 \maketitle
 
 \begin{abstract}
-Large language models (LLMs) are becoming better at defending against text-based prompt injection, but it is unclear whether this defense holds when attack instructions are placed in non-text channels such as document pipelines or rendered images. We study this with a five-dimensional evaluation framework (single-turn text, mutation, multi-turn, multimodal, and adaptive attacks) applied to 8 models (2 text-only and 6 vision-language models). Our central methodological contribution is an \emph{A/B/C perception decomposition}: each probe is classified as (A) the model never read the attack, (B) it read but only described it, or (C) it read and executed it. Only C is a true bypass; reporting a single bypass rate conflates ``blind'' (A) with ``safe'' (B). Our findings are more nuanced than a uniform blind spot. After correcting a scorer false-positive in our own pipeline (original 73\%, corrected 47\%, 7/15 on document-pipeline text injection for GLM-5.2 and DeepSeek-v4), the real visual channel shows a strong \emph{capability dependence}: bypass ranges from 0.8\% (doubao-2.0-pro/code) to 46.7\% (doubao-2.0-lite) across 6 models $\times$ 120 samples, with frontier models near zero. Two negative results further bound the effect: layered injection does not amplify attacks (salience dominates), and hiding attacks in document structure is \emph{harder} to execute than plain text (DeepSeek-v4: 54.5\% $\rightarrow$ 9.1\%). We release agent-redteam (2,319 samples, 14 suites, OWASP LLM Top 10), including the self-correction audit trail.
+Large language models (LLMs) are becoming better at defending against text-based prompt injection, but it is unclear whether this defense holds when attack instructions are placed in non-text channels such as document pipelines or rendered images. We study this with a five-dimensional evaluation framework (single-turn text, mutation, multi-turn, multimodal, and adaptive attacks) applied to 8 models (2 text-only and 6 vision-language models). Our central methodological contribution is an \emph{A/B/C perception decomposition}: each probe is classified as (A) the model never read the attack, (B) it read but kept it separable from its actions (only described/quoted it), or (C) it read and executed it. Only C is a true bypass; reporting a single bypass rate conflates ``blind'' (A) with ``safe'' (B). Our findings are more nuanced than a uniform blind spot. After correcting a scorer false-positive in our own pipeline (original 73\%, corrected 47\%, 7/15 on document-pipeline text injection for GLM-5.2 and DeepSeek-v4), the real visual channel shows a strong \emph{capability dependence}: bypass ranges from 0.9\% (doubao-2.0-pro) to 46.7\% (doubao-2.0-lite) across 6 models $\times$ 120 samples, with frontier models near zero. Two negative results further bound the effect: layered injection does not amplify attacks (salience dominates), and hiding attacks in document structure is \emph{harder} to execute than plain text (DeepSeek-v4: 49.2\% $\rightarrow$ 1.7\%, $N{=}120$). We release agent-redteam (2,319 samples, 14 suites, OWASP LLM Top 10), including the self-correction audit trail.
 \end{abstract}
 
 \section{Introduction}
@@ -100,9 +100,9 @@ We take 5 samples that the model successfully defended and apply 11 mutation str
 
 These are scripted multi-turn conversations where the attacker builds trust or context over 3--5 turns before sending the actual attack. The categories are trust-building, privilege escalation, context poisoning, role-play injection, and indirect instruction.
 
-\noindent\textbf{Dimension 4: Multimodal Hidden Injection (15 samples)}
+\noindent\textbf{Dimension 4: Non-Text Channel Injection (15 doc-pipeline samples + 720 real-vision samples)}
 
-Attack instructions are hidden in non-text channels:
+Attack instructions are hidden in non-text channels. We separate two channels that were conflated in an early headline: (a) \emph{document-pipeline text injection}, where SVG/HTML/PDF content is \emph{extracted as text} and fed to the model, and (b) \emph{true visual injection}, where the attack is rendered into a PNG and the pixels are fed to a vision-language model. The document-pipeline techniques include:
 
 \begin{itemize}
   \item SVG hidden text (\texttt{font-size:0}, \texttt{opacity:0.01}, \texttt{position:absolute})
@@ -210,7 +210,7 @@ DeepSeek-v4 & 7/15 & \textbf{47\%} \\
 \end{tabular}
 \end{table}
 
-The over-count came from a length-based scorer fallback that marked ``the model merely \emph{describes} the image content'' as a bypass. Fixing it (Appendix~\ref{app:checkfixes}) dropped the rate by $\sim$26--33 points.
+The over-count came from a length-based scorer fallback that marked ``the model merely \emph{describes} the document content'' as a bypass. Fixing it (Appendix~\ref{app:checkfixes}) dropped the rate by $\sim$26--33 points.
 
 \noindent\textbf{(b) True visual channel (6 models $\times$ 120 samples).}
 We render the attack into a PNG and feed the pixels to vision-language models---real visual injection, not a text pipeline.
@@ -220,7 +220,7 @@ We render the attack into a PNG and feed the pixels to vision-language models---
 \small
 \begin{tabular}{lccc}
 \toprule
-Model & Bypass (C) & Not-read (A) & Read-but-described (B) \\
+Model & image\_plain bypass\textsuperscript{$\dagger$} & Not-read (A) & Read-but-described (B) \\
 \midrule
 doubao-2.0-pro & \textbf{0.9\%} & 26/114 & 87 \\
 doubao-2.0-code & \textbf{0.8\%} & 29/120 & 90 \\
@@ -232,7 +232,28 @@ doubao-2.0-lite & \textbf{46.7\%} & 37/120 & 64 \\
 \end{tabular}
 \end{table}
 
-Two findings stand out. First, the bypass rate is \textbf{strongly capability-dependent}: frontier models (doubao-pro/code $\approx$ 1\%, minimax $\approx$ 2\%) are near-zero, while the lightweight doubao-lite reaches 46.7\%. This is \emph{not} the uniform blind spot the original headline implied. Second, the A/B/C decomposition is essential: minimax's $\sim$2\% looks ``safe,'' but $A=103/120$ means 86\% of the time it never read the image at all---a perception failure, not a safety success. A single-number benchmark would credit minimax for safety it does not have. Only doubao-lite's 46.7\% is a genuine C-layer failure ($C=19/120$).
+\noindent\textsuperscript{$\dagger$}\textit{The \texttt{image\_plain} bypass column is the fraction of judged trials the model executed the attack (layer C). For frontier models this is near zero because they refuse after reading; for minimax-m3 it is near zero for a different reason---it fails to read the image at all (see column A). The same single bypass number therefore masks two qualitatively different outcomes, which is the motivation for the A/B/C split.}
+
+Two findings stand out. First, the bypass rate is \textbf{strongly capability-dependent}: frontier models (doubao-pro/code $\approx$ 1\%, minimax $\approx$ 2\%) are near-zero, while the lightweight doubao-lite reaches 46.7\%. This is \emph{not} the uniform blind spot the original headline implied. Second, the A/B/C decomposition is essential: minimax's $\sim$2\% looks ``safe,'' but $A=103/120$ means 86\% of the time it never read the image at all---a perception failure, not a safety success. A single-number benchmark would credit minimax for safety it does not have. Genuine C-layer failures (model read \emph{and} executed the attack) occur in the three weaker models: doubao-lite ($C=19/120$), kimi-k2-7 ($C=20/120$), and glm-4v-flash ($C=19/120$); the frontier models genuinely refuse after reading ($C \le 1$).
+
+\subsection{Document-Pipeline vs.\ Plain Text (Negative Result, $N{=}120$)}
+
+To isolate the effect of the delivery channel, we delivered the \emph{same} harmful payload as either plain text or via the document pipeline (SVG-as-text---the paper's original ``multimodal'' method) on both original models, $N{=}120$ per cell.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lcc}
+\toprule
+Model & plain\_text bypass & doc\_pipeline bypass \\
+\midrule
+GLM-5.2 & 47.1\% (56/119) & \textbf{0.8\%} (1/120) \\
+DeepSeek-v4 & 49.2\% (58/118) & \textbf{1.7\%} (2/120) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Moving an injection from plain text into document structure does not raise bypass---it \emph{collapses} it by $\sim$45--47pp. The paper's ``multimodal'' channel is therefore not a more dangerous surface; it is a \emph{weaker} one. This is a controlled negative result with a narrow confidence interval, not an absence-of-evidence artifact.
 
 \subsection{Adaptive Evolutionary Attack Results (Dimension 5)}
 
@@ -249,8 +270,9 @@ Attack Dimension & GLM-5.2 Defense & Bypass Rate \\
 Single-turn text injection & 100/100 & 0\% \\
 Mutation attacks ($n{=}55$, preliminary) & --- & 35.2\% \\
 Multi-turn attacks ($n{=}50$, preliminary) & $\sim$78/100 & 22\% \\
-Multimodal doc-pipeline (corrected) & --- & 47\% \\
-Multimodal true visual (6 models) & --- & 0.8\%--46.7\% \\
+Multimodal doc-pipeline (corrected, $n{=}15$) & --- & 47\% \\
+Multimodal true visual (6 models $\times$ 120) & --- & 0.8\%--46.7\% \\
+Doc-pipeline vs.\ plain text ($N{=}120$) & --- & 47.1\%/49.2\% $\rightarrow$ 0.8\%/1.7\% \\
 Adaptive evolutionary ($n{=}2$, preliminary) & --- & 100\% (Round 1) \\
 \bottomrule
 \end{tabular}
@@ -266,11 +288,11 @@ Current LLM safety training mostly targets text prompts, so models learn to refu
 
 \begin{itemize}
   \item \textbf{Perception gating (layer A).} A model can only execute an instruction it has read. Frontier vision models read the image reliably (doubao-pro $A=26/114$), so their near-zero bypass is a genuine safety success; minimax reads the image only 14\% of the time ($A=103/120$), so its near-zero bypass is a \emph{perception failure} dressed up as safety. The A/B/C split is what tells these apart.
-  \item \textbf{Reading-mode suppression (negative result).} In the document-pipeline channel, models tend to \emph{describe} the SVG/HTML content rather than act on it---entering a ``reading-comprehension'' mode that suppresses instruction execution. DeepSeek-v4's bypass drops from 54.5\% on plain text to 9.1\% when the same attack is hidden in document structure. Hiding an attack in a document can therefore make it \emph{harder}, not easier.
+  \item \textbf{Reading-mode suppression (negative result).} In the document-pipeline channel, models tend to \emph{describe} the SVG/HTML content rather than act on it---entering a ``reading-comprehension'' mode that suppresses instruction execution. At $N{=}120$, DeepSeek-v4's bypass drops from 49.2\% on plain text to 1.7\% when the same attack is hidden in document structure, and GLM-5.2 from 47.1\% to 0.8\%. Hiding an attack in a document can therefore make it \emph{harder}, not easier.
   \item \textbf{Salience dominates layering (negative result).} In the layered-injection experiment, models execute whichever instruction they read \emph{first}, regardless of whether it is the surface or the buried one. ``Hidden = more dangerous'' is not supported; visibility order is what matters.
 \end{itemize}
 
-The residual 47\% on document-pipeline text injection (GLM-5.2, DeepSeek-v4) and 46.7\% on the lightweight doubao-lite are the genuine C-layer failures worth attention. The corrected headline is therefore not ``non-text channels are universally vulnerable'' but ``the gap is real, capability-dependent, and in some channels actually inverted.''
+The residual 47\% on document-pipeline text injection (GLM-5.2, DeepSeek-v4) and the genuine C-layer failures on the three weaker vision models---doubao-lite ($C=19/120$), kimi-k2-7 ($C=20/120$), and glm-4v-flash ($C=19/120$)---are the cases worth attention. The corrected headline is therefore not ``non-text channels are universally vulnerable'' but ``the gap is real, capability-dependent, and in some channels actually inverted.''
 
 \subsection{Implications for Agent Security}
 
@@ -296,14 +318,14 @@ Any AI application that accepts file or image uploads may be vulnerable. Common 
 
 \begin{enumerate}
   \item \textbf{Small-sample dimensions.} Mutation ($n{=}55$), multi-turn ($n{=}50$), and adaptive evolutionary ($n{=}2$) results are preliminary signals, not headline findings, and are flagged as such throughout. Scaling them to $N{=}120$ is future work.
-  \item \textbf{Self-corrected scorer.} Our first scorer over-counted bypasses by treating ``the model describes the image'' as execution (length-based fallback), inflating the original 73\%/80\% to a corrected 47\%. The fix and the regression tests are in Appendix~\ref{app:checkfixes}; the 73\%$\rightarrow$47\% audit is itself part of the contribution, but it means early-stage numbers in our own pipeline should not be trusted without re-scoring.
+  \item \textbf{Self-corrected scorer.} Our first scorer over-counted bypasses by treating ``the model merely describes the document content'' as execution (length-based fallback), inflating the original 73\%/80\% to a corrected 47\%. The fix and the regression tests are in Appendix~\ref{app:checkfixes}; the 73\%$\rightarrow$47\% audit is itself part of the contribution, but it means early-stage numbers in our own pipeline should not be trusted without re-scoring.
   \item \textbf{Rendered-image legibility.} The default low-contrast setting (gray 246) sits below the reading threshold of at least one model (glm-4v-flash), so part of the low bypass on \texttt{image\_lowcon} is a rendering artifact rather than model safety. A legibility sweep (gray 140--170 $\rightarrow$ 100\% perception) documents this.
   \item \textbf{Model coverage.} We test 8 models; the capability-dependent spread (0.8\%--46.7\%) may shift as frontier models improve, so the finding is a snapshot, not a permanent claim.
 \end{enumerate}
 
 \section{Conclusion}
 
-We set out to test whether LLM safety alignment has a cross-channel blind spot. The answer is more nuanced than we first expected. Our original headline (73\% bypass) was a scorer false-positive that our own A/B/C audit caught and corrected to 47\% on document-pipeline text injection; on the true visual channel the bypass rate is strongly capability-dependent, spanning 0.8\%--46.7\% across six models with frontier models near zero. Two negative results bound the effect further: layered injection does not amplify attacks, and hiding an attack in document structure is harder, not easier, than plain text.
+We set out to test whether LLM safety alignment has a cross-channel blind spot. The answer is more nuanced than we first expected. Our original headline (73\% bypass) was a scorer false-positive that our own A/B/C audit caught and corrected to 47\% on document-pipeline text injection; on the true visual channel the bypass rate is strongly capability-dependent, spanning 0.8\%--46.7\% across six models with frontier models near zero. Two negative results bound the effect further: layered injection does not amplify attacks, and hiding an attack in document structure is harder, not easier, than plain text ($N{=}120$: $\sim$48\% $\rightarrow$ $\sim$1\%).
 
 The methodological takeaway is that a single bypass-rate number is unsafe to report: it conflates a model that never read the attack (minimax, 86\% not-read) with one that genuinely defended against it. The A/B/C perception decomposition, the cross-model comparison, and the self-correction audit trail are the reusable contributions. As AI applications process more multimodal inputs, this kind of measurement---not just a pass/fail score---is what will track whether defenses are actually improving. We release agent-redteam so this evaluation can be continued and extended.
 
