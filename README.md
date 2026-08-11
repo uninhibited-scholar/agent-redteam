@@ -14,8 +14,13 @@
 
 ```bash
 pip install agent-redteam
-agent-redteam scan --target zai --model GLM-5.2 --limit 30   # 30 秒内可复现
+# 单套件 5 样本, ~10 秒可复现 (最快验证)
+agent-redteam scan --target zai --model GLM-5.2 --suites injection --limit 5
+# 全 14 套件 × 30 样本, 完整复现论文数据 (~15-20 分钟, 500+ 次 API 调用)
+agent-redteam scan --target zai --model GLM-5.2 --limit 30
 ```
+
+> 📋 **复赛合规披露**：商业 API 调用、随机种子、第三方依赖与数据可用性见 [docs/COMPLIANCE.md](docs/COMPLIANCE.md)。核心零依赖（stdlib only），API key 仅本地不外传。
 
 ---
 
